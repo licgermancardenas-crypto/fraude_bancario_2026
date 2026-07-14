@@ -1,4 +1,6 @@
 {
+  "framework": null,
   "buildCommand": "npm run build",
-  "outputDirectory": "dashboard/out"
+  "outputDirectory": "dashboard/out",
+  "installCommand": "echo 'skip'"
 }

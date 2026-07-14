@@ -1,0 +1,16 @@
+# Python — no forma parte del deployment web
+requirements.txt
+src/
+config/
+data/
+models/
+notebooks/
+reports/
+tests/
+venv/
+docs/
+*.py
+*.ipynb
+*.csv
+*.pt
+*.pkl
