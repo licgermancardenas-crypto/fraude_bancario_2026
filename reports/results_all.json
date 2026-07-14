@@ -67,5 +67,28 @@
     "biz_daily_fraud_tp": 26,
     "biz_pct_fraud_missed": 0.0,
     "biz_scale_factor": 1930.0
+  },
+  {
+    "model": "GAT",
+    "pr_auc": 0.81,
+    "roc_auc": 0.9964,
+    "rec_at_p90": 0.2,
+    "thr_at_p90": 0.9996,
+    "f1_optimal": 0.9091,
+    "threshold_opt": 0.9312,
+    "confusion_matrix": [
+      [
+        220,
+        1
+      ],
+      [
+        0,
+        5
+      ]
+    ],
+    "biz_daily_alerts": 32,
+    "biz_daily_fraud_tp": 26,
+    "biz_pct_fraud_missed": 0.0,
+    "biz_scale_factor": 1930.0
   }
 ]

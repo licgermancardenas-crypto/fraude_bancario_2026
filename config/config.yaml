@@ -32,6 +32,16 @@ model:
     patience: 20
     batch_size: null  # null = full-batch (para scale 0.01)
 
+  gat:
+    hidden_channels: 64
+    num_layers: 2
+    heads: 4
+    dropout: 0.3
+    lr: 0.005
+    weight_decay: 0.0005
+    epochs: 300
+    patience: 20
+
   baseline:
     logreg:
       class_weight: balanced
