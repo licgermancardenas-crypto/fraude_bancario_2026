@@ -1,15 +1,13 @@
+"use client";
+import { useState } from "react";
 import RingGraph from "@/components/RingGraph";
 import type { Ring } from "@/lib/types";
 import ringsRaw from "@/public/data/rings.json";
 
 const rings: Ring[] = ringsRaw as Ring[];
 
-export default function AnillosPage({
-  searchParams,
-}: {
-  searchParams: { ring?: string };
-}) {
-  const idx  = Math.max(0, Math.min(rings.length - 1, Number(searchParams.ring ?? 0)));
+export default function AnillosPage() {
+  const [idx, setIdx] = useState(0);
   const ring = rings[idx];
 
   return (
@@ -30,13 +28,13 @@ export default function AnillosPage({
           {/* ring selector */}
           <div className="flex flex-wrap gap-2">
             {rings.map((r, i) => (
-              <a key={r.ring_id} href={`/anillos?ring=${i}`}
+              <button key={r.ring_id} onClick={() => setIdx(i)}
                  className={`px-4 py-2 rounded-lg text-sm font-medium border transition-colors
                    ${i === idx
                      ? "border-[#C9A227] text-[#C9A227] bg-[#C9A227]/10"
                      : "border-white/10 text-white/60 hover:bg-white/5"}`}>
                 Anillo #{r.ring_id} · {r.n_nodes} nodos
-              </a>
+              </button>
             ))}
           </div>
 
