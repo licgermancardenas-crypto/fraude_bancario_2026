@@ -26,8 +26,7 @@ models/*.pt
 models/*.pkl
 models/*.bin
 
-# Reports — figuras generadas, sí versionar insights y el informe fuente
-reports/figures/
+# Reports — versionar figuras e insights; excluir el PDF binario final
 reports/informe_final.pdf
 
 # Node / Next.js
