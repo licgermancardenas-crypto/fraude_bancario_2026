@@ -1,0 +1,60 @@
+# Python
+venv/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.egg-info/
+dist/
+build/
+.eggs/
+*.egg
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Jupyter
+.ipynb_checkpoints/
+*.ipynb_checkpoints
+
+# Data — raw y processed no se versiona (pesado)
+data/raw/
+data/processed/
+
+# Modelos entrenados (pesados) — excluir binarios grandes
+models/*.pt
+models/*.pkl
+models/*.bin
+
+# Reports — figuras generadas, sí versionar insights y el informe fuente
+reports/figures/
+reports/informe_final.pdf
+
+# Node / Next.js
+node_modules/
+.next/
+dashboard/.next/
+dashboard/node_modules/
+dashboard/out/
+
+# Vercel
+.vercel/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Editor
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Env
+.env
+.env.local
+.env*.local
+
+# Logs
+*.log
+training_log.csv

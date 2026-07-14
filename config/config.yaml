@@ -1,0 +1,58 @@
+project:
+  name: fraude_bancario_2026
+  seed: 42
+  client: "Banco Regional del Sur (BRS)"
+
+data:
+  scale_factor: 0.01
+  raw_dir: data/raw
+  processed_dir: data/processed
+  workers: 4
+
+features:
+  node_features:
+    - degree_in
+    - degree_out
+    - total_sent
+    - total_received
+    - avg_sent
+    - avg_received
+    - unique_counterparts
+    - balance
+    - risk_score
+
+model:
+  graphsage:
+    hidden_channels: 64
+    num_layers: 2
+    dropout: 0.3
+    lr: 0.005
+    weight_decay: 0.0005
+    epochs: 200
+    patience: 20
+    batch_size: null  # null = full-batch (para scale 0.01)
+
+  baseline:
+    logreg:
+      class_weight: balanced
+      max_iter: 1000
+    xgboost:
+      n_estimators: 300
+      max_depth: 6
+      learning_rate: 0.05
+
+split:
+  train: 0.70
+  val: 0.15
+  test: 0.15
+
+paths:
+  models_dir: models
+  reports_dir: reports
+  figures_dir: reports/figures
+  dashboard_data_dir: dashboard/public/data
+
+dashboard:
+  top_rings: 10
+  top_accounts: 200
+  max_json_mb: 2
