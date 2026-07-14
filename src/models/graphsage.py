@@ -31,9 +31,10 @@ class GraphSAGE(nn.Module):
 
         self.classifier = nn.Linear(hidden_channels, 2)
 
-    def forward(self, x: torch.Tensor, edge_index: torch.Tensor) -> torch.Tensor:
+    def forward(self, x: torch.Tensor, edge_index: torch.Tensor,
+                edge_weight: torch.Tensor | None = None) -> torch.Tensor:
         for conv in self.convs:
-            x = conv(x, edge_index)
+            x = conv(x, edge_index, edge_weight)
             x = F.relu(x)
             x = F.dropout(x, p=self.dropout, training=self.training)
         return self.classifier(x)
