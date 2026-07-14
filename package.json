@@ -1,0 +1,8 @@
+{
+  "name": "fraude-bancario-2026",
+  "private": true,
+  "scripts": {
+    "build": "cd dashboard && npm install && npm run build",
+    "dev": "cd dashboard && npm run dev"
+  }
+}
