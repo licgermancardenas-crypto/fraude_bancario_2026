@@ -212,11 +212,12 @@ def main(config_path="config/config.yaml"):
     print(f"  → {csv_path}")
     print(f"  → {md_path}")
 
-    # also save raw scores for GNN comparison later
-    Path(processed_dir).mkdir(parents=True, exist_ok=True)
-    np.save(f"{processed_dir}/y_test.npy",         y_test)
-    np.save(f"{processed_dir}/scores_logreg.npy",  score_lr)
-    np.save(f"{processed_dir}/scores_xgboost.npy", score_xgb)
+    # Save scores sorted by ascending node index so they align with boolean
+    # mask indexing used in analysis.py (data.y[test_mask] returns in sorted order).
+    sort_order   = np.argsort(test_idx)
+    np.save(f"{processed_dir}/y_test.npy",         y_test[sort_order])
+    np.save(f"{processed_dir}/scores_logreg.npy",  score_lr[sort_order])
+    np.save(f"{processed_dir}/scores_xgboost.npy", score_xgb[sort_order])
 
     # save full results as JSON
     with open(f"{reports_dir}/results_baseline.json", "w") as f:

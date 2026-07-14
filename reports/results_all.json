@@ -1,0 +1,71 @@
+[
+  {
+    "model": "Logistic Regression",
+    "pr_auc": 0.5554,
+    "roc_auc": 0.9258,
+    "rec_at_p90": 0.0,
+    "thr_at_p90": null,
+    "f1_optimal": 0.8,
+    "threshold_opt": 0.9996,
+    "confusion_matrix": [
+      [
+        220,
+        1
+      ],
+      [
+        1,
+        4
+      ]
+    ],
+    "biz_daily_alerts": 26,
+    "biz_daily_fraud_tp": 21,
+    "biz_pct_fraud_missed": 20.0,
+    "biz_scale_factor": 1930.0
+  },
+  {
+    "model": "XGBoost",
+    "pr_auc": 0.925,
+    "roc_auc": 0.9973,
+    "rec_at_p90": 0.8,
+    "thr_at_p90": 0.9128,
+    "f1_optimal": 0.8889,
+    "threshold_opt": 0.9128,
+    "confusion_matrix": [
+      [
+        221,
+        0
+      ],
+      [
+        1,
+        4
+      ]
+    ],
+    "biz_daily_alerts": 21,
+    "biz_daily_fraud_tp": 21,
+    "biz_pct_fraud_missed": 20.0,
+    "biz_scale_factor": 1930.0
+  },
+  {
+    "model": "GraphSAGE",
+    "pr_auc": 1.0,
+    "roc_auc": 1.0,
+    "rec_at_p90": 1.0,
+    "thr_at_p90": 0.997,
+    "f1_optimal": 1.0,
+    "threshold_opt": 0.997,
+    "confusion_matrix": [
+      [
+        221,
+        0
+      ],
+      [
+        0,
+        5
+      ]
+    ],
+    "biz_daily_alerts": 26,
+    "biz_daily_fraud_tp": 26,
+    "biz_pct_fraud_missed": 0.0,
+    "biz_scale_factor": 1930.0
+  }
+]

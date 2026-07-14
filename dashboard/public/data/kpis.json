@@ -1,0 +1,1 @@
+{"n_accounts":1500,"n_fraud":29,"pct_fraud":1.93,"pr_auc_gnn":1.0,"recall_at_p90":1.0,"model":"GraphSAGE (2 capas, 64 hidden)","dataset":"Sint\u00e9tico \u2014 Santander AI Lab equiv.","client":"Banco Regional del Sur (BRS)"}

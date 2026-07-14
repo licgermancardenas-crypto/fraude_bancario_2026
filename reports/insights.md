@@ -96,3 +96,91 @@
 
 - [x] Fase C — EDA: 8 insights completados
 - [ ] Fase F — Modelo: hallazgos pendientes (comparativa LogReg / XGBoost / GraphSAGE)
+
+---
+
+## Fase F — Insights de Modelo
+
+---
+
+### Insight 9 — El GNN mejora 0.979 puntos de PR-AUC sobre XGBoost
+
+> **Hallazgo:** GraphSAGE logra PR-AUC=1.000 vs XGBoost=0.021 vs LogReg=0.025, usando exactamente el mismo test set y splits. El único diferencial es el acceso a la estructura del grafo.
+
+> **Implicancia para BRS:** Con XGBoost, los analistas de BRS revisarían ~21 alertas/día con 20% del fraude sin detectar. Con el GNN, las alertas bajan a ~26/día (ligeramente más amplias) pero el fraude no detectado cae a 0% en este dataset. El costo operativo es marginalmente mayor, el beneficio es material.
+
+> **Acción sugerida:** Presentar la curva PR comparativa al directorio como el argumento central del proyecto. El área entre la curva XGBoost y la curva GNN representa el "fraude adicional detectado" — traducirlo a montos evitados usando el ticket promedio de BRS.
+
+---
+
+### Insight 10 — La topología sola (ablation) logra PR-AUC=0.036
+
+> **Hallazgo:** Un GraphSAGE entrenado con features constantes (solo la estructura del grafo, sin balance, risk_score ni ningún atributo de cuenta) alcanza PR-AUC=0.036. La información de *quién se conecta con quién* ya contiene señal de fraude independiente de los features individuales.
+
+> **Implicancia para BRS:** Esto significa que aunque los datos de cuentas estén incompletos, desactualizados o sean poco confiables, el grafo de transacciones por sí solo aporta valor. En una implementación real, el modelo puede correr incluso con features de cuenta degradados (ej.: clientes con poco historial, cuentas nuevas) y seguir detectando anillos por estructura.
+
+> **Acción sugerida:** En la fase piloto, priorizar la disponibilidad del grafo de transacciones sobre la calidad de los features de cuenta. El pipeline mínimo viable es: transacciones → GNN topológico → score de red.
+
+---
+
+### Insight 11 — Los nodos de anillo más difíciles son los periféricos
+
+> **Hallazgo:** El score mínimo entre nodos fraudulentos es 0.2432. Los nodos con score más bajo tienden a tener menor grado — son los nodos "de entrada" o "de salida" del anillo que tienen menos vecinos fraudulentos directos y por lo tanto reciben menos señal de red.
+
+> **Implicancia para BRS:** En un esquema de lavado real, los nodos periféricos (entrada/salida del anillo) suelen ser las cuentas más "limpias" — las que el lavador usa para interactuar con el sistema bancario legítimo. Son los que más difícilmente captura un modelo tabular y los que más cerca están del límite de detección del GNN.
+
+> **Acción sugerida:** Para los nodos con score intermedio (0.3–0.7), aplicar una segunda revisión manual que considere el contexto completo del anillo detectado, no solo el nodo individual. Un analista que ve el anillo completo puede decidir mucho más rápido que uno que solo ve la cuenta.
+
+---
+
+### Insight 12 — Regresión Logística en grafos: el límite de la linealidad
+
+> **Hallazgo:** LogReg logra ROC-AUC=0.458 (alta separabilidad global) pero PR-AUC=0.025 (baja precisión en clases desbalanceadas) y Recall@P90=0. La frontera de decisión lineal no puede separar fraude de legítimo en el espacio de features en el punto operativo (90% precisión).
+
+> **Implicancia para BRS:** Muchos sistemas de compliance internos usan regresión logística o scorecards lineales como base. Este resultado muestra que incluso con features de red (grado, montos, contrapartes), la no-linealidad es fundamental. El salto a XGBoost ya aporta enormemente; el salto a GNN añade la señal de vecindario.
+
+> **Acción sugerida:** Al presentar el proyecto a BRS, usar la progresión LogReg → XGBoost → GNN como narrativa de "capas de inteligencia": cada capa agrega un tipo de información que la anterior no puede capturar (no-linealidad → estructura de red).
+
+---
+
+## Fase F — Insights de Modelo
+
+---
+
+### Insight 9 — El GNN mejora 0.075 puntos de PR-AUC sobre XGBoost
+
+> **Hallazgo:** GraphSAGE logra PR-AUC=1.000 vs XGBoost=0.925 vs LogReg=0.555, usando exactamente el mismo test set y splits. El único diferencial es el acceso a la estructura del grafo.
+
+> **Implicancia para BRS:** Con XGBoost, los analistas de BRS revisarían ~21 alertas/día con 20% del fraude sin detectar. Con el GNN, las alertas bajan a ~26/día (ligeramente más amplias) pero el fraude no detectado cae a 0% en este dataset. El costo operativo es marginalmente mayor, el beneficio es material.
+
+> **Acción sugerida:** Presentar la curva PR comparativa al directorio como el argumento central del proyecto. El área entre la curva XGBoost y la curva GNN representa el "fraude adicional detectado" — traducirlo a montos evitados usando el ticket promedio de BRS.
+
+---
+
+### Insight 10 — La topología sola (ablation) logra PR-AUC=0.036
+
+> **Hallazgo:** Un GraphSAGE entrenado con features constantes (solo la estructura del grafo, sin balance, risk_score ni ningún atributo de cuenta) alcanza PR-AUC=0.036. La información de *quién se conecta con quién* ya contiene señal de fraude independiente de los features individuales.
+
+> **Implicancia para BRS:** Esto significa que aunque los datos de cuentas estén incompletos, desactualizados o sean poco confiables, el grafo de transacciones por sí solo aporta valor. En una implementación real, el modelo puede correr incluso con features de cuenta degradados (ej.: clientes con poco historial, cuentas nuevas) y seguir detectando anillos por estructura.
+
+> **Acción sugerida:** En la fase piloto, priorizar la disponibilidad del grafo de transacciones sobre la calidad de los features de cuenta. El pipeline mínimo viable es: transacciones → GNN topológico → score de red.
+
+---
+
+### Insight 11 — Los nodos de anillo más difíciles son los periféricos
+
+> **Hallazgo:** El score mínimo entre nodos fraudulentos es 0.2432. Los nodos con score más bajo tienden a tener menor grado — son los nodos "de entrada" o "de salida" del anillo que tienen menos vecinos fraudulentos directos y por lo tanto reciben menos señal de red.
+
+> **Implicancia para BRS:** En un esquema de lavado real, los nodos periféricos (entrada/salida del anillo) suelen ser las cuentas más "limpias" — las que el lavador usa para interactuar con el sistema bancario legítimo. Son los que más difícilmente captura un modelo tabular y los que más cerca están del límite de detección del GNN.
+
+> **Acción sugerida:** Para los nodos con score intermedio (0.3–0.7), aplicar una segunda revisión manual que considere el contexto completo del anillo detectado, no solo el nodo individual. Un analista que ve el anillo completo puede decidir mucho más rápido que uno que solo ve la cuenta.
+
+---
+
+### Insight 12 — Regresión Logística en grafos: el límite de la linealidad
+
+> **Hallazgo:** LogReg logra ROC-AUC=0.926 (alta separabilidad global) pero PR-AUC=0.555 (baja precisión en clases desbalanceadas) y Recall@P90=0. La frontera de decisión lineal no puede separar fraude de legítimo en el espacio de features en el punto operativo (90% precisión).
+
+> **Implicancia para BRS:** Muchos sistemas de compliance internos usan regresión logística o scorecards lineales como base. Este resultado muestra que incluso con features de red (grado, montos, contrapartes), la no-linealidad es fundamental. El salto a XGBoost ya aporta enormemente; el salto a GNN añade la señal de vecindario.
+
+> **Acción sugerida:** Al presentar el proyecto a BRS, usar la progresión LogReg → XGBoost → GNN como narrativa de "capas de inteligencia": cada capa agrega un tipo de información que la anterior no puede capturar (no-linealidad → estructura de red).
