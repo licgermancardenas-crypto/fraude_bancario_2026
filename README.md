@@ -8,13 +8,17 @@ Engagement simulado para *Banco Regional del Sur (BRS)*: prueba de concepto end-
 
 ## Resultados
 
-| Modelo | PR-AUC | Recall @ P90 | Fraude no detectado |
+| Modelo | PR-AUC (transductivo) | PR-AUC (inductivo) | Recall @ P90 |
 |---|---|---|---|
-| Logistic Regression | 0.555 | 0% | 20% |
-| XGBoost | 0.925 | 80% | 20% |
-| **GraphSAGE (GNN)** | **1.000** | **100%** | **0%** |
+| Logistic Regression | 0.555 | — | 0% |
+| XGBoost | 0.925 | — | 80% |
+| Node2Vec + XGBoost | 0.227 | — | 0% |
+| GAT | 0.810 | — | 20% |
+| **GraphSAGE** | **1.000** | **0.835** | **100%** |
 
-El modelo GNN detecta el 100% del fraude con 90% de precisión. La clave: **lift fraude-fraude de 14.3×** — las cuentas mula son crediticiamente normales (Cohen d = 0.055) pero se delatan por sus conexiones.
+**Nota metodológica:** el PR-AUC=1.0 corresponde a evaluación transductiva estándar (full-batch, el GNN ve todas las aristas durante el forward pass, incluyendo conexiones entre nodos de train y test). En evaluación inductiva —eliminando aristas de test durante la inferencia, que simula cuentas nuevas en producción— el PR-AUC baja a **0.835**, que es el número correcto para estimar rendimiento operativo. Sigue siendo el modelo más potente. Ver [Insight 15](reports/insights.md).
+
+La clave del resultado: **lift fraude-fraude de 14.3×** — las cuentas mula son crediticiamente normales (Cohen d = 0.055) pero se delatan por sus conexiones.
 
 ## Stack
 

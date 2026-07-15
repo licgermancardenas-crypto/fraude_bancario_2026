@@ -224,3 +224,13 @@
 **Implicancia para BRS:** Un sistema de alertas basado en el score GNN puede usarse de forma transitiva: si la cuenta A es marcada, las cuentas que más influyeron en esa marcación son candidatas inmediatas a revisión secundaria.
 
 **Acción sugerida:** Implementar "investigación en cascada": cuando un analista confirma fraude en una cuenta, el sistema genera automáticamente alertas de nivel 2 para sus vecinos influyentes según GNNExplainer.
+
+---
+
+### Insight 15 — El PR-AUC=1.0 de GraphSAGE refleja evaluación transductiva, no inductiva
+
+**Hallazgo:** En la evaluación estándar (transductiva), el GNN ve durante el entrenamiento todas las aristas del grafo, incluyendo las que conectan nodos de test con nodos fraude de train. Al aislar el test set eliminando sus aristas del grafo (evaluación inductiva, que simula cuentas nuevas en producción), el PR-AUC cae de **1.000 → 0.835**. Un nodo fraude (de 5) pasa de score=0.997 a score=0.007: su única señal era su conexión directa a 2 nodos fraude de train.
+
+**Implicancia para BRS:** El PR-AUC de 0.83 en evaluación inductiva es el número correcto para estimar rendimiento en producción con cuentas nuevas. Sigue siendo el mejor modelo (vs. XGBoost=0.925 tabular, también en setting transductivo comparable). El leakage es un fenómeno conocido en la literatura de GNNs; la mitigación en producción es actualizar el grafo con lag controlado.
+
+**Acción sugerida:** En el piloto con datos reales de BRS, evaluar en ventana temporal: entrenar con transacciones hasta el mes M y evaluar en el mes M+1 (ningún nodo de test tiene aristas en el grafo de train). Esto da la estimación más honesta del rendimiento operativo real.
