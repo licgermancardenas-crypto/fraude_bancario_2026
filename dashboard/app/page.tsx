@@ -1,11 +1,12 @@
 import KPICard from "@/components/KPICard";
 import PRCurveChart from "@/components/PRCurveChart";
 import ScoreDistChart from "@/components/ScoreDistChart";
+import PageHeader from "@/components/PageHeader";
 import type { KPIs, PRCurve, ScoreDistribution } from "@/lib/types";
 
-import kpisRaw    from "@/public/data/kpis.json";
-import curvesRaw  from "@/public/data/pr_curves.json";
-import distRaw    from "@/public/data/score_distribution.json";
+import kpisRaw   from "@/public/data/kpis.json";
+import curvesRaw from "@/public/data/pr_curves.json";
+import distRaw   from "@/public/data/score_distribution.json";
 
 const kpis:   KPIs              = kpisRaw as KPIs;
 const curves: PRCurve[]         = curvesRaw as PRCurve[];
@@ -13,80 +14,106 @@ const dist:   ScoreDistribution = distRaw as ScoreDistribution;
 
 const insights = [
   {
-    tag: "Hallazgo clave",
-    text: "Las aristas fraude→fraude tienen un lift de 14.3x sobre el esperado por azar. La señal de lavado es estructural, no de monto individual.",
+    tag: "Señal estructural",
+    text: "Lift fraude→fraude de 14.3× sobre el esperado por azar. El lavado no se detecta por monto — se detecta por patrón de red.",
   },
   {
-    tag: "Risk score externo",
-    text: "Cohen d = 0.055 entre cuentas fraude y legítimas: el score crediticio es ciego al lavado estructurado. El problema es de red, no de perfil.",
+    tag: "Score crediticio ciego",
+    text: "Cohen d = 0.055 entre cuentas fraude y legítimas. El riesgo crediticio es ortogonal al riesgo AML.",
   },
   {
     tag: "Ventana de 72 h",
-    text: "Los anillos de lavado detectados completan sus ciclos en ventanas de 600 s a 72 h, antes de que activen los sistemas de monitoreo batch diario.",
+    text: "Los anillos completan sus ciclos antes de que activen los sistemas de monitoreo batch diario.",
   },
 ];
 
 export default function OverviewPage() {
-  const gnnCurve = curves.find(c => c.model === "GraphSAGE");
+  const sageCurve = curves.find(c => c.model === "GraphSAGE");
+  const xgbCurve  = curves.find(c => c.model === "XGBoost");
+  const delta     = ((sageCurve?.pr_auc ?? 1) - (xgbCurve?.pr_auc ?? 0)).toFixed(3);
 
   return (
     <div className="space-y-8">
-      {/* header */}
-      <div>
-        <p className="text-xs font-semibold uppercase tracking-widest text-[#C9A227] mb-1">
-          Banco Regional del Sur · Engagement simulado
-        </p>
-        <h1 className="text-2xl sm:text-3xl font-bold text-white">
-          Detección de Redes de Lavado mediante GNNs
-        </h1>
-        <p className="mt-1 text-sm text-white/50">
-          GraphSAGE sobre grafo transaccional sintético · Germán Cárdenas · 2026
-        </p>
-      </div>
+      <PageHeader
+        eyebrow="Banco Regional del Sur · Engagement simulado"
+        title="Detección de Redes de Lavado mediante GNNs"
+        description="GraphSAGE sobre grafo transaccional sintético — prueba de concepto end-to-end · Germán Cárdenas · 2026"
+      />
 
       {/* KPIs */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <KPICard label="Cuentas analizadas" value={kpis.n_accounts.toLocaleString("es-AR")} sub={`${kpis.n_fraud} fraud nodes (${kpis.pct_fraud}%)`} />
-        <KPICard label="PR-AUC — GraphSAGE" value={kpis.pr_auc_gnn.toFixed(3)} sub="Métrica primaria (clases desbalanceadas)" accent />
-        <KPICard label="Recall @ Precision 90%" value={(kpis.recall_at_p90 * 100).toFixed(0) + "%"} sub="Con 9/10 alertas correctas, % fraude detectado" accent />
-        <KPICard label="Fraude no detectado" value="0%" sub="vs 20% con XGBoost y LogReg" />
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+        <KPICard
+          label="Cuentas analizadas"
+          value={kpis.n_accounts.toLocaleString("es-AR")}
+          sub={`${kpis.n_fraud} fraudulentas · ${kpis.pct_fraud}% prevalencia`}
+          color="#6B8CC7"
+          dim
+        />
+        <KPICard
+          label="PR-AUC — GraphSAGE"
+          value={kpis.pr_auc_gnn.toFixed(3)}
+          sub={`+${delta} sobre XGBoost tabular`}
+        />
+        <KPICard
+          label="Recall @ Precisión 90%"
+          value={(kpis.recall_at_p90 * 100).toFixed(0) + "%"}
+          sub="Con 9/10 alertas correctas"
+        />
+        <KPICard
+          label="Fraude no detectado"
+          value="0%"
+          sub="vs 20% con XGBoost y LogReg"
+          color="#27AE60"
+        />
       </div>
 
-      {/* PR curves */}
-      <div className="rounded-xl border border-white/10 p-5" style={{ backgroundColor: "#122855" }}>
-        <h2 className="text-sm font-semibold uppercase tracking-wider text-white/60 mb-4">
-          Curva Precisión-Recall — Comparativa de Modelos
-        </h2>
-        <PRCurveChart curves={curves} />
-        <p className="text-xs text-white/40 mt-3">
-          Cada punto representa un threshold de decisión. El área bajo la curva (PR-AUC) es la métrica principal
-          en datasets desbalanceados. El GNN supera a XGBoost en {((gnnCurve?.pr_auc ?? 1) - (curves.find(c => c.model === "XGBoost")?.pr_auc ?? 0)).toFixed(3)} puntos de PR-AUC.
-        </p>
+      {/* Charts — 2 column */}
+      <div className="grid lg:grid-cols-5 gap-4">
+        <div className="lg:col-span-3 rounded-xl border border-white/8 p-5"
+             style={{ backgroundColor: "#0d1e38" }}>
+          <p className="text-[11px] font-bold uppercase tracking-widest text-white/35 mb-1">
+            Comparativa de modelos
+          </p>
+          <h2 className="text-sm font-semibold text-white mb-4">Curva Precisión-Recall</h2>
+          <PRCurveChart curves={curves} />
+          <p className="text-xs text-white/30 mt-3 leading-relaxed">
+            El GNN supera en <span className="text-white/60">+{delta} PR-AUC</span> al mejor baseline tabular (XGBoost).
+            La curva perfecta llega a PR-AUC=1.0 en evaluación transductiva; 0.835 en evaluación inductiva.
+          </p>
+        </div>
+
+        <div className="lg:col-span-2 rounded-xl border border-white/8 p-5"
+             style={{ backgroundColor: "#0d1e38" }}>
+          <p className="text-[11px] font-bold uppercase tracking-widest text-white/35 mb-1">
+            Separabilidad
+          </p>
+          <h2 className="text-sm font-semibold text-white mb-4">Distribución de Scores GNN</h2>
+          <ScoreDistChart dist={dist} />
+          <p className="text-xs text-white/30 mt-3 leading-relaxed">
+            Separación casi perfecta: legítimas → 0, fraude → 1.
+          </p>
+        </div>
       </div>
 
-      {/* score distribution */}
-      <div className="rounded-xl border border-white/10 p-5" style={{ backgroundColor: "#122855" }}>
-        <h2 className="text-sm font-semibold uppercase tracking-wider text-white/60 mb-4">
-          Distribución de Scores GNN — Fraude vs. Legítimo
-        </h2>
-        <ScoreDistChart dist={dist} />
-        <p className="text-xs text-white/40 mt-3">
-          El modelo separa claramente las dos poblaciones: cuentas legítimas se acumulan cerca de 0,
-          cuentas fraudulentas cerca de 1.
-        </p>
-      </div>
-
-      {/* insights */}
+      {/* Insights */}
       <div>
-        <h2 className="text-sm font-semibold uppercase tracking-wider text-white/60 mb-4">
-          Insights de negocio
-        </h2>
-        <div className="grid md:grid-cols-3 gap-4">
+        <p className="text-[11px] font-bold uppercase tracking-widest text-white/35 mb-3">
+          Hallazgos clave
+        </p>
+        <div className="grid md:grid-cols-3 gap-3">
           {insights.map(ins => (
-            <div key={ins.tag} className="rounded-xl border p-5 space-y-2"
-                 style={{ backgroundColor: "#122855", borderColor: "#C9A227" + "40" }}>
-              <span className="text-xs font-bold uppercase tracking-wider text-[#C9A227]">{ins.tag}</span>
-              <p className="text-sm text-white/75 leading-relaxed">{ins.text}</p>
+            <div key={ins.tag}
+                 className="rounded-xl border border-white/8 p-5 space-y-2 hover:border-white/15 transition-colors"
+                 style={{ backgroundColor: "#0d1e38" }}>
+              <div className="flex items-center gap-2">
+                <span className="w-1.5 h-1.5 rounded-full flex-shrink-0"
+                      style={{ backgroundColor: "#C9A227" }} />
+                <span className="text-[11px] font-bold uppercase tracking-widest"
+                      style={{ color: "#C9A227" }}>
+                  {ins.tag}
+                </span>
+              </div>
+              <p className="text-sm text-white/60 leading-relaxed">{ins.text}</p>
             </div>
           ))}
         </div>

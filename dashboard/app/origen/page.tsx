@@ -1,6 +1,7 @@
 "use client";
 import { useState, useEffect, useRef } from "react";
 import originRaw from "@/public/data/origin_trace.json";
+import PageHeader from "@/components/PageHeader";
 
 type RingNode = { node_id: string; role: string; gnn_score: number; out_degree: number; in_degree: number };
 type RingEdge = { src: string; dst: string; amount: number; timestamp: string };
@@ -146,12 +147,12 @@ function RingGraphDirected() {
   return (
     <div className="flex gap-4 flex-col lg:flex-row">
       <div ref={containerRef}
-           className="rounded-xl border border-white/10 flex-1"
-           style={{ height: 440, backgroundColor: "#0d2554" }} />
+           className="rounded-xl border border-white/8 flex-1"
+           style={{ height: 440, backgroundColor: "#0a1225" }} />
 
       <div className="w-full lg:w-64 space-y-4">
         {/* legend */}
-        <div className="rounded-xl border border-white/10 p-4" style={{ backgroundColor: "#122855" }}>
+        <div className="rounded-xl border border-white/8 p-4" style={{ backgroundColor: "#0d1e38" }}>
           <p className="text-xs font-semibold uppercase tracking-widest text-white/40 mb-3">Referencias</p>
           {Object.entries(ROLE_LABEL).map(([role, label]) => (
             <div key={role} className="flex items-center gap-2 mb-2">
@@ -159,13 +160,13 @@ function RingGraphDirected() {
               <span className="text-xs text-white/60">{label}</span>
             </div>
           ))}
-          <div className="mt-3 pt-3 border-t border-white/10">
+          <div className="mt-3 pt-3 border-t border-white/8">
             <p className="text-xs text-white/40">Grosor de arista = monto transferido</p>
           </div>
         </div>
 
         {/* selected node detail */}
-        <div className="rounded-xl border border-white/10 p-4" style={{ backgroundColor: "#122855" }}>
+        <div className="rounded-xl border border-white/8 p-4" style={{ backgroundColor: "#0d1e38" }}>
           {selected ? (
             <>
               <p className="text-xs font-semibold uppercase tracking-widest text-[#C9A227] mb-3">Nodo seleccionado</p>
@@ -199,16 +200,11 @@ export default function OrigenPage() {
 
   return (
     <div className="space-y-8">
-      {/* header */}
-      <div>
-        <p className="text-xs font-semibold uppercase tracking-widest text-[#C9A227] mb-1">Rastreo de Origen</p>
-        <h1 className="text-2xl font-bold text-white">Perpetradores del Anillo</h1>
-        <p className="text-sm text-white/50 mt-1 max-w-2xl">
-          El GNN detecta las cuentas mula (alta centralidad, flujo anómalo). Este módulo
-          traza hacia atrás en el grafo dirigido de transacciones para identificar
-          las cuentas que <em>inyectaron</em> el dinero al anillo — los perpetradores originales.
-        </p>
-      </div>
+      <PageHeader
+        eyebrow="Rastreo de origen"
+        title="Perpetradores del Anillo"
+        description="El GNN detecta las cuentas mula (alta centralidad, flujo anómalo). Este módulo traza hacia atrás en el grafo dirigido de transacciones para identificar las cuentas que inyectaron el dinero al anillo — los perpetradores originales."
+      />
 
       {/* KPI row */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
@@ -218,7 +214,7 @@ export default function OrigenPage() {
           { label: "Mulas no detect.",  value: String(summary.n_mules_missed),   sub: "en cadena fraude",           color: "#8E44AD" },
           { label: "Monto total",       value: fmt(summary.total_amount_laundered), sub: "en anillo completo",      color: "#C9A227" },
         ].map(({ label, value, sub, color }) => (
-          <div key={label} className="rounded-xl border border-white/10 p-4" style={{ backgroundColor: "#122855" }}>
+          <div key={label} className="rounded-xl border border-white/8 p-4" style={{ backgroundColor: "#0d1e38" }}>
             <p className="text-xs text-white/40 uppercase tracking-wider mb-1">{label}</p>
             <p className="text-2xl font-bold" style={{ color }}>{value}</p>
             <p className="text-xs text-white/40 mt-0.5">{sub}</p>
@@ -229,9 +225,9 @@ export default function OrigenPage() {
       {/* perpetrators table */}
       <div>
         <h2 className="text-base font-semibold text-white mb-3">Cuentas Origen Identificadas</h2>
-        <div className="rounded-xl border border-white/10 overflow-hidden" style={{ backgroundColor: "#122855" }}>
+        <div className="rounded-xl border border-white/8 overflow-hidden" style={{ backgroundColor: "#0d1e38" }}>
           <table className="w-full text-sm">
-            <thead style={{ backgroundColor: "#0d2554" }}>
+            <thead style={{ backgroundColor: "#0a1225" }}>
               <tr>
                 {["Cuenta", "Estado en GNN", "Mulas alimentadas", "Monto inyectado", "Primera txn", ""].map(h => (
                   <th key={h} className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-white/60">{h}</th>
@@ -262,7 +258,7 @@ export default function OrigenPage() {
                     </tr>
                     {isOpen && (
                       <tr key={`${p.node_id}-detail`} className="border-t border-white/5">
-                        <td colSpan={6} className="px-6 py-4" style={{ backgroundColor: "#0d2554" }}>
+                        <td colSpan={6} className="px-6 py-4" style={{ backgroundColor: "#0a1225" }}>
                           <p className="text-xs text-white/40 uppercase tracking-wider mb-2">Mulas alimentadas</p>
                           <div className="flex flex-wrap gap-2">
                             {p.mules.map(m => (
@@ -302,7 +298,7 @@ export default function OrigenPage() {
 
       {/* insight box */}
       <div className="rounded-xl border p-5 text-sm"
-           style={{ backgroundColor: "#0d1f3c", borderColor: "#C9A22733" }}>
+           style={{ backgroundColor: "#080f1d", borderColor: "#C9A22733" }}>
         <p className="text-xs font-semibold uppercase tracking-widest text-[#C9A227] mb-2">Insight 16 — Limitación del modelo</p>
         <p className="text-white/70 leading-relaxed">
           El GNN detecta la <strong className="text-white">estratificación</strong> (las mulas que mueven y dispersan
