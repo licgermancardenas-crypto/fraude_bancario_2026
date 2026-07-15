@@ -479,6 +479,9 @@ def insights_section():
         ("El GNN detecta mulas pero no el perpetrador de origen",
          "Rastreando hacia atrás desde los nodos detectados en el grafo dirigido de transacciones, se identificaron 3 cuentas raíz (in-degree=0 en el subgrafo de fraude): ACC0001330 (detectada, 13 mulas alimentadas), ACC0000210 y ACC0001046 (no detectadas, score GNN ≈ 0%, is_fraud=False en el dataset). Estas dos cuentas inyectaron $66.422 al anillo desde cuentas aparentemente legítimas. El GNN detecta la estratificación (placement→layering); el backward tracing detecta la colocación (placement).",
          "Combinar el scoring GNN con una segunda pasada de backward tracing: dado cualquier nodo detectado como fraude, agregar a la cola de investigación todos sus predecesores directos en el grafo dirigido temporal que no sean ellos mismos detectados. Priorizar por monto inyectado."),
+        ("Propagación inversa de riesgo valida y amplía el backward tracing",
+         "Aplicando la fórmula placement(u) = Σ gnn[v]×amount(u→v) + 0.3×Σ gnn[w]×amount(v→w)×amount(u→v)/total_out(v) sobre todos los nodos, ACC0000210 (perpetrador no detectado por GNN) rankea #1 con score_norm=1.0 y ACC0001046 rankea #9. Los rangos 2-8 están ocupados por mulas con GNN=100%, coherente porque se transfieren entre sí. El método opera exclusivamente sobre scores GNN existentes y el grafo dirigido — sin etiquetas adicionales.",
+         "Integrar el placement score en el sistema de alertas como capa de segunda línea: cualquier cuenta con placement_score_norm > 0.3 y gnn_score < 0.5 entra automáticamente a la cola de investigación de colocación, complementando la cola primaria de mulas del GNN."),
     ]
 
     boxes = ""
@@ -674,6 +677,37 @@ def annex_section(results, cfg, figures_dir):
     <div class="callout-tag">Hallazgo crítico</div>
     <div class="callout-body">
       ACC0001046 inició la cadena en diciembre 2023 (primera transacción del anillo) con score GNN ≈ 0%. ACC0000210 inyectó $48.411 en una sola transacción con score GNN ≈ 0%. Ambas cuentas tienen <strong>baja centralidad de red</strong>: pocas transacciones totales, grado bajo — el perfil típico de una cuenta que inyecta fondos una vez y desaparece. Este patrón es invisible para un clasificador de nodos basado en conectividad. El backward tracing sobre el grafo dirigido es el mecanismo que cierra esta brecha.
+    </div>
+  </div>
+
+  <h3>Scoring de colocación — propagación inversa de riesgo</h3>
+  <p>El backward tracing identifica perpetradores con in-degree=0 estricto en el subgrafo de fraude. Para capturar también <em>colocadores parciales</em> — cuentas que inyectan en múltiples etapas o que tienen transacciones normales además de las fraudulentas — se desarrolló un método de propagación inversa de riesgo.</p>
+
+  <p><strong>Fórmula (2 niveles):</strong></p>
+  <pre style="background:#F8FAFC;padding:12px;border-radius:6px;font-size:11px;color:#1E3A8A;border:1px solid #E2E8F0;">
+placement(u) = Σ_{{u→v}}      gnn[v] × amount(u→v)                              [directo]
+             + Σ_{{u→v→w}} 0.3 × gnn[w] × amount(v→w) × amount(u→v)/total_out(v) [indirecto]
+  </pre>
+
+  <table>
+    <thead><tr><th>Rank</th><th>Cuenta</th><th>Score norm.</th><th>Score GNN</th><th>Enviado a fraude</th><th>Estado</th></tr></thead>
+    <tbody>
+      <tr><td>1</td><td><strong>ACC0000210</strong></td><td class="td-best">1.000</td><td>0.000</td><td>$48.411</td><td style="color:#D97706;font-weight:700;">Perpetrador conocido</td></tr>
+      <tr><td>2</td><td>ACC0001309</td><td>0.966</td><td>1.000</td><td>—</td><td>Detectado por GNN (mula)</td></tr>
+      <tr><td>3</td><td>ACC0000228</td><td>0.913</td><td>1.000</td><td>—</td><td>Detectado por GNN (mula)</td></tr>
+      <tr><td>9</td><td><strong>ACC0001046</strong></td><td>0.365</td><td>0.000</td><td>$18.011</td><td style="color:#D97706;font-weight:700;">Perpetrador conocido</td></tr>
+    </tbody>
+  </table>
+
+  <figure>
+    {b64img(f"{figures_dir}/23_placement_scores.png")}
+    <figcaption>Fig. 11 — Ranking de colocación: top 20 candidatos por placement score normalizado. Naranja: perpetradores conocidos (backward tracing); azul: mulas detectadas por GNN; rojo: nuevos candidatos. Los dos perpetradores no detectados por el GNN aparecen en rank #1 y #9, validando el método sin supervisión adicional.</figcaption>
+  </figure>
+
+  <div class="callout no-break">
+    <div class="callout-tag">Validación del método</div>
+    <div class="callout-body">
+      ACC0000210 (perpetrador no detectado por GNN, score GNN ≈ 0%) rankea <strong>#1</strong> en placement score (score_norm=1.0). ACC0001046 rankea <strong>#9</strong>. Los rangos intermedios están ocupados por mulas con GNN=100% — coherente porque también transfieren entre sí. La propagación inversa no requiere etiquetas adicionales: opera exclusivamente sobre los scores GNN existentes y el grafo de transacciones.
     </div>
   </div>
 
