@@ -233,3 +233,12 @@
 **Implicancia para BRS:** La propagación inversa de riesgo detecta colocación aunque la cuenta origen no tenga alta centralidad de red. Funciona porque mide cuánta *señal de fraude* inyecta cada cuenta en el sistema, ponderada por el monto de dinero transferido. El score puede calcularse en tiempo real a medida que el GNN asigna scores: toda transacción nueva actualiza el placement score del remitente.
 
 **Comparación con backward tracing:** el backward tracing original requiere que la cuenta origen tenga in-degree=0 en el subgrafo de fraude (raíz estricta). La propagación inversa captura también *colocadores parciales* — cuentas que inyectaron en múltiples etapas o que tienen transacciones normales además de las fraudulentas.
+
+---
+### Insight 18 — Evaluación temporal: el número operativo real
+
+**Hallazgo:** Al re-entrenar GraphSAGE usando solo las transacciones del primer **70%** del período histórico (hasta 2024-07-25, 5636 aristas de 8050 totales) y evaluar en los mismos nodos de test, el PR-AUC cae de **1.000** (transductivo) → **0.835** (inductivo) → **0.810** (temporal). El delta vs. evaluación inductiva es **-0.025**. El modelo entrenado con datos históricos parciales sigue detectando los patrones de fraude con PR-AUC=0.810, lo que indica que los anillos de lavado dejan huella detectable incluso en sus fases iniciales.
+
+**Implicancia para BRS:** El número correcto para reportar a dirección es PR-AUC=0.810 (temporal) — no el 1.000 transductivo. Este resultado simula el entorno de producción real: el modelo siempre opera sobre datos futuros que no vio durante el entrenamiento. La caída de 0.190 puntos desde el transductivo es el costo real de la evaluación honesta.
+
+**Protocolo recomendado para el piloto BRS:** split temporal mensual — entrenar hasta mes M, validar en M+1, evaluar en M+2. Re-entrenar cada trimestre con los nuevos datos etiquetados por compliance.
