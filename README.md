@@ -100,6 +100,7 @@ fraud-gnn/
 | `src/trace_origin.py` | Backward tracing: remonta desde mulas detectadas hasta perpetradores |
 | `src/detect_placement.py` | Propagación inversa de riesgo: scoring de colocación para todos los nodos |
 | `src/evaluate_temporal.py` | Evaluación temporal: reentrenamiento sobre grafo histórico parcial, PR-AUC operativo |
+| `src/enrich_personas.py` | Capa de identidad: genera nombre, DNI, CUIL, AFIP y domicilio argentinos para los 1 500 nodos |
 
 ### Dashboard (5 páginas)
 
@@ -133,6 +134,7 @@ python -m src.detect_placement  # scoring de colocación
 python -m src.evaluate_temporal # evaluación temporal
 python -m src.analysis          # comparativa + figuras
 python -m src.export_dashboard  # JSONs para dashboard
+python -m src.enrich_personas   # identidades sintéticas + enriquecimiento de JSONs
 python -m src.generate_report   # informe PDF
 
 # Dashboard local

@@ -362,6 +362,29 @@ def data_section(figures_dir):
     {b64img(f"{figures_dir}/01_degree_distribution.png")}
     <figcaption>Fig. 1 — Distribución de grado in/out. Las cuentas fraudulentas tienen grado 1.36× superior al legítimo (comportamiento de "router" típico de cuentas mula).</figcaption>
   </figure>
+
+  <h3>Capa de identidad sintética</h3>
+  <p>Para replicar fielmente un entorno bancario operativo, cada una de las 1 500 cuentas fue enriquecida con datos de identidad sintéticos mediante el módulo <code>src/enrich_personas.py</code> (seed=42). Los datos se generan deterministamente y son 100% ficticios.</p>
+
+  <table>
+    <thead><tr><th>Campo</th><th>Valores / Distribución</th></tr></thead>
+    <tbody>
+      <tr><td>Nombre y apellido</td><td>Pool curado de nombres y apellidos argentinos (50 nombres M, 47 F, 82 apellidos)</td></tr>
+      <tr><td>DNI</td><td>8 dígitos únicos por cuenta, rango 10.000.000 – 50.000.000</td></tr>
+      <tr><td>CUIL / CUIT</td><td>Prefijo 20 (M) / 27 (F) / 23 (caso especial) + dígito verificador calculado por algoritmo oficial</td></tr>
+      <tr><td>Edad</td><td>18–72 años (personal); 30–65 (business)</td></tr>
+      <tr><td>Nacionalidad</td><td>Argentina 93% · Paraguay 3% · Bolivia 2% · Uruguay 1% · Perú 1%</td></tr>
+      <tr><td>Provincia / Municipio</td><td>24 provincias ponderadas por población; 150+ localidades reales</td></tr>
+      <tr><td>Dirección</td><td>Calle + número + piso/dpto (35% de casos) — topónimos reales argentinos</td></tr>
+      <tr><td>Condición AFIP</td><td>Relación de dependencia 35% · Monotributista 30% (cat. A–K) · No inscripto 20% · Responsable Inscripto 12% · Exento 3%</td></tr>
+      <tr><td>Actividad económica</td><td>14 actividades para Monotributistas, 10 para RI, 11 para RD, etc. (CIIU)</td></tr>
+      <tr><td>Ocupación</td><td>Coherente con condición AFIP (ej. Monotributista → Comerciante, Programador/a freelance)</td></tr>
+      <tr><td>Tipo de cuenta</td><td>Caja de Ahorro 70% · Cuenta Corriente 30% (personal); 100% CC para business</td></tr>
+      <tr><td>Sucursal BRS</td><td>24 sucursales ficticias distribuidas en todo el país</td></tr>
+    </tbody>
+  </table>
+
+  <p>El impacto en el dashboard es inmediato: la tabla de cuentas muestra <strong>"Rodrigo Pérez Fernández — DNI 28.456.789 · Comerciante · La Plata"</strong> en lugar de <em>ACC0000051</em>. Los nodos del grafo de origen muestran apellidos reales; la ficha expandida de cada perpetrador incluye CUIL, condición AFIP y sucursal BRS. Esta capa convierte el demo técnico en una demostración ejecutiva directamente comprensible por el equipo de compliance.</p>
 </div>"""
 
 
