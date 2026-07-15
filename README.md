@@ -22,6 +22,8 @@ Engagement simulado para *Banco Regional del Sur (BRS)*: prueba de concepto end-
 
 **Rastreo de origen:** el backward tracing sobre el grafo dirigido identificó 2 perpetradores no detectados por el GNN (score ≈ 0%), que inyectaron $66K al anillo desde cuentas aparentemente legítimas. El GNN detecta la estratificación; el backward tracing detecta la colocación.
 
+**Scoring de colocación:** la propagación inversa de riesgo (`placement(u) = Σ gnn[v]×amount(u→v) + 0.3×Σ gnn[w]×amount(v→w)×amount(u→v)/total_out(v)`) rankea a ACC0000210 en el puesto #1 (score_norm=1.0, GNN=0%) — validando el método sin supervisión adicional. Captura colocadores parciales que el backward tracing simple no alcanza.
+
 ---
 
 ## Stack
@@ -91,6 +93,7 @@ fraud-gnn/
 |---|---|
 | `src/explain.py` | GNNExplainer: importancia de features y aristas por nodo fraude |
 | `src/trace_origin.py` | Backward tracing: remonta desde mulas detectadas hasta perpetradores |
+| `src/detect_placement.py` | Propagación inversa de riesgo: scoring de colocación para todos los nodos |
 
 ### Dashboard (5 páginas)
 
@@ -120,6 +123,7 @@ python -m src.train_gat         # GAT
 python -m src.train_node2vec    # Node2Vec + XGBoost
 python -m src.explain           # GNNExplainer
 python -m src.trace_origin      # backward tracing
+python -m src.detect_placement  # scoring de colocación
 python -m src.analysis          # comparativa + figuras
 python -m src.export_dashboard  # JSONs para dashboard
 python -m src.generate_report   # informe PDF
@@ -150,6 +154,7 @@ De los **16 insights** documentados en [`reports/insights.md`](reports/insights.
 - **Insight 13** — GNNExplainer revela que txn_count, unique_senders y risk_score son los features más determinantes
 - **Insight 15** — PR-AUC=1.0 es evaluación transductiva; PR-AUC=0.835 es el número correcto para producción
 - **Insight 16** — El GNN detecta la estratificación pero no la colocación; el backward tracing cierra esa brecha
+- **Insight 17** — La propagación inversa de riesgo rankea a los perpetradores en el top-1/top-9 sin etiquetas adicionales, validando el método y capturando colocadores parciales que el backward tracing simple no alcanza
 
 ---
 
