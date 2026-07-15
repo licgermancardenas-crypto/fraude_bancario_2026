@@ -90,5 +90,28 @@
     "biz_daily_fraud_tp": 26,
     "biz_pct_fraud_missed": 0.0,
     "biz_scale_factor": 1930.0
+  },
+  {
+    "model": "Node2Vec + XGBoost",
+    "pr_auc": 0.2267,
+    "roc_auc": 0.8923,
+    "rec_at_p90": 0.0,
+    "thr_at_p90": null,
+    "f1_optimal": 0.3636,
+    "threshold_opt": 0.0392,
+    "confusion_matrix": [
+      [
+        217,
+        4
+      ],
+      [
+        3,
+        2
+      ]
+    ],
+    "biz_daily_alerts": 32,
+    "biz_daily_fraud_tp": 11,
+    "biz_pct_fraud_missed": 60.0,
+    "biz_scale_factor": 1930.0
   }
 ]

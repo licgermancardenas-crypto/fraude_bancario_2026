@@ -42,6 +42,16 @@ model:
     epochs: 300
     patience: 20
 
+  node2vec:
+    embedding_dim: 64
+    walk_length: 30
+    context_size: 10
+    walks_per_node: 15
+    p: 1.0
+    q: 0.5          # < 1 → DFS, explora comunidades (anillos de lavado)
+    w2v_epochs: 10
+    w2v_workers: 1
+
   baseline:
     logreg:
       class_weight: balanced
