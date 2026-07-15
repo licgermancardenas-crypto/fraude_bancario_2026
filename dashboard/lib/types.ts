@@ -12,8 +12,7 @@ export interface KPIs {
 export interface PRCurve {
   model: string;
   pr_auc: number;
-  precision: number[];
-  recall: number[];
+  points: Array<{ precision: number; recall: number }>;
 }
 
 export interface ScoreDistribution {

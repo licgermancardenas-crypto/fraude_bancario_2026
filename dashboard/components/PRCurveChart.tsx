@@ -16,17 +16,12 @@ export default function PRCurveChart({ curves }: Props) {
     const r = i / 100;
     const entry: Record<string, number> = { recall: r };
     curves.forEach(curve => {
-      // interpolate precision at this recall level
       let prec = 0;
-      for (let j = 0; j < curve.recall.length - 1; j++) {
-        if (curve.recall[j] >= r && curve.recall[j + 1] <= r) {
-          prec = curve.precision[j];
-          break;
-        }
-        if (Math.abs(curve.recall[j] - r) < 0.02) {
-          prec = curve.precision[j];
-          break;
-        }
+      for (let j = 0; j < curve.points.length - 1; j++) {
+        const pt  = curve.points[j];
+        const pt1 = curve.points[j + 1];
+        if (pt.recall >= r && pt1.recall <= r) { prec = pt.precision; break; }
+        if (Math.abs(pt.recall - r) < 0.02)    { prec = pt.precision; break; }
       }
       entry[curve.model] = prec;
     });
