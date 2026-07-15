@@ -1,7 +1,21 @@
 "use client";
 import { useState, useEffect, useRef } from "react";
 import originRaw from "@/public/data/origin_trace.json";
+import placementRaw from "@/public/data/placement_candidates.json";
 import PageHeader from "@/components/PageHeader";
+
+type PlacementCandidate = {
+  account_id: string; placement_score: number; placement_score_norm: number;
+  gnn_score: number; detected_by_gnn: boolean; is_fraud_label: boolean;
+  is_known_perp: boolean; total_sent_to_fraud: number;
+  n_fraud_recipients: number; n_txns: number; first_txn: string;
+};
+type PlacementData = {
+  candidates: PlacementCandidate[]; n_flagged: number; n_new_discoveries: number;
+  known_perpetrators: string[]; max_placement_score: number; formula: string;
+};
+
+const placement = placementRaw as PlacementData;
 
 type RingNode = { node_id: string; role: string; gnn_score: number; out_degree: number; in_degree: number };
 type RingEdge = { src: string; dst: string; amount: number; timestamp: string };
@@ -303,6 +317,113 @@ export default function OrigenPage() {
           Grosor de arista = monto transferido.
         </p>
         <RingGraphDirected />
+      </div>
+
+      {/* placement scoring section */}
+      <div>
+        <div className="flex items-end justify-between mb-3">
+          <div>
+            <h2 className="text-base font-semibold" style={{ color: "#0F172A" }}>
+              Ranking de Colocación — Propagación Inversa de Riesgo
+            </h2>
+            <p className="text-xs mt-0.5" style={{ color: "#94A3B8" }}>
+              {placement.formula}
+            </p>
+          </div>
+          <div className="flex gap-3 text-xs flex-shrink-0">
+            {[
+              { label: "Candidatos", value: placement.n_flagged, color: "#2563EB" },
+              { label: "Nuevos desc.", value: placement.n_new_discoveries, color: "#DC2626" },
+            ].map(({ label, value, color }) => (
+              <div key={label} className="text-right">
+                <p className="font-bold text-lg leading-none" style={{ color }}>{value}</p>
+                <p style={{ color: "#94A3B8" }}>{label}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <div className="rounded-xl overflow-hidden" style={card}>
+          {/* legend */}
+          <div className="flex flex-wrap gap-4 px-5 py-3" style={{ backgroundColor: "#F8FAFC", borderBottom: "1px solid #E2E8F0" }}>
+            {[
+              { color: "#F59E0B", label: "Perpetrador conocido (backward tracing)" },
+              { color: "#2563EB", label: "Detectado por GNN (mula)" },
+              { color: "#DC2626", label: "Nuevo candidato" },
+              { color: "#94A3B8", label: "Señal baja" },
+            ].map(({ color, label }) => (
+              <div key={label} className="flex items-center gap-1.5 text-xs" style={{ color: "#64748B" }}>
+                <span className="w-2.5 h-2.5 rounded-sm flex-shrink-0" style={{ backgroundColor: color }} />
+                {label}
+              </div>
+            ))}
+          </div>
+
+          {/* top 15 rows */}
+          <div className="divide-y" style={{ borderColor: "#F1F5F9" }}>
+            {placement.candidates.slice(0, 15).map((c, i) => {
+              const barColor = c.is_known_perp ? "#F59E0B"
+                : c.detected_by_gnn ? "#2563EB"
+                : c.placement_score_norm > 0.15 ? "#DC2626"
+                : "#94A3B8";
+              const bgColor = c.is_known_perp ? "#FFFBEB"
+                : c.detected_by_gnn ? "#EFF6FF"
+                : c.placement_score_norm > 0.15 ? "#FEF2F2"
+                : "transparent";
+
+              return (
+                <div
+                  key={c.account_id}
+                  className="flex items-center gap-4 px-5 py-3 text-sm"
+                  style={{ backgroundColor: bgColor }}
+                >
+                  <span className="text-xs font-mono w-5 flex-shrink-0" style={{ color: "#CBD5E1" }}>
+                    {i + 1}
+                  </span>
+                  <span className="font-mono text-xs font-semibold w-28 flex-shrink-0" style={{ color: "#0F172A" }}>
+                    {c.account_id}
+                  </span>
+                  {/* score bar */}
+                  <div className="flex-1 flex items-center gap-2">
+                    <div className="flex-1 h-2 rounded-full" style={{ backgroundColor: "#E2E8F0" }}>
+                      <div
+                        className="h-full rounded-full"
+                        style={{ width: `${c.placement_score_norm * 100}%`, backgroundColor: barColor }}
+                      />
+                    </div>
+                    <span className="text-xs font-mono w-10 text-right" style={{ color: barColor }}>
+                      {(c.placement_score_norm * 100).toFixed(1)}%
+                    </span>
+                  </div>
+                  <span className="text-xs w-16 text-right font-mono" style={{ color: "#64748B" }}>
+                    GNN {(c.gnn_score * 100).toFixed(1)}%
+                  </span>
+                  <span className="text-xs w-20 text-right font-mono" style={{ color: "#94A3B8" }}>
+                    ${c.total_sent_to_fraud.toLocaleString("es-AR", { maximumFractionDigits: 0 })}
+                  </span>
+                  {c.is_known_perp && (
+                    <span className="text-[10px] font-bold px-2 py-0.5 rounded-full flex-shrink-0"
+                          style={{ backgroundColor: "#FEF3C7", color: "#D97706" }}>
+                      PERP
+                    </span>
+                  )}
+                  {!c.detected_by_gnn && !c.is_known_perp && c.placement_score_norm > 0.15 && (
+                    <span className="text-[10px] font-bold px-2 py-0.5 rounded-full flex-shrink-0"
+                          style={{ backgroundColor: "#FEE2E2", color: "#DC2626" }}>
+                      NUEVO
+                    </span>
+                  )}
+                  {c.detected_by_gnn && (
+                    <span className="text-[10px] font-bold px-2 py-0.5 rounded-full flex-shrink-0"
+                          style={{ backgroundColor: "#EFF6FF", color: "#2563EB" }}>
+                      MULA
+                    </span>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </div>
       </div>
 
       {/* insight box */}

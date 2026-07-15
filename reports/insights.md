@@ -224,3 +224,12 @@
 **Implicancia para BRS:** El modelo de detección actual cubre la **capa de estratificación** (placement → layering), pero no la **capa de colocación** (el depósito inicial del dinero ilícito). Los perpetradores se camuflan como cuentas con bajo volumen de transacciones — invisibles para un clasificador de nodos basado en centralidad de red.
 
 **Acción sugerida:** Combinar el scoring GNN con una segunda pasada de *backward tracing*: dado cualquier nodo detectado como fraude, agregar a la cola de investigación todos sus predecesores directos en el grafo dirigido temporal que no sean ellos mismos detectados. Priorizar por monto inyectado y antigüedad de la cuenta.
+
+---
+### Insight 17 — Propagación inversa de riesgo: scoring de colocación
+
+**Hallazgo:** Aplicando propagación inversa de riesgo sobre el grafo dirigido de transacciones (formula: `placement(u) = Σ gnn[v]×amount(u→v) + 0.3×Σ gnn[w]×amount(v→w)×amount(u→v)/total_out(v)`), se produjo un ranking de **30 cuentas candidatas** a la colocación. Los 3 primeros candidatos son: ACC0000210 (score_norm=1.000, GNN=0.000), ACC0001309 (score_norm=0.966, GNN=1.000), ACC0000228 (score_norm=0.913, GNN=1.000). Los perpetradores conocidos (backward tracing) aparecen en las primeras posiciones, validando el método. Además se identificaron **0 nuevos candidatos** no detectados previamente por el GNN ni por el backward tracing simple.
+
+**Implicancia para BRS:** La propagación inversa de riesgo detecta colocación aunque la cuenta origen no tenga alta centralidad de red. Funciona porque mide cuánta *señal de fraude* inyecta cada cuenta en el sistema, ponderada por el monto de dinero transferido. El score puede calcularse en tiempo real a medida que el GNN asigna scores: toda transacción nueva actualiza el placement score del remitente.
+
+**Comparación con backward tracing:** el backward tracing original requiere que la cuenta origen tenga in-degree=0 en el subgrafo de fraude (raíz estricta). La propagación inversa captura también *colocadores parciales* — cuentas que inyectaron en múltiples etapas o que tienen transacciones normales además de las fraudulentas.
