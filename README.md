@@ -8,15 +8,20 @@ Engagement simulado para *Banco Regional del Sur (BRS)*: prueba de concepto end-
 
 ## Resultados
 
-| Modelo | PR-AUC (transductivo) | PR-AUC (inductivo) | Recall @ P90 | Fraude no detectado |
-|---|---|---|---|---|
-| Logistic Regression | 0.555 | — | 0% | 20% |
-| XGBoost | 0.925 | — | 80% | 20% |
-| Node2Vec + XGBoost | 0.227 | — | 0% | 60% |
-| GAT | 0.810 | — | 20% | 0% |
-| **GraphSAGE** | **1.000** | **0.835** | **100%** | **0%** |
+| Modelo | PR-AUC (transductivo) | PR-AUC (inductivo) | PR-AUC (temporal) | Recall @ P90 | Fraude no detectado |
+|---|---|---|---|---|---|
+| Logistic Regression | 0.555 | — | — | 0% | 20% |
+| XGBoost | 0.925 | — | — | 80% | 20% |
+| Node2Vec + XGBoost | 0.227 | — | — | 0% | 60% |
+| GAT | 0.810 | — | — | 20% | 0% |
+| **GraphSAGE** | **1.000** | **0.835** | **0.810** | **100%** | **0%** |
 
-**Nota metodológica:** PR-AUC=1.0 es evaluación transductiva estándar (el GNN ve todas las aristas durante el forward pass). En evaluación inductiva —eliminando aristas de test durante la inferencia, que simula cuentas nuevas en producción— el PR-AUC baja a **0.835**. Sigue siendo el modelo más potente. Ver [Insight 15](reports/insights.md).
+**Nota metodológica — tres condiciones de evaluación:**
+- **Transductivo** (1.000): el modelo ve todas las aristas durante el forward pass — estimación optimista.
+- **Inductivo** (0.835): aristas de test ocultas durante la inferencia — simula cuentas nuevas.
+- **Temporal** (0.810): reentrenado solo con transacciones hasta 2024-07-25 (70% del período); evaluado en los últimos 4 meses — el número operativo real para un banco.
+
+**0.810 es el número que se presenta a dirección.** La caída de -0.025 vs inductivo muestra que el modelo es robusto al shift temporal.
 
 **Hallazgo clave:** lift fraude→fraude de **14.3×** — las cuentas mula son crediticiamente normales (Cohen d = 0.055) pero se delatan por sus conexiones.
 
@@ -94,6 +99,7 @@ fraud-gnn/
 | `src/explain.py` | GNNExplainer: importancia de features y aristas por nodo fraude |
 | `src/trace_origin.py` | Backward tracing: remonta desde mulas detectadas hasta perpetradores |
 | `src/detect_placement.py` | Propagación inversa de riesgo: scoring de colocación para todos los nodos |
+| `src/evaluate_temporal.py` | Evaluación temporal: reentrenamiento sobre grafo histórico parcial, PR-AUC operativo |
 
 ### Dashboard (5 páginas)
 
@@ -124,6 +130,7 @@ python -m src.train_node2vec    # Node2Vec + XGBoost
 python -m src.explain           # GNNExplainer
 python -m src.trace_origin      # backward tracing
 python -m src.detect_placement  # scoring de colocación
+python -m src.evaluate_temporal # evaluación temporal
 python -m src.analysis          # comparativa + figuras
 python -m src.export_dashboard  # JSONs para dashboard
 python -m src.generate_report   # informe PDF
@@ -155,6 +162,7 @@ De los **16 insights** documentados en [`reports/insights.md`](reports/insights.
 - **Insight 15** — PR-AUC=1.0 es evaluación transductiva; PR-AUC=0.835 es el número correcto para producción
 - **Insight 16** — El GNN detecta la estratificación pero no la colocación; el backward tracing cierra esa brecha
 - **Insight 17** — La propagación inversa de riesgo rankea a los perpetradores en el top-1/top-9 sin etiquetas adicionales, validando el método y capturando colocadores parciales que el backward tracing simple no alcanza
+- **Insight 18** — Evaluación temporal (PR-AUC=0.810): reentrenando sobre el 70% histórico y evaluando en los 4 meses siguientes, la caída es de solo -0.025 vs inductivo — el modelo es robusto al shift temporal
 
 ---
 

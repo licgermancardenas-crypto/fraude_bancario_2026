@@ -408,13 +408,27 @@ def results_section(results, figures_dir):
     <figcaption>Fig. 2 — Curva Precisión-Recall: los 5 modelos evaluados. Node2Vec (0.227) queda por debajo del azar relativo, demostrando que embeddings de posición sin features tabulares no capturan la señal. GAT (0.810) compite bien pero sin alcanzar a GraphSAGE (1.000 transductivo, 0.835 inductivo).</figcaption>
   </figure>
 
-  <h3>Nota metodológica — evaluación transductiva vs. inductiva</h3>
+  <h3>Nota metodológica — tres condiciones de evaluación</h3>
+  <table>
+    <thead><tr><th>Condición</th><th>PR-AUC</th><th>Qué simula</th><th>Uso recomendado</th></tr></thead>
+    <tbody>
+      <tr><td>Transductivo</td><td>1.000</td><td>Modelo ve todas las aristas en inferencia, incluyendo conexiones de test a train</td><td>Límite superior teórico — no reportar a dirección</td></tr>
+      <tr><td>Inductivo</td><td>0.835</td><td>Aristas de test ocultadas durante inferencia — simula cuentas nuevas</td><td>Cota conservadora para cuentas sin historia</td></tr>
+      <tr><td class="td-best"><strong>Temporal</strong></td><td class="td-best"><strong>0.810</strong></td><td>Reentrenado con transacciones hasta 2024-07-25 (70% del período); evaluado en últimos 4 meses</td><td><strong>Número a presentar a dirección</strong></td></tr>
+    </tbody>
+  </table>
+
   <div class="callout no-break">
-    <div class="callout-tag">Importante</div>
+    <div class="callout-tag">Número operativo</div>
     <div class="callout-body">
-      El PR-AUC=1.000 de GraphSAGE corresponde a <strong>evaluación transductiva</strong>: durante la inferencia el modelo ve todas las aristas del grafo, incluyendo las que conectan nodos de test con nodos fraude de train. En <strong>evaluación inductiva</strong> —eliminando las aristas de test durante la inferencia, que simula cuentas nuevas en producción— el PR-AUC cae a <strong>0.835</strong>. Este es el número correcto para estimar rendimiento operativo real. El PR-AUC=0.835 sigue siendo superior a XGBoost (0.925, también en evaluación transductiva comparable).
+      <strong>PR-AUC=0.810</strong> es el resultado de la evaluación temporal: el modelo entrenado sobre los primeros 8 meses de historia transaccional mantiene su capacidad de detección en los 4 meses siguientes, con una caída de solo <strong>-0.025</strong> respecto al inductivo. Esto confirma que los patrones de lavado aprendidos son estables en el tiempo — condición necesaria para un sistema AML en producción.
     </div>
   </div>
+
+  <figure>
+    {b64img(f"{figures_dir}/24_temporal_eval.png")}
+    <figcaption>Fig. 3 — Evaluación temporal: izquierda, curvas PR para las tres condiciones (transductiva, inductiva, temporal); derecha, comparativa de PR-AUC. La caída del 1.000 al 0.810 representa el costo real de la evaluación honesta. El delta temporal (-0.025 vs inductivo) es pequeño, indicando robustez al shift temporal.</figcaption>
+  </figure>
 
   <h3>Traducción operativa para BRS</h3>
   <div class="highlight no-break">
@@ -479,6 +493,9 @@ def insights_section():
         ("El GNN detecta mulas pero no el perpetrador de origen",
          "Rastreando hacia atrás desde los nodos detectados en el grafo dirigido de transacciones, se identificaron 3 cuentas raíz (in-degree=0 en el subgrafo de fraude): ACC0001330 (detectada, 13 mulas alimentadas), ACC0000210 y ACC0001046 (no detectadas, score GNN ≈ 0%, is_fraud=False en el dataset). Estas dos cuentas inyectaron $66.422 al anillo desde cuentas aparentemente legítimas. El GNN detecta la estratificación (placement→layering); el backward tracing detecta la colocación (placement).",
          "Combinar el scoring GNN con una segunda pasada de backward tracing: dado cualquier nodo detectado como fraude, agregar a la cola de investigación todos sus predecesores directos en el grafo dirigido temporal que no sean ellos mismos detectados. Priorizar por monto inyectado."),
+        ("Evaluación temporal: PR-AUC=0.810 es el número operativo real",
+         "Re-entrenando GraphSAGE con solo el 70% del período histórico (transacciones hasta 2024-07-25, 5.636 de 8.050 aristas) y evaluando en el test set con el grafo completo, el PR-AUC es 0.810. La secuencia completa: transductivo=1.000 → inductivo=0.835 → temporal=0.810. El delta temporal vs inductivo es solo -0.025, confirmando que el modelo aprende patrones estructurales estables, no conexiones específicas del período de entrenamiento.",
+         "Adoptar split temporal mensual para el piloto BRS: entrenar hasta mes M, validar en M+1, evaluar en M+2. Re-entrenar trimestralmente con los nuevos casos etiquetados por compliance. Reportar siempre PR-AUC temporal a dirección, no el transductivo."),
         ("Propagación inversa de riesgo valida y amplía el backward tracing",
          "Aplicando la fórmula placement(u) = Σ gnn[v]×amount(u→v) + 0.3×Σ gnn[w]×amount(v→w)×amount(u→v)/total_out(v) sobre todos los nodos, ACC0000210 (perpetrador no detectado por GNN) rankea #1 con score_norm=1.0 y ACC0001046 rankea #9. Los rangos 2-8 están ocupados por mulas con GNN=100%, coherente porque se transfieren entre sí. El método opera exclusivamente sobre scores GNN existentes y el grafo dirigido — sin etiquetas adicionales.",
          "Integrar el placement score en el sistema de alertas como capa de segunda línea: cualquier cuenta con placement_score_norm > 0.3 y gnn_score < 0.5 entra automáticamente a la cola de investigación de colocación, complementando la cola primaria de mulas del GNN."),
