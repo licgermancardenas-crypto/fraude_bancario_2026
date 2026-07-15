@@ -51,10 +51,10 @@ function ScoreChip({ detected }: { detected: boolean }) {
     <span
       className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold"
       style={detected
-        ? { backgroundColor: "#FEE2E2", color: "#DC2626" }
-        : { backgroundColor: "#DCFCE7", color: "#16A34A" }}
+        ? { backgroundColor: "#DCFCE7", color: "#16A34A" }
+        : { backgroundColor: "#FEE2E2", color: "#DC2626" }}
     >
-      <span className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: detected ? "#DC2626" : "#16A34A" }} />
+      <span className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: detected ? "#16A34A" : "#DC2626" }} />
       {detected ? "Detectado" : "No detectado"}
     </span>
   );
