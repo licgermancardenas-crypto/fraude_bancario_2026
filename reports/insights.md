@@ -189,26 +189,6 @@
 
 ### Insight 13 — El modelo detecta fraude por señales de red, no de monto
 
-**Hallazgo:** GNNExplainer revela que los features más determinantes para clasificar una cuenta como fraude son **type_personal**, **avg_sent** y **risk_score** — todos indicadores de conectividad y comportamiento relacional, no de monto absoluto.
-
-**Implicancia para BRS:** Las reglas actuales de umbral de monto no capturarían estas señales. El modelo aprende patrones que son invisibles para cualquier análisis por cuenta individual.
-
-**Acción sugerida:** Priorizar la construcción de features de red (grado, ratio in/out, contrapartes únicas en ventanas de 72h) en el pipeline de datos de BRS, antes de reentrenar el modelo con datos reales.
-
----
-
-### Insight 14 — El 4% de los vecinos influyentes son también de alto riesgo
-
-**Hallazgo:** Para los top-5 nodos de fraude explicados, el 4% de sus vecinos más influyentes (edge mask > 25% del máximo) tienen a su vez un score GNN > 0.5. La señal de fraude se propaga de forma consistente a través de la red.
-
-**Implicancia para BRS:** Un sistema de alertas basado en el score GNN puede usarse de forma transitiva: si la cuenta A es marcada, las cuentas que más influyeron en esa marcación son candidatas inmediatas a revisión secundaria.
-
-**Acción sugerida:** Implementar "investigación en cascada": cuando un analista confirma fraude en una cuenta, el sistema genera automáticamente alertas de nivel 2 para sus vecinos influyentes según GNNExplainer.
-
----
-
-### Insight 13 — El modelo detecta fraude por señales de red, no de monto
-
 **Hallazgo:** GNNExplainer revela que los features más determinantes para clasificar una cuenta como fraude son **txn_count**, **unique_senders** y **risk_score** — todos indicadores de conectividad y comportamiento relacional, no de monto absoluto.
 
 **Implicancia para BRS:** Las reglas actuales de umbral de monto no capturarían estas señales. El modelo aprende patrones que son invisibles para cualquier análisis por cuenta individual.
@@ -217,11 +197,11 @@
 
 ---
 
-### Insight 14 — El 20% de los vecinos influyentes son también de alto riesgo
+### Insight 14 — El 13% de los vecinos influyentes son también de alto riesgo
 
-**Hallazgo:** Para los top-5 nodos de fraude explicados, el 20% de sus vecinos más influyentes (edge mask > 25% del máximo) tienen a su vez un score GNN > 0.5. La señal de fraude se propaga de forma consistente a través de la red.
+**Hallazgo:** Para los top-5 nodos de fraude explicados, el 13% (3/23) de sus vecinos más influyentes según GNNExplainer tienen a su vez un score GNN > 0.5. La mayoría de los vecinos influyentes son cuentas legítimas — el modelo detecta fraude por patrones estructurales (volumen, ratio in/out, contrapartes únicas), no por "contagio" directo de un vecino fraudulento.
 
-**Implicancia para BRS:** Un sistema de alertas basado en el score GNN puede usarse de forma transitiva: si la cuenta A es marcada, las cuentas que más influyeron en esa marcación son candidatas inmediatas a revisión secundaria.
+**Implicancia para BRS:** El modelo no hace simple guilt-by-association. El 13% de vecinos de alto riesgo es suficiente para justificar una revisión secundaria transitiva: cuando se confirma fraude en la cuenta A, los vecinos influyentes son candidatos inmediatos a investigación.
 
 **Acción sugerida:** Implementar "investigación en cascada": cuando un analista confirma fraude en una cuenta, el sistema genera automáticamente alertas de nivel 2 para sus vecinos influyentes según GNNExplainer.
 
