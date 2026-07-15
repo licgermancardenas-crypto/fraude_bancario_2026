@@ -214,3 +214,13 @@
 **Implicancia para BRS:** El PR-AUC de 0.83 en evaluación inductiva es el número correcto para estimar rendimiento en producción con cuentas nuevas. Sigue siendo el mejor modelo (vs. XGBoost=0.925 tabular, también en setting transductivo comparable). El leakage es un fenómeno conocido en la literatura de GNNs; la mitigación en producción es actualizar el grafo con lag controlado.
 
 **Acción sugerida:** En el piloto con datos reales de BRS, evaluar en ventana temporal: entrenar con transacciones hasta el mes M y evaluar en el mes M+1 (ningún nodo de test tiene aristas en el grafo de train). Esto da la estimación más honesta del rendimiento operativo real.
+
+
+---
+### Insight 16 — El GNN detecta mulas pero no el perpetrador de origen
+
+**Hallazgo:** Rastreando hacia atrás desde los 27 nodos fraude detectados por GraphSAGE en el grafo dirigido de transacciones, se identificaron **3 cuentas origen** (in-degree = 0 en el subgrafo de fraude): ACC0001330, ACC0000210, ACC0001046. De ellas, **2 no fueron detectadas por el GNN** (score GNN < 0.5) porque tienen baja centralidad de red y pocas transacciones totales — el perfil típico de una cuenta que inyecta fondos una sola vez y desaparece. El monto total inyectado detectado: **$80,925**.
+
+**Implicancia para BRS:** El modelo de detección actual cubre la **capa de estratificación** (placement → layering), pero no la **capa de colocación** (el depósito inicial del dinero ilícito). Los perpetradores se camuflan como cuentas con bajo volumen de transacciones — invisibles para un clasificador de nodos basado en centralidad de red.
+
+**Acción sugerida:** Combinar el scoring GNN con una segunda pasada de *backward tracing*: dado cualquier nodo detectado como fraude, agregar a la cola de investigación todos sus predecesores directos en el grafo dirigido temporal que no sean ellos mismos detectados. Priorizar por monto inyectado y antigüedad de la cuenta.
