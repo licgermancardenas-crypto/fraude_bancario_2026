@@ -9,6 +9,8 @@ type PlacementCandidate = {
   gnn_score: number; detected_by_gnn: boolean; is_fraud_label: boolean;
   is_known_perp: boolean; total_sent_to_fraud: number;
   n_fraud_recipients: number; n_txns: number; first_txn: string;
+  nombre_completo?: string; dni?: number; ocupacion?: string;
+  condicion_afip?: string; municipio?: string;
 };
 type PlacementData = {
   candidates: PlacementCandidate[]; n_flagged: number; n_new_discoveries: number;
@@ -17,9 +19,18 @@ type PlacementData = {
 
 const placement = placementRaw as PlacementData;
 
-type RingNode = { node_id: string; role: string; gnn_score: number; out_degree: number; in_degree: number };
+type RingNode = {
+  node_id: string; role: string; gnn_score: number; out_degree: number; in_degree: number;
+  nombre_completo?: string; ocupacion?: string; municipio?: string; condicion_afip?: string; dni?: number;
+};
 type RingEdge = { src: string; dst: string; amount: number; timestamp: string };
-type Perpetrator = { node_id: string; n_mules_fed: number; amount_injected: number; gnn_score: number; first_transaction: string; mules: string[]; perpetrator_score: number };
+type Perpetrator = {
+  node_id: string; n_mules_fed: number; amount_injected: number; gnn_score: number;
+  first_transaction: string; mules: string[]; perpetrator_score: number;
+  nombre_completo?: string; dni?: number; cuil?: string; ocupacion?: string;
+  condicion_afip?: string; actividad_economica?: string;
+  municipio?: string; provincia?: string; sucursal?: string;
+};
 type Summary = { n_perpetrators: number; n_mules_detected: number; n_mules_missed: number; total_amount_laundered: number };
 
 const data = originRaw as {
@@ -75,16 +86,21 @@ function RingGraphDirected() {
       const nodeMap = new Map(data.ring_nodes.map(n => [n.node_id, n]));
 
       const elements = [
-        ...data.ring_nodes.map(n => ({
-          data: {
-            id:    n.node_id,
-            label: n.node_id.replace("ACC000", "#"),
-            color: ROLE_COLOR[n.role] ?? "#94A3B8",
-            role:  n.role,
-            score: n.gnn_score,
-            size:  n.role === "perpetrador" ? 54 : n.role.startsWith("mula") ? 42 : 28,
-          },
-        })),
+        ...data.ring_nodes.map(n => {
+          const shortName = n.nombre_completo
+            ? n.nombre_completo.split(" ").slice(0, 2).join(" ")
+            : n.node_id.replace("ACC000", "#");
+          return {
+            data: {
+              id:    n.node_id,
+              label: shortName,
+              color: ROLE_COLOR[n.role] ?? "#94A3B8",
+              role:  n.role,
+              score: n.gnn_score,
+              size:  n.role === "perpetrador" ? 54 : n.role.startsWith("mula") ? 42 : 28,
+            },
+          };
+        }),
         ...data.ring_edges.map((e, i) => {
           const maxAmt = Math.max(...data.ring_edges.map(x => x.amount));
           const w = 1 + 4 * (e.amount / maxAmt);
@@ -179,18 +195,32 @@ function RingGraphDirected() {
         <div className="rounded-xl p-4" style={{ backgroundColor: "#FFFFFF", border: "1px solid #E2E8F0" }}>
           {selected ? (
             <>
-              <p className="text-xs font-semibold uppercase tracking-widest mb-3" style={{ color: "#2563EB" }}>Nodo seleccionado</p>
-              <dl className="space-y-2 text-sm">
+              <p className="text-xs font-semibold uppercase tracking-widest mb-1" style={{ color: "#2563EB" }}>Nodo seleccionado</p>
+              {selected.nombre_completo && (
+                <div className="mb-3 pb-3" style={{ borderBottom: "1px solid #F1F5F9" }}>
+                  <p className="text-sm font-bold" style={{ color: "#0F172A" }}>{selected.nombre_completo}</p>
+                  {selected.dni && (
+                    <p className="text-[11px] font-mono" style={{ color: "#94A3B8" }}>DNI {selected.dni.toLocaleString("es-AR")}</p>
+                  )}
+                  {selected.ocupacion && (
+                    <p className="text-[11px]" style={{ color: "#64748B" }}>{selected.ocupacion}</p>
+                  )}
+                  {selected.municipio && (
+                    <p className="text-[11px]" style={{ color: "#64748B" }}>{selected.municipio}</p>
+                  )}
+                </div>
+              )}
+              <dl className="space-y-2">
                 {([
-                  ["ID",        selected.node_id],
-                  ["Rol",       ROLE_LABEL[selected.role] ?? selected.role],
-                  ["Score GNN", (selected.gnn_score * 100).toFixed(1) + "%"],
-                  ["Grado in",  String(selected.in_degree)],
-                  ["Grado out", String(selected.out_degree)],
+                  ["ID",            selected.node_id],
+                  ["Rol",           ROLE_LABEL[selected.role] ?? selected.role],
+                  ["Score GNN",     (selected.gnn_score * 100).toFixed(1) + "%"],
+                  ["AFIP",          selected.condicion_afip ?? "—"],
+                  ["Grado in/out",  `${selected.in_degree} / ${selected.out_degree}`],
                 ] as [string, string][]).map(([k, v]) => (
                   <div key={k} className="flex justify-between gap-2">
                     <dt className="text-xs" style={{ color: "#94A3B8" }}>{k}</dt>
-                    <dd className="font-semibold text-xs" style={{ color: "#0F172A" }}>{v}</dd>
+                    <dd className="font-semibold text-xs text-right" style={{ color: "#0F172A" }}>{v}</dd>
                   </div>
                 ))}
               </dl>
@@ -248,7 +278,7 @@ export default function OrigenPage() {
           <table className="w-full text-sm" style={{ backgroundColor: "#FFFFFF" }}>
             <thead>
               <tr style={{ backgroundColor: "#F8FAFC", borderBottom: "1px solid #E2E8F0" }}>
-                {["Cuenta", "Estado en GNN", "Mulas alimentadas", "Monto inyectado", "Primera txn", ""].map(h => (
+                {["Titular", "Estado en GNN", "Mulas alimentadas", "Monto inyectado", "Primera txn", ""].map(h => (
                   <th key={h} className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider" style={{ color: "#94A3B8" }}>{h}</th>
                 ))}
               </tr>
@@ -267,7 +297,21 @@ export default function OrigenPage() {
                       onMouseEnter={e => (e.currentTarget.style.backgroundColor = "#F8FAFC")}
                       onMouseLeave={e => (e.currentTarget.style.backgroundColor = "transparent")}
                     >
-                      <td className="px-4 py-3 font-mono text-xs font-semibold" style={{ color: "#0F172A" }}>{p.node_id}</td>
+                      <td className="px-4 py-3 min-w-[180px]">
+                        {p.nombre_completo ? (
+                          <div>
+                            <p className="text-sm font-semibold leading-tight" style={{ color: "#0F172A" }}>{p.nombre_completo}</p>
+                            <p className="text-[11px] font-mono leading-tight mt-0.5" style={{ color: "#94A3B8" }}>
+                              DNI {p.dni?.toLocaleString("es-AR")} · {p.node_id}
+                            </p>
+                            {p.ocupacion && (
+                              <p className="text-[11px] leading-tight" style={{ color: "#64748B" }}>{p.ocupacion}</p>
+                            )}
+                          </div>
+                        ) : (
+                          <span className="font-mono text-xs font-semibold" style={{ color: "#0F172A" }}>{p.node_id}</span>
+                        )}
+                      </td>
                       <td className="px-4 py-3"><ScoreChip detected={detected} /></td>
                       <td className="px-4 py-3 text-center">
                         <span className="font-bold" style={{ color: "#0F172A" }}>{p.n_mules_fed}</span>
@@ -279,17 +323,43 @@ export default function OrigenPage() {
                     {isOpen && (
                       <tr key={`${p.node_id}-detail`}>
                         <td colSpan={6} className="px-6 py-4" style={{ backgroundColor: "#F8FAFC", borderTop: "1px solid #E2E8F0" }}>
-                          <p className="text-xs uppercase tracking-wider font-semibold mb-2" style={{ color: "#94A3B8" }}>Mulas alimentadas</p>
+                          {p.cuil && (
+                            <div className="mb-3 grid grid-cols-2 sm:grid-cols-3 gap-x-6 gap-y-1 text-xs pb-3"
+                                 style={{ borderBottom: "1px solid #E2E8F0" }}>
+                              {([
+                                ["CUIL",      p.cuil],
+                                ["Ocupación", p.ocupacion ?? "—"],
+                                ["AFIP",      p.condicion_afip ?? "—"],
+                                ["Municipio", p.municipio ?? "—"],
+                                ["Provincia", p.provincia ?? "—"],
+                                ["Sucursal",  p.sucursal ?? "—"],
+                              ] as [string, string][]).map(([k, v]) => (
+                                <div key={k}>
+                                  <span style={{ color: "#94A3B8" }}>{k}: </span>
+                                  <span className="font-medium" style={{ color: "#0F172A" }}>{v}</span>
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                          <p className="text-xs uppercase tracking-wider font-semibold mb-2" style={{ color: "#94A3B8" }}>
+                            Mulas alimentadas ({p.mules.length})
+                          </p>
                           <div className="flex flex-wrap gap-2">
-                            {p.mules.map(m => (
-                              <span
-                                key={m}
-                                className="px-2 py-1 rounded text-xs font-mono"
-                                style={{ backgroundColor: "#FEE2E2", color: "#DC2626", border: "1px solid #FECACA" }}
-                              >
-                                {m}
-                              </span>
-                            ))}
+                            {p.mules.map(m => {
+                              const mNode = data.ring_nodes.find(n => n.node_id === m);
+                              return (
+                                <span
+                                  key={m}
+                                  className="px-2 py-1 rounded text-xs"
+                                  style={{ backgroundColor: "#FEE2E2", color: "#DC2626", border: "1px solid #FECACA" }}
+                                  title={m}
+                                >
+                                  {mNode?.nombre_completo
+                                    ? mNode.nombre_completo.split(" ").slice(0, 2).join(" ")
+                                    : m}
+                                </span>
+                              );
+                            })}
                           </div>
                           {!detected && (
                             <p className="mt-3 text-xs flex items-center gap-1.5" style={{ color: "#D97706" }}>
@@ -380,9 +450,14 @@ export default function OrigenPage() {
                   <span className="text-xs font-mono w-5 flex-shrink-0" style={{ color: "#CBD5E1" }}>
                     {i + 1}
                   </span>
-                  <span className="font-mono text-xs font-semibold w-28 flex-shrink-0" style={{ color: "#0F172A" }}>
-                    {c.account_id}
-                  </span>
+                  <div className="w-36 flex-shrink-0">
+                    <p className="text-xs font-semibold leading-tight" style={{ color: "#0F172A" }}>
+                      {c.nombre_completo
+                        ? c.nombre_completo.split(" ").slice(0, 2).join(" ")
+                        : c.account_id}
+                    </p>
+                    <p className="text-[10px] font-mono leading-tight" style={{ color: "#94A3B8" }}>{c.account_id}</p>
+                  </div>
                   {/* score bar */}
                   <div className="flex-1 flex items-center gap-2">
                     <div className="flex-1 h-2 rounded-full" style={{ backgroundColor: "#E2E8F0" }}>
