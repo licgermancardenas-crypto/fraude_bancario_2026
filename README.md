@@ -8,24 +8,30 @@ Engagement simulado para *Banco Regional del Sur (BRS)*: prueba de concepto end-
 
 ## Resultados
 
-| Modelo | PR-AUC (transductivo) | PR-AUC (inductivo) | Recall @ P90 |
-|---|---|---|---|
-| Logistic Regression | 0.555 | — | 0% |
-| XGBoost | 0.925 | — | 80% |
-| Node2Vec + XGBoost | 0.227 | — | 0% |
-| GAT | 0.810 | — | 20% |
-| **GraphSAGE** | **1.000** | **0.835** | **100%** |
+| Modelo | PR-AUC (transductivo) | PR-AUC (inductivo) | Recall @ P90 | Fraude no detectado |
+|---|---|---|---|---|
+| Logistic Regression | 0.555 | — | 0% | 20% |
+| XGBoost | 0.925 | — | 80% | 20% |
+| Node2Vec + XGBoost | 0.227 | — | 0% | 60% |
+| GAT | 0.810 | — | 20% | 0% |
+| **GraphSAGE** | **1.000** | **0.835** | **100%** | **0%** |
 
-**Nota metodológica:** el PR-AUC=1.0 corresponde a evaluación transductiva estándar (full-batch, el GNN ve todas las aristas durante el forward pass, incluyendo conexiones entre nodos de train y test). En evaluación inductiva —eliminando aristas de test durante la inferencia, que simula cuentas nuevas en producción— el PR-AUC baja a **0.835**, que es el número correcto para estimar rendimiento operativo. Sigue siendo el modelo más potente. Ver [Insight 15](reports/insights.md).
+**Nota metodológica:** PR-AUC=1.0 es evaluación transductiva estándar (el GNN ve todas las aristas durante el forward pass). En evaluación inductiva —eliminando aristas de test durante la inferencia, que simula cuentas nuevas en producción— el PR-AUC baja a **0.835**. Sigue siendo el modelo más potente. Ver [Insight 15](reports/insights.md).
 
-La clave del resultado: **lift fraude-fraude de 14.3×** — las cuentas mula son crediticiamente normales (Cohen d = 0.055) pero se delatan por sus conexiones.
+**Hallazgo clave:** lift fraude→fraude de **14.3×** — las cuentas mula son crediticiamente normales (Cohen d = 0.055) pero se delatan por sus conexiones.
+
+**Rastreo de origen:** el backward tracing sobre el grafo dirigido identificó 2 perpetradores no detectados por el GNN (score ≈ 0%), que inyectaron $66K al anillo desde cuentas aparentemente legítimas. El GNN detecta la estratificación; el backward tracing detecta la colocación.
+
+---
 
 ## Stack
 
-**ML:** Python 3.13 · PyTorch · PyTorch Geometric · XGBoost · scikit-learn · NetworkX  
+**ML:** Python 3.13 · PyTorch · PyTorch Geometric · XGBoost · scikit-learn · NetworkX · gensim  
 **Dashboard:** Next.js 14 · Tailwind CSS · Recharts · Cytoscape.js  
 **Deploy:** Vercel (static export)  
 **Informe:** HTML/CSS → Playwright/Chromium → PDF A4
+
+---
 
 ## Estructura del proyecto
 
@@ -34,30 +40,69 @@ fraud-gnn/
 ├── src/
 │   ├── generate.py          # generador de grafo sintético (1 500 nodos, 8 050 aristas)
 │   ├── features.py          # 18 features por nodo
-│   ├── build_graph.py       # PyG Data object
-│   ├── models/
-│   │   ├── graphsage.py     # SAGEConv(18→64→64) + Linear(64→2)
-│   │   └── baseline.py      # LogReg + XGBoost
-│   ├── train.py             # entrenamiento GNN con early stopping
-│   ├── train_baseline.py    # entrenamiento baselines
+│   ├── build_graph.py       # PyG Data object + splits estratificados
+│   ├── train_baseline.py    # LogReg + XGBoost
+│   ├── train.py             # GraphSAGE con early stopping
+│   ├── train_gat.py         # GAT (Graph Attention Network)
+│   ├── train_node2vec.py    # Node2Vec (random walks + Word2Vec + XGBoost)
+│   ├── explain.py           # GNNExplainer — importancia de features y aristas
+│   ├── trace_origin.py      # Backward tracing — perpetradores desde mulas
 │   ├── evaluate.py          # PR-AUC, Recall@P90, traducción operativa
 │   ├── analysis.py          # comparativa, ablation, error analysis
 │   ├── export_dashboard.py  # JSONs para el dashboard
-│   └── generate_report.py   # informe PDF institucional
+│   ├── generate_report.py   # informe PDF institucional
+│   ├── eda.py               # análisis exploratorio del grafo
+│   └── models/
+│       ├── graphsage.py     # SAGEConv(18→64→64) + Linear(64→2)
+│       ├── gat.py           # GATConv(18→64→64, 4 heads) + Linear(64→2)
+│       └── baseline.py      # LogReg + XGBoost tabulares
 ├── dashboard/               # Next.js 14 app (deploy en Vercel)
 │   ├── app/
-│   │   ├── page.tsx         # Overview: KPIs + curva PR + score dist
+│   │   ├── page.tsx         # Overview: KPIs + curvas PR + distribución de scores
 │   │   ├── anillos/         # Explorador de anillos (Cytoscape.js)
+│   │   ├── origen/          # Rastreo de perpetradores (backward tracing)
 │   │   ├── cuentas/         # Ranking de riesgo top 200
 │   │   └── metodologia/     # Documentación técnica
-│   └── public/data/         # JSONs exportados por export_dashboard.py
+│   └── public/data/         # JSONs exportados
 ├── reports/
-│   ├── informe_final.pdf    # Informe institucional (generado con Playwright)
-│   ├── figures/             # 15 figuras (EDA, curvas, ablation)
-│   └── insights.md          # 12 insights de negocio
-├── notebooks/               # EDA, baselines, GNN (narrativa)
-└── config/config.yaml       # hiperparámetros centralizados
+│   ├── informe_final.pdf    # Informe institucional (Playwright → PDF)
+│   ├── insights.md          # 16 insights de negocio
+│   └── figures/             # 22 figuras (EDA, curvas, ablation, anillo)
+├── config/config.yaml       # hiperparámetros centralizados
+└── requirements.txt
 ```
+
+---
+
+## Módulos del pipeline
+
+### Modelos entrenados
+
+| Archivo | Modelo | Params | Resultado |
+|---|---|---|---|
+| `src/train_baseline.py` | LogReg + XGBoost | — | PR-AUC 0.555 / 0.925 |
+| `src/train.py` | GraphSAGE | 10 754 | PR-AUC 1.000 (0.835 inductivo) |
+| `src/train_gat.py` | GAT (4 heads) | 5 762 | PR-AUC 0.810 |
+| `src/train_node2vec.py` | Node2Vec + XGBoost | 64-dim emb. | PR-AUC 0.227 |
+
+### Explicabilidad y trazabilidad
+
+| Archivo | Función |
+|---|---|
+| `src/explain.py` | GNNExplainer: importancia de features y aristas por nodo fraude |
+| `src/trace_origin.py` | Backward tracing: remonta desde mulas detectadas hasta perpetradores |
+
+### Dashboard (5 páginas)
+
+| Ruta | Contenido |
+|---|---|
+| `/` | KPIs globales, curvas PR comparativas, distribución de scores |
+| `/anillos` | Explorador de anillos cíclicos (Cytoscape.js interactivo) |
+| `/origen` | Grafo dirigido del anillo + tabla de perpetradores identificados |
+| `/cuentas` | Ranking de riesgo top 200, filtrable y ordenable |
+| `/metodologia` | Documentación técnica para el equipo de compliance |
+
+---
 
 ## Reproducir
 
@@ -68,10 +113,14 @@ uv pip install -r requirements.txt
 
 # Pipeline completo
 python -m src.generate          # dataset sintético
+python -m src.build_graph       # grafo PyG + splits
 python -m src.train_baseline    # LogReg + XGBoost
-python -m src.build_graph       # grafo PyG
 python -m src.train             # GraphSAGE
-python -m src.analysis          # comparativa + insights
+python -m src.train_gat         # GAT
+python -m src.train_node2vec    # Node2Vec + XGBoost
+python -m src.explain           # GNNExplainer
+python -m src.trace_origin      # backward tracing
+python -m src.analysis          # comparativa + figuras
 python -m src.export_dashboard  # JSONs para dashboard
 python -m src.generate_report   # informe PDF
 
@@ -79,14 +128,28 @@ python -m src.generate_report   # informe PDF
 cd dashboard && npm install && npm run dev
 ```
 
+---
+
 ## Informe PDF
 
-El informe institucional completo (9 secciones, ~16 páginas, identidad visual BRS) se genera con:
+Informe institucional completo (9 secciones, ~16 páginas, identidad visual BRS):
 
 ```bash
 python -m src.generate_report
 # → reports/informe_final.pdf
 ```
+
+---
+
+## Insights seleccionados
+
+De los **16 insights** documentados en [`reports/insights.md`](reports/insights.md):
+
+- **Insight 3** — Homofilia 14.3×: lift fraude→fraude, justificación cuantitativa para usar GNNs
+- **Insight 7** — Los anillos completan sus ciclos en ventanas de 72 h, antes del monitoreo batch diario
+- **Insight 13** — GNNExplainer revela que txn_count, unique_senders y risk_score son los features más determinantes
+- **Insight 15** — PR-AUC=1.0 es evaluación transductiva; PR-AUC=0.835 es el número correcto para producción
+- **Insight 16** — El GNN detecta la estratificación pero no la colocación; el backward tracing cierra esa brecha
 
 ---
 
