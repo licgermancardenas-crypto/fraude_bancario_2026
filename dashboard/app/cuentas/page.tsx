@@ -16,16 +16,27 @@ export default function CuentasPage() {
         description={`Ordenadas por score GNN descendente. ${nFraud} marcadas como fraude en el dataset. Filtrá, buscá o reordenás por cualquier columna.`}
       />
 
-      <div className="rounded-xl border border-white/8 p-5" style={{ backgroundColor: "#0d1e38" }}>
+      <div
+        className="rounded-xl p-5"
+        style={{
+          backgroundColor: "#FFFFFF",
+          border: "1px solid #E2E8F0",
+          boxShadow: "0 1px 3px rgba(0,0,0,0.06)",
+        }}
+      >
         <AccountsTable accounts={accounts} />
       </div>
 
-      <div className="rounded-xl border border-white/8 px-5 py-4 text-xs text-white/35 leading-relaxed"
-           style={{ backgroundColor: "#0a1225" }}>
-        <span className="font-semibold" style={{ color: "#C9A227" }}>Nota operativa —</span>{" "}
-        En producción esta tabla es la cola de trabajo del equipo de compliance de BRS.
-        Los analistas revisan en orden descendente con una meta de 90% de precisión
-        (9 de cada 10 revisiones deben confirmar fraude).
+      <div
+        className="rounded-xl px-5 py-4 text-xs leading-relaxed"
+        style={{ backgroundColor: "#EFF6FF", border: "1px solid #BFDBFE" }}
+      >
+        <span className="font-semibold" style={{ color: "#1E3A8A" }}>Nota operativa — </span>
+        <span style={{ color: "#1D4ED8" }}>
+          En producción esta tabla es la cola de trabajo del equipo de compliance de BRS.
+          Los analistas revisan en orden descendente con una meta de 90% de precisión
+          (9 de cada 10 revisiones deben confirmar fraude).
+        </span>
       </div>
     </div>
   );

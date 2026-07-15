@@ -6,14 +6,26 @@ interface PageHeaderProps {
 
 export default function PageHeader({ eyebrow, title, description }: PageHeaderProps) {
   return (
-    <div className="pb-2 border-b border-white/8 mb-8">
-      <p className="text-[11px] font-bold uppercase tracking-widest mb-2"
-         style={{ color: "#C9A227" }}>
+    <div
+      className="rounded-2xl px-7 py-6 mb-6"
+      style={{
+        background: "linear-gradient(135deg, #1E3A8A 0%, #2563EB 100%)",
+        boxShadow: "0 4px 24px rgba(37,99,235,0.25)",
+      }}
+    >
+      <p
+        className="text-[11px] font-bold uppercase tracking-widest mb-1.5"
+        style={{ color: "#93C5FD" }}
+      >
         {eyebrow}
       </p>
-      <h1 className="text-2xl sm:text-3xl font-bold text-white tracking-tight">{title}</h1>
+      <h1 className="text-2xl font-bold tracking-tight" style={{ color: "#FFFFFF" }}>
+        {title}
+      </h1>
       {description && (
-        <p className="mt-2 text-sm text-white/45 max-w-2xl leading-relaxed">{description}</p>
+        <p className="mt-1.5 text-sm max-w-2xl leading-relaxed" style={{ color: "#BFDBFE" }}>
+          {description}
+        </p>
       )}
     </div>
   );

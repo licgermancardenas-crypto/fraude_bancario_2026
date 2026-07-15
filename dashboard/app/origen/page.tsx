@@ -16,10 +16,10 @@ const data = originRaw as {
 };
 
 const ROLE_COLOR: Record<string, string> = {
-  perpetrador:       "#E67E22",
-  mula_detectada:    "#C0392B",
-  mula_no_detectada: "#8E44AD",
-  receptor_normal:   "#4A5568",
+  perpetrador:       "#F59E0B",
+  mula_detectada:    "#DC2626",
+  mula_no_detectada: "#7C3AED",
+  receptor_normal:   "#94A3B8",
 };
 const ROLE_LABEL: Record<string, string> = {
   perpetrador:       "Perpetrador",
@@ -32,13 +32,15 @@ function fmt(n: number) {
   return "$" + n.toLocaleString("es-AR", { maximumFractionDigits: 0 });
 }
 
-function ScoreChip({ score, detected }: { score: number; detected: boolean }) {
+function ScoreChip({ detected }: { detected: boolean }) {
   return (
     <span
       className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold"
-      style={{ backgroundColor: detected ? "#C0392B22" : "#27AE6022", color: detected ? "#E57373" : "#66BB6A" }}
+      style={detected
+        ? { backgroundColor: "#FEE2E2", color: "#DC2626" }
+        : { backgroundColor: "#DCFCE7", color: "#16A34A" }}
     >
-      <span className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: detected ? "#E57373" : "#66BB6A" }} />
+      <span className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: detected ? "#DC2626" : "#16A34A" }} />
       {detected ? "Detectado" : "No detectado"}
     </span>
   );
@@ -56,7 +58,6 @@ function RingGraphDirected() {
     (async () => {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const cytoscape = (await import("cytoscape")).default as any;
-
       const nodeMap = new Map(data.ring_nodes.map(n => [n.node_id, n]));
 
       const elements = [
@@ -64,7 +65,7 @@ function RingGraphDirected() {
           data: {
             id:    n.node_id,
             label: n.node_id.replace("ACC000", "#"),
-            color: ROLE_COLOR[n.role] ?? "#4A5568",
+            color: ROLE_COLOR[n.role] ?? "#94A3B8",
             role:  n.role,
             score: n.gnn_score,
             size:  n.role === "perpetrador" ? 54 : n.role.startsWith("mula") ? 42 : 28,
@@ -73,9 +74,7 @@ function RingGraphDirected() {
         ...data.ring_edges.map((e, i) => {
           const maxAmt = Math.max(...data.ring_edges.map(x => x.amount));
           const w = 1 + 4 * (e.amount / maxAmt);
-          return {
-            data: { id: `e${i}`, source: e.src, target: e.dst, amount: e.amount, width: w },
-          };
+          return { data: { id: `e${i}`, source: e.src, target: e.dst, amount: e.amount, width: w } };
         }),
       ];
 
@@ -87,46 +86,43 @@ function RingGraphDirected() {
             selector: "node",
             style: {
               "background-color": "data(color)",
-              "border-color":     "#C9A227",
-              "border-width":     1.5,
+              "border-color":     "#FFFFFF",
+              "border-width":     2,
               label:              "data(label)",
-              color:              "#fff",
+              color:              "#1E293B",
               "font-size":        "9px",
-              "font-weight":      "bold",
-              "text-valign":      "center",
+              "font-weight":      "600",
+              "text-valign":      "bottom",
+              "text-margin-y":    4,
               width:              "data(size)",
               height:             "data(size)",
             },
           },
           {
             selector: "node[role='perpetrador']",
-            style: {
-              "border-width":  3,
-              "border-color":  "#E67E22",
-              "font-size":     "10px",
-            },
+            style: { "border-width": 3, "border-color": "#F59E0B", "font-size": "10px" },
           },
           {
             selector: "edge",
             style: {
               width:                "data(width)",
-              "line-color":         "#C9A22755",
-              "target-arrow-color": "#C9A227",
+              "line-color":         "#CBD5E1",
+              "target-arrow-color": "#94A3B8",
               "target-arrow-shape": "triangle",
               "curve-style":        "bezier",
-              opacity:              0.8,
+              opacity:              0.7,
             },
           },
           {
             selector: "node:selected",
-            style: { "border-width": 4, "border-color": "#fff" },
+            style: { "border-width": 4, "border-color": "#2563EB" },
           },
         ],
         layout: {
-          name:    "breadthfirst",
-          roots:   data.perpetrators.map(p => p.node_id),
-          directed: true,
-          padding:  30,
+          name:          "breadthfirst",
+          roots:         data.perpetrators.map(p => p.node_id),
+          directed:      true,
+          padding:       30,
           spacingFactor: 1.4,
         },
         userZoomingEnabled: true,
@@ -135,9 +131,7 @@ function RingGraphDirected() {
 
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       cy.on("tap", "node", (evt: any) => {
-        const id   = evt.target.id();
-        const node = nodeMap.get(id) ?? null;
-        setSelected(node);
+        setSelected(nodeMap.get(evt.target.id()) ?? null);
       });
     })();
 
@@ -146,30 +140,32 @@ function RingGraphDirected() {
 
   return (
     <div className="flex gap-4 flex-col lg:flex-row">
-      <div ref={containerRef}
-           className="rounded-xl border border-white/8 flex-1"
-           style={{ height: 440, backgroundColor: "#0a1225" }} />
+      <div
+        ref={containerRef}
+        className="rounded-xl flex-1"
+        style={{ height: 440, backgroundColor: "#F8FAFC", border: "1px solid #E2E8F0" }}
+      />
 
       <div className="w-full lg:w-64 space-y-4">
         {/* legend */}
-        <div className="rounded-xl border border-white/8 p-4" style={{ backgroundColor: "#0d1e38" }}>
-          <p className="text-xs font-semibold uppercase tracking-widest text-white/40 mb-3">Referencias</p>
+        <div className="rounded-xl p-4" style={{ backgroundColor: "#FFFFFF", border: "1px solid #E2E8F0" }}>
+          <p className="text-xs font-semibold uppercase tracking-widest mb-3" style={{ color: "#94A3B8" }}>Referencias</p>
           {Object.entries(ROLE_LABEL).map(([role, label]) => (
             <div key={role} className="flex items-center gap-2 mb-2">
               <span className="w-3 h-3 rounded-full flex-shrink-0" style={{ backgroundColor: ROLE_COLOR[role] }} />
-              <span className="text-xs text-white/60">{label}</span>
+              <span className="text-xs" style={{ color: "#64748B" }}>{label}</span>
             </div>
           ))}
-          <div className="mt-3 pt-3 border-t border-white/8">
-            <p className="text-xs text-white/40">Grosor de arista = monto transferido</p>
+          <div className="mt-3 pt-3" style={{ borderTop: "1px solid #F1F5F9" }}>
+            <p className="text-xs" style={{ color: "#94A3B8" }}>Grosor de arista = monto transferido</p>
           </div>
         </div>
 
         {/* selected node detail */}
-        <div className="rounded-xl border border-white/8 p-4" style={{ backgroundColor: "#0d1e38" }}>
+        <div className="rounded-xl p-4" style={{ backgroundColor: "#FFFFFF", border: "1px solid #E2E8F0" }}>
           {selected ? (
             <>
-              <p className="text-xs font-semibold uppercase tracking-widest text-[#C9A227] mb-3">Nodo seleccionado</p>
+              <p className="text-xs font-semibold uppercase tracking-widest mb-3" style={{ color: "#2563EB" }}>Nodo seleccionado</p>
               <dl className="space-y-2 text-sm">
                 {([
                   ["ID",        selected.node_id],
@@ -179,14 +175,14 @@ function RingGraphDirected() {
                   ["Grado out", String(selected.out_degree)],
                 ] as [string, string][]).map(([k, v]) => (
                   <div key={k} className="flex justify-between gap-2">
-                    <dt className="text-white/50">{k}</dt>
-                    <dd className="font-medium text-white text-xs">{v}</dd>
+                    <dt className="text-xs" style={{ color: "#94A3B8" }}>{k}</dt>
+                    <dd className="font-semibold text-xs" style={{ color: "#0F172A" }}>{v}</dd>
                   </div>
                 ))}
               </dl>
             </>
           ) : (
-            <p className="text-white/40 text-xs">Hacé clic en un nodo para ver sus detalles.</p>
+            <p className="text-xs" style={{ color: "#94A3B8" }}>Hacé clic en un nodo para ver sus detalles.</p>
           )}
         </div>
       </div>
@@ -194,43 +190,52 @@ function RingGraphDirected() {
   );
 }
 
+const card = {
+  backgroundColor: "#FFFFFF",
+  border: "1px solid #E2E8F0",
+  boxShadow: "0 1px 3px rgba(0,0,0,0.06)",
+};
+
 export default function OrigenPage() {
   const { summary, perpetrators } = data;
   const [expanded, setExpanded] = useState<string | null>(null);
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-6">
       <PageHeader
         eyebrow="Rastreo de origen"
         title="Perpetradores del Anillo"
-        description="El GNN detecta las cuentas mula (alta centralidad, flujo anómalo). Este módulo traza hacia atrás en el grafo dirigido de transacciones para identificar las cuentas que inyectaron el dinero al anillo — los perpetradores originales."
+        description="El GNN detecta las cuentas mula (alta centralidad, flujo anómalo). Este módulo traza hacia atrás en el grafo dirigido para identificar las cuentas que inyectaron el dinero — los perpetradores originales."
       />
 
       {/* KPI row */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
         {[
-          { label: "Perpetradores",     value: String(summary.n_perpetrators),   sub: "raíces del anillo",          color: "#E67E22" },
-          { label: "Mulas detectadas",  value: String(summary.n_mules_detected), sub: "score GNN > 0.5",            color: "#C0392B" },
-          { label: "Mulas no detect.",  value: String(summary.n_mules_missed),   sub: "en cadena fraude",           color: "#8E44AD" },
-          { label: "Monto total",       value: fmt(summary.total_amount_laundered), sub: "en anillo completo",      color: "#C9A227" },
+          { label: "Perpetradores",     value: String(summary.n_perpetrators),      sub: "raíces del anillo",     color: "#F59E0B" },
+          { label: "Mulas detectadas",  value: String(summary.n_mules_detected),    sub: "score GNN > 0.5",       color: "#DC2626" },
+          { label: "Mulas no detect.",  value: String(summary.n_mules_missed),      sub: "en cadena fraude",      color: "#7C3AED" },
+          { label: "Monto total",       value: fmt(summary.total_amount_laundered), sub: "en anillo completo",    color: "#2563EB" },
         ].map(({ label, value, sub, color }) => (
-          <div key={label} className="rounded-xl border border-white/8 p-4" style={{ backgroundColor: "#0d1e38" }}>
-            <p className="text-xs text-white/40 uppercase tracking-wider mb-1">{label}</p>
-            <p className="text-2xl font-bold" style={{ color }}>{value}</p>
-            <p className="text-xs text-white/40 mt-0.5">{sub}</p>
+          <div key={label} className="rounded-xl overflow-hidden" style={card}>
+            <div className="h-1" style={{ backgroundColor: color }} />
+            <div className="p-4">
+              <p className="text-[11px] uppercase tracking-widest font-semibold mb-1" style={{ color: "#94A3B8" }}>{label}</p>
+              <p className="text-2xl font-bold leading-none" style={{ color }}>{value}</p>
+              <p className="text-xs mt-1" style={{ color: "#94A3B8" }}>{sub}</p>
+            </div>
           </div>
         ))}
       </div>
 
       {/* perpetrators table */}
       <div>
-        <h2 className="text-base font-semibold text-white mb-3">Cuentas Origen Identificadas</h2>
-        <div className="rounded-xl border border-white/8 overflow-hidden" style={{ backgroundColor: "#0d1e38" }}>
-          <table className="w-full text-sm">
-            <thead style={{ backgroundColor: "#0a1225" }}>
-              <tr>
+        <h2 className="text-base font-semibold mb-3" style={{ color: "#0F172A" }}>Cuentas Origen Identificadas</h2>
+        <div className="rounded-xl overflow-hidden" style={card}>
+          <table className="w-full text-sm" style={{ backgroundColor: "#FFFFFF" }}>
+            <thead>
+              <tr style={{ backgroundColor: "#F8FAFC", borderBottom: "1px solid #E2E8F0" }}>
                 {["Cuenta", "Estado en GNN", "Mulas alimentadas", "Monto inyectado", "Primera txn", ""].map(h => (
-                  <th key={h} className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-white/60">{h}</th>
+                  <th key={h} className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider" style={{ color: "#94A3B8" }}>{h}</th>
                 ))}
               </tr>
             </thead>
@@ -240,37 +245,41 @@ export default function OrigenPage() {
                 const isOpen   = expanded === p.node_id;
                 return (
                   <>
-                    <tr key={p.node_id}
-                        className="border-t border-white/5 hover:bg-white/5 transition-colors cursor-pointer"
-                        onClick={() => setExpanded(isOpen ? null : p.node_id)}>
-                      <td className="px-4 py-3 font-mono text-xs text-white/80 font-semibold">{p.node_id}</td>
-                      <td className="px-4 py-3">
-                        <ScoreChip score={p.gnn_score} detected={detected} />
-                      </td>
+                    <tr
+                      key={p.node_id}
+                      className="transition-colors cursor-pointer"
+                      style={{ borderTop: "1px solid #F1F5F9" }}
+                      onClick={() => setExpanded(isOpen ? null : p.node_id)}
+                      onMouseEnter={e => (e.currentTarget.style.backgroundColor = "#F8FAFC")}
+                      onMouseLeave={e => (e.currentTarget.style.backgroundColor = "transparent")}
+                    >
+                      <td className="px-4 py-3 font-mono text-xs font-semibold" style={{ color: "#0F172A" }}>{p.node_id}</td>
+                      <td className="px-4 py-3"><ScoreChip detected={detected} /></td>
                       <td className="px-4 py-3 text-center">
-                        <span className="font-bold text-white">{p.n_mules_fed}</span>
+                        <span className="font-bold" style={{ color: "#0F172A" }}>{p.n_mules_fed}</span>
                       </td>
-                      <td className="px-4 py-3 font-semibold" style={{ color: "#C9A227" }}>
-                        {fmt(p.amount_injected)}
-                      </td>
-                      <td className="px-4 py-3 text-xs text-white/50 font-mono">{p.first_transaction}</td>
-                      <td className="px-4 py-3 text-white/30 text-xs">{isOpen ? "▲" : "▼"}</td>
+                      <td className="px-4 py-3 font-semibold" style={{ color: "#2563EB" }}>{fmt(p.amount_injected)}</td>
+                      <td className="px-4 py-3 text-xs font-mono" style={{ color: "#64748B" }}>{p.first_transaction}</td>
+                      <td className="px-4 py-3 text-xs" style={{ color: "#94A3B8" }}>{isOpen ? "▲" : "▼"}</td>
                     </tr>
                     {isOpen && (
-                      <tr key={`${p.node_id}-detail`} className="border-t border-white/5">
-                        <td colSpan={6} className="px-6 py-4" style={{ backgroundColor: "#0a1225" }}>
-                          <p className="text-xs text-white/40 uppercase tracking-wider mb-2">Mulas alimentadas</p>
+                      <tr key={`${p.node_id}-detail`}>
+                        <td colSpan={6} className="px-6 py-4" style={{ backgroundColor: "#F8FAFC", borderTop: "1px solid #E2E8F0" }}>
+                          <p className="text-xs uppercase tracking-wider font-semibold mb-2" style={{ color: "#94A3B8" }}>Mulas alimentadas</p>
                           <div className="flex flex-wrap gap-2">
                             {p.mules.map(m => (
-                              <span key={m} className="px-2 py-1 rounded text-xs font-mono"
-                                    style={{ backgroundColor: "#C0392B22", color: "#E57373", border: "1px solid #C0392B44" }}>
+                              <span
+                                key={m}
+                                className="px-2 py-1 rounded text-xs font-mono"
+                                style={{ backgroundColor: "#FEE2E2", color: "#DC2626", border: "1px solid #FECACA" }}
+                              >
                                 {m}
                               </span>
                             ))}
                           </div>
                           {!detected && (
-                            <p className="mt-3 text-xs text-amber-400/80 flex items-center gap-1.5">
-                              <span className="text-amber-400">⚠</span>
+                            <p className="mt-3 text-xs flex items-center gap-1.5" style={{ color: "#D97706" }}>
+                              <span>⚠</span>
                               Esta cuenta no fue detectada por el GNN (score = {(p.gnn_score * 100).toFixed(2)}%).
                               Baja centralidad de red: realizó pocas transacciones pero de alto monto.
                             </p>
@@ -288,8 +297,8 @@ export default function OrigenPage() {
 
       {/* directed graph */}
       <div>
-        <h2 className="text-base font-semibold text-white mb-3">Grafo Dirigido del Anillo</h2>
-        <p className="text-xs text-white/40 mb-4">
+        <h2 className="text-base font-semibold mb-2" style={{ color: "#0F172A" }}>Grafo Dirigido del Anillo</h2>
+        <p className="text-xs mb-4" style={{ color: "#94A3B8" }}>
           Las flechas indican dirección del flujo de dinero. Tamaño del nodo = relevancia en el anillo.
           Grosor de arista = monto transferido.
         </p>
@@ -297,19 +306,20 @@ export default function OrigenPage() {
       </div>
 
       {/* insight box */}
-      <div className="rounded-xl border p-5 text-sm"
-           style={{ backgroundColor: "#080f1d", borderColor: "#C9A22733" }}>
-        <p className="text-xs font-semibold uppercase tracking-widest text-[#C9A227] mb-2">Insight 16 — Limitación del modelo</p>
-        <p className="text-white/70 leading-relaxed">
-          El GNN detecta la <strong className="text-white">estratificación</strong> (las mulas que mueven y dispersan
-          el dinero) pero no la <strong className="text-white">colocación</strong> (el depósito inicial del perpetrador).
+      <div className="rounded-xl p-5 text-sm" style={{ backgroundColor: "#EFF6FF", border: "1px solid #BFDBFE" }}>
+        <p className="text-xs font-semibold uppercase tracking-widest mb-2" style={{ color: "#1E3A8A" }}>
+          Insight 16 — Limitación del modelo
+        </p>
+        <p className="leading-relaxed" style={{ color: "#1D4ED8" }}>
+          El GNN detecta la <strong style={{ color: "#1E3A8A" }}>estratificación</strong> (las mulas que mueven y dispersan
+          el dinero) pero no la <strong style={{ color: "#1E3A8A" }}>colocación</strong> (el depósito inicial del perpetrador).
           Las cuentas origen tienen baja centralidad de red — hacen pocas transacciones de alto monto — y resultan
           invisibles para un clasificador basado en patrones de conectividad.
-          El backward tracing identifica a <strong className="text-amber-400">ACC0000210</strong> y{" "}
-          <strong className="text-amber-400">ACC0001046</strong> como perpetradores con score GNN ≈ 0%,
-          inyectando <strong className="text-white">$66,422</strong> al anillo desde cuentas aparentemente legítimas.
+          El backward tracing identifica a <strong style={{ color: "#1E3A8A" }}>ACC0000210</strong> y{" "}
+          <strong style={{ color: "#1E3A8A" }}>ACC0001046</strong> como perpetradores con score GNN ≈ 0%,
+          inyectando <strong style={{ color: "#1E3A8A" }}>$66,422</strong> al anillo desde cuentas aparentemente legítimas.
         </p>
-        <p className="text-white/50 text-xs mt-3">
+        <p className="text-xs mt-3" style={{ color: "#3B82F6" }}>
           Acción sugerida: combinar el scoring GNN con backward tracing automático sobre el grafo dirigido temporal.
           Todo predecesor directo de un nodo detectado es candidato a revisión de segunda línea.
         </p>

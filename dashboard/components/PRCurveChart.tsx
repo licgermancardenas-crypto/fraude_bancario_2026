@@ -3,15 +3,16 @@ import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, Referenc
 import type { PRCurve } from "@/lib/types";
 
 const MODEL_COLORS: Record<string, string> = {
-  "Logistic Regression": "#BDC3C7",
-  "XGBoost":             "#C9A227",
-  "GraphSAGE":           "#C0392B",
+  "Logistic Regression": "#94A3B8",
+  "XGBoost":             "#F59E0B",
+  "Node2Vec + XGBoost":  "#A78BFA",
+  "GAT":                 "#34D399",
+  "GraphSAGE":           "#2563EB",
 };
 
 interface Props { curves: PRCurve[] }
 
 export default function PRCurveChart({ curves }: Props) {
-  // Merge all curves into a single dataset keyed by recall (0..1, 100 points)
   const points = Array.from({ length: 101 }, (_, i) => {
     const r = i / 100;
     const entry: Record<string, number> = { recall: r };
@@ -29,30 +30,35 @@ export default function PRCurveChart({ curves }: Props) {
   });
 
   return (
-    <ResponsiveContainer width="100%" height={320}>
-      <LineChart data={points} margin={{ top: 10, right: 20, bottom: 10, left: 0 }}>
-        <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.07)" />
+    <ResponsiveContainer width="100%" height={300}>
+      <LineChart data={points} margin={{ top: 10, right: 20, bottom: 20, left: 0 }}>
+        <CartesianGrid strokeDasharray="3 3" stroke="#E2E8F0" />
         <XAxis dataKey="recall" type="number" domain={[0, 1]}
-          tickFormatter={v => v.toFixed(1)} stroke="rgba(255,255,255,0.3)"
-          label={{ value: "Recall", position: "insideBottom", offset: -4, fill: "rgba(255,255,255,0.5)", fontSize: 12 }} />
-        <YAxis domain={[0, 1]} stroke="rgba(255,255,255,0.3)"
+          tickFormatter={v => v.toFixed(1)} stroke="#CBD5E1" tick={{ fill: "#64748B", fontSize: 11 }}
+          label={{ value: "Recall", position: "insideBottom", offset: -10, fill: "#64748B", fontSize: 12 }} />
+        <YAxis domain={[0, 1]} stroke="#CBD5E1" tick={{ fill: "#64748B", fontSize: 11 }}
           tickFormatter={v => v.toFixed(1)}
-          label={{ value: "Precisión", angle: -90, position: "insideLeft", fill: "rgba(255,255,255,0.5)", fontSize: 12 }} />
+          label={{ value: "Precisión", angle: -90, position: "insideLeft", fill: "#64748B", fontSize: 12 }} />
         <Tooltip
-          contentStyle={{ backgroundColor: "#122855", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 8 }}
-          labelStyle={{ color: "rgba(255,255,255,0.6)" }}
+          contentStyle={{
+            backgroundColor: "#FFFFFF",
+            border: "1px solid #E2E8F0",
+            borderRadius: 10,
+            boxShadow: "0 4px 12px rgba(0,0,0,0.10)",
+          }}
+          labelStyle={{ color: "#64748B", fontSize: 12 }}
           formatter={(v: number, name: string) => {
             const curve = curves.find(c => c.model === name);
             return [`${(v * 100).toFixed(1)}%`, `${name} (PR-AUC=${curve?.pr_auc.toFixed(3)})`];
           }}
           labelFormatter={v => `Recall: ${(Number(v) * 100).toFixed(0)}%`}
         />
-        <Legend wrapperStyle={{ paddingTop: 12, fontSize: 12 }} />
-        <ReferenceLine y={0.9} stroke="rgba(255,255,255,0.2)" strokeDasharray="4 4"
-          label={{ value: "P=90%", fill: "rgba(255,255,255,0.3)", fontSize: 10, position: "insideTopRight" }} />
+        <Legend wrapperStyle={{ paddingTop: 12, fontSize: 12, color: "#64748B" }} />
+        <ReferenceLine y={0.9} stroke="#CBD5E1" strokeDasharray="4 4"
+          label={{ value: "P=90%", fill: "#94A3B8", fontSize: 10, position: "insideTopRight" }} />
         {curves.map(c => (
           <Line key={c.model} type="stepAfter" dataKey={c.model}
-            stroke={MODEL_COLORS[c.model] ?? "#fff"} strokeWidth={2.5}
+            stroke={MODEL_COLORS[c.model] ?? "#64748B"} strokeWidth={2.5}
             dot={false} activeDot={{ r: 3 }} />
         ))}
       </LineChart>

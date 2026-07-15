@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import "./globals.css";
-import NavBar from "@/components/NavBar";
+import Sidebar from "@/components/Sidebar";
 
 export const metadata: Metadata = {
   title: "Fraude BRS — Dashboard de Detección de Lavado",
@@ -10,16 +10,13 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="es">
-      <body className="min-h-screen flex flex-col" style={{ backgroundColor: "#0A1F44" }}>
-        <NavBar />
-        <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8">
-          {children}
-        </main>
-        <footer className="border-t border-white/10 py-5 text-center text-xs text-white/40">
-          <span className="text-[#C9A227] font-semibold">GERMÁN CÁRDENAS</span>
-          {" · "}Data &amp; Analytics
-          {" · "}Datos 100% sintéticos — engagement simulado para Banco Regional del Sur
-        </footer>
+      <body className="flex min-h-screen" style={{ backgroundColor: "#EEF2FF", color: "#0F172A" }}>
+        <Sidebar />
+        <div className="flex-1 min-w-0 flex flex-col">
+          <main className="flex-1 p-6 lg:p-8">
+            {children}
+          </main>
+        </div>
       </body>
     </html>
   );

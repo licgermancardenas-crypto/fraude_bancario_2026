@@ -6,16 +6,15 @@ interface Props { accounts: Account[] }
 type SortKey = keyof Account;
 
 function ScoreBar({ score }: { score: number }) {
-  const color = score > 0.7 ? "#C0392B" : score > 0.3 ? "#E67E22" : "#27AE60";
-  const label = (score * 100).toFixed(1) + "%";
+  const color = score > 0.7 ? "#DC2626" : score > 0.3 ? "#D97706" : "#16A34A";
+  const bg    = score > 0.7 ? "#FEE2E2" : score > 0.3 ? "#FEF3C7" : "#DCFCE7";
   return (
-    <div className="flex items-center gap-2 min-w-[100px]">
-      <div className="flex-1 h-1.5 rounded-full bg-white/8 overflow-hidden">
-        <div className="h-full rounded-full transition-all"
-             style={{ width: `${score * 100}%`, backgroundColor: color }} />
+    <div className="flex items-center gap-2 min-w-[110px]">
+      <div className="flex-1 h-1.5 rounded-full overflow-hidden" style={{ backgroundColor: bg }}>
+        <div className="h-full rounded-full transition-all" style={{ width: `${score * 100}%`, backgroundColor: color }} />
       </div>
       <span className="text-xs font-mono font-semibold w-11 text-right" style={{ color }}>
-        {label}
+        {(score * 100).toFixed(1)}%
       </span>
     </div>
   );
@@ -56,8 +55,11 @@ export default function AccountsTable({ accounts }: Props) {
   };
 
   const Th = ({ k, label }: { k: SortKey; label: string }) => (
-    <th className="px-4 py-3 text-left text-[11px] font-bold uppercase tracking-widest cursor-pointer whitespace-nowrap text-white/35 hover:text-white/70 transition-colors select-none"
-        onClick={() => toggleSort(k)}>
+    <th
+      className="px-4 py-3 text-left text-[11px] font-bold uppercase tracking-widest cursor-pointer whitespace-nowrap select-none transition-colors"
+      style={{ color: sortKey === k ? "#2563EB" : "#94A3B8" }}
+      onClick={() => toggleSort(k)}
+    >
       {label}{sortKey === k ? (sortDir === "desc" ? " ↓" : " ↑") : ""}
     </th>
   );
@@ -71,24 +73,30 @@ export default function AccountsTable({ accounts }: Props) {
           placeholder="Buscar por ID o tipo…"
           value={search}
           onChange={e => { setSearch(e.target.value); setPage(0); }}
-          className="flex-1 rounded-lg px-4 py-2 text-sm text-white placeholder-white/25 border border-white/8 outline-none focus:border-[#C9A227]/60 transition-colors"
-          style={{ backgroundColor: "#0a1628" }}
+          className="flex-1 rounded-lg px-4 py-2 text-sm outline-none transition-colors"
+          style={{
+            backgroundColor: "#F8FAFC",
+            border: "1px solid #E2E8F0",
+            color: "#0F172A",
+          }}
+          onFocus={e => (e.target.style.borderColor = "#2563EB")}
+          onBlur={e => (e.target.style.borderColor = "#E2E8F0")}
         />
-        <label className="flex items-center gap-2 text-sm text-white/50 cursor-pointer whitespace-nowrap">
+        <label className="flex items-center gap-2 text-sm cursor-pointer whitespace-nowrap" style={{ color: "#64748B" }}>
           <input type="checkbox" checked={filterFraud}
                  onChange={e => { setFilterFraud(e.target.checked); setPage(0); }}
-                 className="accent-[#C9A227]" />
+                 className="accent-blue-600" />
           Solo fraude
         </label>
-        <span className="text-xs text-white/25 whitespace-nowrap">{sorted.length} cuentas</span>
+        <span className="text-xs whitespace-nowrap" style={{ color: "#94A3B8" }}>{sorted.length} cuentas</span>
       </div>
 
       {/* table */}
-      <div className="rounded-xl border border-white/8 overflow-x-auto">
-        <table className="w-full text-sm">
+      <div className="rounded-xl overflow-x-auto" style={{ border: "1px solid #E2E8F0", boxShadow: "0 1px 3px rgba(0,0,0,0.06)" }}>
+        <table className="w-full text-sm" style={{ backgroundColor: "#FFFFFF" }}>
           <thead>
-            <tr style={{ backgroundColor: "#0a1628" }}>
-              <th className="px-4 py-3 text-left text-[11px] font-bold uppercase tracking-widest text-white/25 w-10">#</th>
+            <tr style={{ backgroundColor: "#F8FAFC", borderBottom: "1px solid #E2E8F0" }}>
+              <th className="px-4 py-3 text-left text-[11px] font-bold uppercase tracking-widest w-10" style={{ color: "#94A3B8" }}>#</th>
               <Th k="gnn_score"    label="Score GNN" />
               <Th k="account_id"   label="Cuenta" />
               <Th k="is_fraud"     label="Fraude" />
@@ -97,43 +105,48 @@ export default function AccountsTable({ accounts }: Props) {
               <Th k="degree_in"    label="Grado in" />
               <Th k="degree_out"   label="Grado out" />
               <Th k="total_sent"   label="Enviado" />
-              <th className="px-4 py-3 text-left text-[11px] font-bold uppercase tracking-widest text-white/25">Anillo</th>
+              <th className="px-4 py-3 text-left text-[11px] font-bold uppercase tracking-widest" style={{ color: "#94A3B8" }}>Anillo</th>
             </tr>
           </thead>
           <tbody>
             {pageRows.map((a, i) => {
-              const rank   = globalStart + i + 1;
+              const rank    = globalStart + i + 1;
               const isFraud = a.is_fraud === 1;
               return (
-                <tr key={a.account_id}
-                    className="border-t border-white/5 hover:bg-white/4 transition-colors group"
-                    style={isFraud ? { borderLeft: "2px solid #C0392B" } : {}}>
-                  <td className="px-4 py-3 text-xs text-white/20 font-mono">{rank}</td>
-                  <td className="px-4 py-3">
-                    <ScoreBar score={a.gnn_score} />
-                  </td>
-                  <td className="px-4 py-3 font-mono text-xs text-white/55">{a.account_id}</td>
+                <tr
+                  key={a.account_id}
+                  className="transition-colors"
+                  style={{
+                    borderTop: "1px solid #F1F5F9",
+                    borderLeft: isFraud ? "3px solid #DC2626" : "3px solid transparent",
+                  }}
+                  onMouseEnter={e => (e.currentTarget.style.backgroundColor = "#F8FAFC")}
+                  onMouseLeave={e => (e.currentTarget.style.backgroundColor = "transparent")}
+                >
+                  <td className="px-4 py-3 text-xs font-mono" style={{ color: "#CBD5E1" }}>{rank}</td>
+                  <td className="px-4 py-3"><ScoreBar score={a.gnn_score} /></td>
+                  <td className="px-4 py-3 font-mono text-xs font-medium" style={{ color: "#0F172A" }}>{a.account_id}</td>
                   <td className="px-4 py-3">
                     {isFraud
                       ? <span className="inline-flex items-center gap-1 text-xs font-bold px-2 py-0.5 rounded-full"
-                               style={{ backgroundColor: "#C0392B22", color: "#E57373" }}>
+                               style={{ backgroundColor: "#FEE2E2", color: "#DC2626" }}>
                           ● Sí
                         </span>
-                      : <span className="text-xs text-white/20">—</span>}
+                      : <span className="text-xs" style={{ color: "#CBD5E1" }}>—</span>}
                   </td>
-                  <td className="px-4 py-3 capitalize text-xs text-white/45">{a.account_type}</td>
-                  <td className="px-4 py-3 font-mono text-xs text-white/55">
+                  <td className="px-4 py-3 capitalize text-xs" style={{ color: "#64748B" }}>{a.account_type}</td>
+                  <td className="px-4 py-3 font-mono text-xs" style={{ color: "#0F172A" }}>
                     ${a.balance.toLocaleString("es-AR", { maximumFractionDigits: 0 })}
                   </td>
-                  <td className="px-4 py-3 text-center text-xs text-white/50">{a.degree_in}</td>
-                  <td className="px-4 py-3 text-center text-xs text-white/50">{a.degree_out}</td>
-                  <td className="px-4 py-3 font-mono text-xs text-white/50">
+                  <td className="px-4 py-3 text-center text-xs" style={{ color: "#64748B" }}>{a.degree_in}</td>
+                  <td className="px-4 py-3 text-center text-xs" style={{ color: "#64748B" }}>{a.degree_out}</td>
+                  <td className="px-4 py-3 font-mono text-xs" style={{ color: "#64748B" }}>
                     ${a.total_sent.toLocaleString("es-AR", { maximumFractionDigits: 0 })}
                   </td>
                   <td className="px-4 py-3">
                     {a.in_ring
-                      ? <span className="text-xs font-semibold" style={{ color: "#C9A227" }}>Sí</span>
-                      : <span className="text-xs text-white/15">—</span>}
+                      ? <span className="text-xs font-bold" style={{ color: "#2563EB" }}>Sí</span>
+                      : <span className="text-xs" style={{ color: "#CBD5E1" }}>—</span>}
                   </td>
                 </tr>
               );
@@ -144,16 +157,24 @@ export default function AccountsTable({ accounts }: Props) {
 
       {/* pagination */}
       {totalPages > 1 && (
-        <div className="flex items-center justify-between text-xs text-white/35">
-          <button onClick={() => setPage(p => Math.max(0, p - 1))}
-                  disabled={page === 0}
-                  className="px-3 py-1.5 rounded-lg border border-white/8 disabled:opacity-25 hover:bg-white/5 hover:text-white/60 transition-colors">
+        <div className="flex items-center justify-between text-xs" style={{ color: "#64748B" }}>
+          <button
+            onClick={() => setPage(p => Math.max(0, p - 1))}
+            disabled={page === 0}
+            className="px-3 py-1.5 rounded-lg transition-colors disabled:opacity-30"
+            style={{ border: "1px solid #E2E8F0", backgroundColor: "#FFFFFF" }}
+            onMouseEnter={e => !page && (e.currentTarget.style.backgroundColor = "#F8FAFC")}
+            onMouseLeave={e => (e.currentTarget.style.backgroundColor = "#FFFFFF")}
+          >
             ← Anterior
           </button>
           <span className="font-mono">{page + 1} / {totalPages}</span>
-          <button onClick={() => setPage(p => Math.min(totalPages - 1, p + 1))}
-                  disabled={page === totalPages - 1}
-                  className="px-3 py-1.5 rounded-lg border border-white/8 disabled:opacity-25 hover:bg-white/5 hover:text-white/60 transition-colors">
+          <button
+            onClick={() => setPage(p => Math.min(totalPages - 1, p + 1))}
+            disabled={page === totalPages - 1}
+            className="px-3 py-1.5 rounded-lg transition-colors disabled:opacity-30"
+            style={{ border: "1px solid #E2E8F0", backgroundColor: "#FFFFFF" }}
+          >
             Siguiente →
           </button>
         </div>

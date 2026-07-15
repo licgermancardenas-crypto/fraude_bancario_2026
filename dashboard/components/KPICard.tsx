@@ -6,18 +6,36 @@ interface KPICardProps {
   dim?: boolean;
 }
 
-export default function KPICard({ label, value, sub, color = "#C9A227", dim }: KPICardProps) {
+export default function KPICard({ label, value, sub, color = "#2563EB", dim }: KPICardProps) {
+  const accent = dim ? "#94A3B8" : color;
   return (
-    <div className="rounded-xl border border-white/8 flex flex-col overflow-hidden"
-         style={{ backgroundColor: "#0d1e38" }}>
-      <div className="h-0.5 w-full" style={{ backgroundColor: dim ? "#ffffff18" : color }} />
+    <div
+      className="rounded-xl flex flex-col overflow-hidden"
+      style={{
+        backgroundColor: "#FFFFFF",
+        border: "1px solid #E2E8F0",
+        boxShadow: "0 1px 3px rgba(0,0,0,0.06)",
+      }}
+    >
+      <div className="h-1 w-full" style={{ backgroundColor: accent }} />
       <div className="p-5 flex flex-col gap-1.5 flex-1">
-        <p className="text-[11px] font-semibold uppercase tracking-widest text-white/40">{label}</p>
-        <p className="text-3xl font-bold leading-none tracking-tight"
-           style={{ color: dim ? "rgba(255,255,255,0.55)" : color }}>
+        <p
+          className="text-[11px] font-semibold uppercase tracking-widest"
+          style={{ color: "#94A3B8" }}
+        >
+          {label}
+        </p>
+        <p
+          className="text-3xl font-bold leading-none tracking-tight"
+          style={{ color: accent }}
+        >
           {value}
         </p>
-        {sub && <p className="text-xs text-white/35 leading-relaxed">{sub}</p>}
+        {sub && (
+          <p className="text-xs leading-relaxed" style={{ color: "#94A3B8" }}>
+            {sub}
+          </p>
+        )}
       </div>
     </div>
   );
