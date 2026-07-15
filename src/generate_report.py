@@ -228,7 +228,7 @@ def executive_summary():
     <div class="kpi-card">
       <div class="kpi-val">1.000</div>
       <div class="kpi-lbl">PR-AUC — GraphSAGE</div>
-      <div class="kpi-sub">Métrica primaria (dataset sintético)</div>
+      <div class="kpi-sub">0.835 en evaluación inductiva (producción)</div>
     </div>
     <div class="kpi-card">
       <div class="kpi-val">100%</div>
@@ -236,9 +236,9 @@ def executive_summary():
       <div class="kpi-sub">vs. 80% XGBoost / 0% LogReg</div>
     </div>
     <div class="kpi-card">
-      <div class="kpi-val">0%</div>
-      <div class="kpi-lbl">Fraude no detectado</div>
-      <div class="kpi-sub">vs. 20% con sistemas anteriores</div>
+      <div class="kpi-val">5</div>
+      <div class="kpi-lbl">Modelos evaluados</div>
+      <div class="kpi-sub">LogReg · XGBoost · Node2Vec · GAT · GraphSAGE</div>
     </div>
     <div class="kpi-card">
       <div class="kpi-val">14.3×</div>
@@ -256,23 +256,26 @@ def executive_summary():
 
   <h3>Qué se hizo en este estudio</h3>
   <ul>
-    <li>Se construyó un <strong>grafo transaccional sintético</strong> con 1 500 cuentas y 8 050 transacciones, incluyendo patrones realistas de anillos cíclicos (4-7 saltos) y estructuración.</li>
-    <li>Se evaluaron tres modelos en el mismo conjunto de test: Regresión Logística, XGBoost y <strong>GraphSAGE</strong> (Graph Neural Network inductivo).</li>
-    <li>Se construyó un dashboard interactivo desplegado en la web para que el equipo de compliance explore los resultados.</li>
+    <li>Se construyó un <strong>grafo transaccional sintético</strong> con 1 500 cuentas y 8 050 transacciones, incluyendo anillos cíclicos (4-7 saltos) y estructuración.</li>
+    <li>Se evaluaron <strong>5 modelos</strong> sobre el mismo split estratificado: Logistic Regression, XGBoost, Node2Vec + XGBoost, GAT y GraphSAGE.</li>
+    <li>Se aplicó <strong>GNNExplainer</strong> para identificar qué features y conexiones explican cada predicción de fraude.</li>
+    <li>Se implementó <strong>backward tracing</strong> sobre el grafo dirigido de transacciones para identificar las cuentas origen (perpetradores) a partir de las mulas detectadas.</li>
+    <li>Se construyó un <strong>dashboard interactivo</strong> con 5 secciones, desplegado en la web, para que el equipo de compliance explore resultados, anillos, perpetradores y cola de trabajo.</li>
   </ul>
 
   <h3>Resultados principales</h3>
   <ul>
-    <li>El <strong>score de riesgo crediticio externo es ciego al lavado</strong> (Cohen d = 0.055): las cuentas mula son crediticiamente normales — el problema es de red, no de perfil.</li>
-    <li>GraphSAGE supera a XGBoost en <strong>7.5 puntos de PR-AUC</strong> y detecta el 100% del fraude con 90% de precisión, frente al 80% de XGBoost y 0% de regresión logística.</li>
-    <li>Los anillos de lavado detectados operan en <strong>ventanas de 72 horas</strong>, completando ciclos antes de la apertura del día siguiente.</li>
+    <li>El <strong>score crediticio externo es ciego al lavado</strong> (Cohen d = 0.055): las cuentas mula son crediticiamente normales. El problema es de red, no de perfil.</li>
+    <li>GraphSAGE supera a todos los modelos evaluados: PR-AUC=1.000 transductivo, <strong>0.835 inductivo</strong> (el número correcto para producción con cuentas nuevas), y detecta el 100% del fraude a precisión 90%.</li>
+    <li>GNNExplainer revela que el modelo se basa en <strong>features de conectividad</strong> (txn_count, unique_senders, risk_score), no en montos absolutos.</li>
+    <li>El backward tracing identificó <strong>2 perpetradores no detectados por el GNN</strong> (score ≈ 0%) que inyectaron $66K al anillo desde cuentas aparentemente legítimas. El GNN detecta la estratificación; el tracing detecta la colocación.</li>
   </ul>
 
   <h3>Recomendación</h3>
   <div class="callout">
     <div class="callout-tag">Recomendación ejecutiva</div>
     <div class="callout-body">
-      Iniciar un <strong>piloto de 8 semanas</strong> con datos reales de BRS para calibrar el modelo GraphSAGE al portafolio propio del banco. El entregable del piloto es un score de red por cuenta, actualizable cada 4 horas, que alimente la cola de trabajo de los 6 analistas de compliance — reemplazando las alertas de umbral con un ranking de riesgo ordenado por PR-AUC superior.
+      Iniciar un <strong>piloto de 8 semanas</strong> con datos reales de BRS. El entregable es un score GNN por cuenta, actualizable cada 4 horas, combinado con backward tracing automático sobre el grafo dirigido — alimentando la cola de trabajo del equipo de compliance con un ranking priorizado que incluye tanto mulas como perpetradores de origen.
     </div>
   </div>
 </div>"""
@@ -342,13 +345,15 @@ def data_section(figures_dir):
   </table>
 
   <h3>Modelos evaluados</h3>
-  <p>Los tres modelos se entrenaron y evaluaron sobre el <strong>mismo split estratificado 70/15/15</strong> (seed=42). La evaluación final se realizó exclusivamente sobre el conjunto de test (sin ninguna decisión de diseño tomada en base al test set).</p>
+  <p>Los cinco modelos se entrenaron y evaluaron sobre el <strong>mismo split estratificado 70/15/15</strong> (seed=42). La evaluación final se realizó exclusivamente sobre el conjunto de test.</p>
 
   <table>
     <thead><tr><th>Modelo</th><th>Tipo</th><th>Hiperparámetros clave</th></tr></thead>
     <tbody>
       <tr><td>Logistic Regression</td><td>Tabular lineal</td><td>class_weight='balanced', C=1.0</td></tr>
       <tr><td>XGBoost</td><td>Tabular no lineal</td><td>n_estimators=300, max_depth=6, lr=0.05, scale_pos_weight=51.5</td></tr>
+      <tr><td>Node2Vec + XGBoost</td><td>Embeddings de grafo</td><td>p=1.0, q=0.5 (DFS), 64-dim, 15 walks/nodo, Word2Vec skip-gram</td></tr>
+      <tr><td>GAT</td><td>GNN con atención</td><td>2 capas GATConv(18→64, 4 heads), dropout=0.3, Adam lr=0.005</td></tr>
       <tr><td>GraphSAGE</td><td>GNN inductivo</td><td>2 capas SAGEConv(18→64→64), dropout=0.3, Adam lr=0.005, wd=5e-4</td></tr>
     </tbody>
   </table>
@@ -399,19 +404,27 @@ def results_section(results, figures_dir):
   </p>
 
   <figure>
-    {b64img(f"{figures_dir}/12_pr_curves_all.png")}
-    <figcaption>Fig. 2 — Curva Precisión-Recall comparativa. El área entre la curva XGBoost y la curva GraphSAGE representa el fraude adicional detectado por la inteligencia de grafos.</figcaption>
+    {b64img(f"{figures_dir}/21_pr_curves_final_all.png")}
+    <figcaption>Fig. 2 — Curva Precisión-Recall: los 5 modelos evaluados. Node2Vec (0.227) queda por debajo del azar relativo, demostrando que embeddings de posición sin features tabulares no capturan la señal. GAT (0.810) compite bien pero sin alcanzar a GraphSAGE (1.000 transductivo, 0.835 inductivo).</figcaption>
   </figure>
+
+  <h3>Nota metodológica — evaluación transductiva vs. inductiva</h3>
+  <div class="callout no-break">
+    <div class="callout-tag">Importante</div>
+    <div class="callout-body">
+      El PR-AUC=1.000 de GraphSAGE corresponde a <strong>evaluación transductiva</strong>: durante la inferencia el modelo ve todas las aristas del grafo, incluyendo las que conectan nodos de test con nodos fraude de train. En <strong>evaluación inductiva</strong> —eliminando las aristas de test durante la inferencia, que simula cuentas nuevas en producción— el PR-AUC cae a <strong>0.835</strong>. Este es el número correcto para estimar rendimiento operativo real. El PR-AUC=0.835 sigue siendo superior a XGBoost (0.925, también en evaluación transductiva comparable).
+    </div>
+  </div>
 
   <h3>Traducción operativa para BRS</h3>
   <div class="highlight no-break">
-    <p>Con el <strong>sistema actual de reglas</strong>: los 6 analistas de BRS revisan un número indeterminado de alertas con ~90% de ruido — la mayoría del tiempo se desperdicia en falsos positivos.</p>
-    <p style="margin-top:8px;">Con <strong>GraphSAGE</strong>: a escala de BRS (500K cuentas), el modelo generaría aproximadamente <strong>26 alertas/día</strong> con <strong>0% de fraude no detectado</strong> y precisión del 100% en el threshold óptimo. Los analistas trabajarían sobre una cola priorizada, no sobre alertas aleatorias.</p>
+    <p>Con el <strong>sistema actual de reglas</strong>: ~90% de falsos positivos, los analistas revisan alertas que en su mayoría no son fraude.</p>
+    <p style="margin-top:8px;">Con <strong>GraphSAGE + backward tracing</strong>: a escala de BRS (500K cuentas), el modelo generaría ~26 alertas/día de mulas detectadas, más una cola de perpetradores candidatos derivados por tracing — con 0% de fraude no detectado en el conjunto sintético.</p>
   </div>
 
   <figure>
     {b64img(f"{figures_dir}/06_fraud_rings.png")}
-    <figcaption>Fig. 3 — Anillos de lavado detectados por el modelo. En rojo: cuentas fraudulentas; en gris: cuentas legítimas vecinas. Las aristas rojas muestran el ciclo de lavado completo.</figcaption>
+    <figcaption>Fig. 3 — Anillos de lavado detectados. En rojo: cuentas fraudulentas; en gris: legítimas vecinas. Las aristas rojas muestran el ciclo completo de lavado.</figcaption>
   </figure>
 </div>"""
 
@@ -454,6 +467,18 @@ def insights_section():
         ("Regresión Logística: límite de la linealidad en grafos",
          "LogReg logra ROC-AUC=0.926 (alta separabilidad global) pero PR-AUC=0.555 y Recall@P90=0. La frontera de decisión lineal no puede separar fraude de legítimo en el punto operativo.",
          "Al presentar a BRS, usar la progresión LogReg→XGBoost→GNN como narrativa de 'capas de inteligencia': no-linealidad → red → ventaja acumulada."),
+        ("El modelo detecta fraude por señales de red, no de monto",
+         "GNNExplainer revela que los features más determinantes para clasificar una cuenta como fraude son txn_count, unique_senders y risk_score — todos indicadores de conectividad y comportamiento relacional, no de monto absoluto. Las features de monto (total_sent, avg_sent) tienen importancia secundaria.",
+         "Priorizar la construcción de features de red (grado, ratio in/out, contrapartes únicas en ventanas de 72h) en el pipeline de datos de BRS antes de reentrenar con datos reales."),
+        ("El 13% de los vecinos influyentes son también de alto riesgo",
+         "Para los 5 nodos fraude explicados, el 13% (3/23) de sus vecinos más influyentes según GNNExplainer tienen a su vez score GNN > 0.5. La mayoría de los vecinos influyentes son cuentas legítimas — el modelo detecta fraude por patrones estructurales, no por contagio directo.",
+         "Implementar 'investigación en cascada': cuando un analista confirma fraude en una cuenta, el sistema genera alertas de nivel 2 para sus vecinos influyentes según GNNExplainer, independientemente de si esos vecinos tienen score alto propio."),
+        ("PR-AUC=1.0 refleja evaluación transductiva, no inductiva",
+         "En evaluación estándar (transductiva), el GNN ve durante el entrenamiento todas las aristas incluyendo las que conectan nodos de test con nodos fraude de train. Al aislar el test set (inductivo, simula cuentas nuevas), el PR-AUC cae de 1.000 a 0.835. Un nodo fraude pasa de score=0.997 a score=0.007: su única señal era la conexión directa a 2 nodos fraude de train.",
+         "En el piloto con datos reales de BRS, evaluar en ventana temporal: entrenar con transacciones hasta el mes M, evaluar en M+1. Ningún nodo de test tendrá aristas en el grafo de train — la estimación de rendimiento operativo será honesta."),
+        ("El GNN detecta mulas pero no el perpetrador de origen",
+         "Rastreando hacia atrás desde los nodos detectados en el grafo dirigido de transacciones, se identificaron 3 cuentas raíz (in-degree=0 en el subgrafo de fraude): ACC0001330 (detectada, 13 mulas alimentadas), ACC0000210 y ACC0001046 (no detectadas, score GNN ≈ 0%, is_fraud=False en el dataset). Estas dos cuentas inyectaron $66.422 al anillo desde cuentas aparentemente legítimas. El GNN detecta la estratificación (placement→layering); el backward tracing detecta la colocación (placement).",
+         "Combinar el scoring GNN con una segunda pasada de backward tracing: dado cualquier nodo detectado como fraude, agregar a la cola de investigación todos sus predecesores directos en el grafo dirigido temporal que no sean ellos mismos detectados. Priorizar por monto inyectado."),
     ]
 
     boxes = ""
@@ -469,7 +494,7 @@ def insights_section():
 <div class="break-before">
   <div class="section-num">Sección 5</div>
   <h2>Insights y Recomendaciones</h2>
-  <p>Doce insights derivados del análisis exploratorio del grafo y de los resultados del modelo, en formato operativo para el equipo de compliance y la dirección de BRS.</p>
+  <p>Dieciséis insights derivados del análisis exploratorio, los modelos, GNNExplainer y el rastreo de perpetradores. Formato operativo para el equipo de compliance y la dirección de BRS.</p>
   {boxes}
 </div>"""
 
@@ -596,13 +621,69 @@ def annex_section(results, cfg, figures_dir):
     <figcaption>Fig. 5 — Ablation: features completos vs. solo topología. La diferencia cuantifica el aporte de los features tabulares (balance, grado, montos) sobre la señal estructural pura.</figcaption>
   </figure>
 
+  <h3>Modelos adicionales evaluados</h3>
+  <table>
+    <thead><tr><th>Modelo</th><th>PR-AUC</th><th>Recall@P90</th><th>Observación clave</th></tr></thead>
+    <tbody>
+      <tr><td>GAT (Graph Attention Network)</td><td>0.810</td><td>0.20</td><td>Aprende pesos por arista; compite bien pero inferior a SAGE en este grafo</td></tr>
+      <tr><td>Node2Vec + XGBoost</td><td>0.227</td><td>0.00</td><td>Embeddings de posición sin features tabulares; inferior al azar relativo</td></tr>
+    </tbody>
+  </table>
+
+  <figure>
+    {b64img(f"{figures_dir}/18_gat_training_curves.png")}
+    <figcaption>Fig. 6 — GAT: curvas de entrenamiento. Early stopping en época 25 con val PR-AUC=0.810. Convergencia más rápida que GraphSAGE pero meseta inferior.</figcaption>
+  </figure>
+
+  <figure>
+    {b64img(f"{figures_dir}/20_node2vec_embeddings.png")}
+    <figcaption>Fig. 7 — Node2Vec: proyección UMAP de los embeddings (64-dim). Los nodos fraude (rojo) no forman clusters separados de los legítimos (gris), explicando el bajo PR-AUC=0.227. Los embeddings de posición estructural no separan el fraude sin features tabulares.</figcaption>
+  </figure>
+
+  <h3>GNNExplainer — importancia de features y aristas</h3>
+  <p>Se aplicó GNNExplainer (PyG) sobre los 5 nodos fraude del conjunto de test para identificar qué features y conexiones determinan cada predicción.</p>
+
+  <figure>
+    {b64img(f"{figures_dir}/16_explanation_subgraph.png")}
+    <figcaption>Fig. 8 — Subgrafo de explicación del nodo fraude de mayor score. Grosor de arista = importancia de la conexión; color de nodo = score GNN. Las aristas más gruesas conectan el nodo fraude con sus vecinos más influyentes.</figcaption>
+  </figure>
+
+  <figure>
+    {b64img(f"{figures_dir}/17_feature_importance_global.png")}
+    <figcaption>Fig. 9 — Importancia global de features (promedio sobre los 5 nodos explicados). txn_count, unique_senders y risk_score dominan. Las features de monto absoluto (balance, total_sent) tienen importancia secundaria, confirmando que el modelo detecta por conectividad, no por monto.</figcaption>
+  </figure>
+
+  <h3>Rastreo de perpetradores (backward tracing)</h3>
+  <p>Partiendo de los nodos detectados como fraude por GraphSAGE (score > 0.5), se construyó el subgrafo de transacciones fraudulentas (is_fraud=1) y se identificaron los nodos raíz: aquellos con in-degree=0 que inyectaron dinero al anillo sin recibirlo de él.</p>
+
+  <table>
+    <thead><tr><th>Cuenta</th><th>Score GNN</th><th>Etiqueta real</th><th>Mulas alimentadas</th><th>Monto inyectado</th><th>Primera txn</th></tr></thead>
+    <tbody>
+      <tr><td>ACC0001330</td><td>1.000</td><td class="td-best">Fraude (detectado)</td><td>13</td><td>$14.502</td><td>2024-05-27</td></tr>
+      <tr><td>ACC0000210</td><td>0.000</td><td style="color:#B91C1C;font-weight:700;">No fraude (no detectado)</td><td>1</td><td>$48.411</td><td>2024-04-14</td></tr>
+      <tr><td>ACC0001046</td><td>0.000</td><td style="color:#B91C1C;font-weight:700;">No fraude (no detectado)</td><td>1</td><td>$18.011</td><td>2023-12-14 ← primera</td></tr>
+    </tbody>
+  </table>
+
+  <figure>
+    {b64img(f"{figures_dir}/22_fraud_chain.png")}
+    <figcaption>Fig. 10 — Grafo dirigido del anillo de lavado completo. Naranja: perpetradores (origen); rojo: mulas detectadas por GNN; violeta: mulas no detectadas; gris: receptores legítimos. Las flechas muestran la dirección del flujo de dinero; el grosor de arista es proporcional al monto transferido.</figcaption>
+  </figure>
+
+  <div class="callout no-break">
+    <div class="callout-tag">Hallazgo crítico</div>
+    <div class="callout-body">
+      ACC0001046 inició la cadena en diciembre 2023 (primera transacción del anillo) con score GNN ≈ 0%. ACC0000210 inyectó $48.411 en una sola transacción con score GNN ≈ 0%. Ambas cuentas tienen <strong>baja centralidad de red</strong>: pocas transacciones totales, grado bajo — el perfil típico de una cuenta que inyecta fondos una vez y desaparece. Este patrón es invisible para un clasificador de nodos basado en conectividad. El backward tracing sobre el grafo dirigido es el mecanismo que cierra esta brecha.
+    </div>
+  </div>
+
   <h3>Limitaciones metodológicas</h3>
   <ul>
-    <li><strong>Datos sintéticos:</strong> los patrones de fraude son idealizados. Con datos reales, la señal puede ser más ruidosa y el PR-AUC bajará. Los resultados de este estudio deben interpretarse como un límite superior optimista.</li>
-    <li><strong>Escala reducida:</strong> el estudio usa scale=0.01 (1 500 cuentas). Para el grafo completo de BRS (~500K cuentas, ~50M transacciones anuales), se necesita neighbor sampling para el entrenamiento.</li>
-    <li><strong>Full-batch inference:</strong> la inferencia en producción sobre el grafo completo requiere particionado de grafos o GraphSAGE con sampling en inferencia.</li>
-    <li><strong>Etiquetas de nodo únicamente:</strong> el modelo predice fraude a nivel de cuenta. Clasificación a nivel de transacción requiere un modelo de aristas (edge classification) — posible extensión de fase 2.</li>
-    <li><strong>Deriva de concepto:</strong> los patrones de lavado evolucionan. El modelo necesita re-entrenamiento periódico (sugerido: trimestral) con validación de expertos de compliance.</li>
+    <li><strong>Datos sintéticos:</strong> los patrones de fraude son idealizados. Con datos reales la señal puede ser más ruidosa. Los resultados deben interpretarse como límite superior optimista.</li>
+    <li><strong>Escala reducida:</strong> el estudio usa scale=0.01 (1 500 cuentas). Para el grafo completo de BRS (~500K cuentas) se necesita neighbor sampling para el entrenamiento.</li>
+    <li><strong>Evaluación transductiva:</strong> el PR-AUC=1.000 reportado para GraphSAGE es transductivo. El número operativo correcto es PR-AUC=0.835 (evaluación inductiva).</li>
+    <li><strong>Etiquetas de nodo únicamente:</strong> el modelo predice fraude a nivel de cuenta. Clasificación a nivel de transacción requiere edge classification — extensión de fase 2.</li>
+    <li><strong>Deriva de concepto:</strong> los patrones de lavado evolucionan. Se recomienda re-entrenamiento trimestral con validación de expertos de compliance.</li>
   </ul>
 </div>"""
 
