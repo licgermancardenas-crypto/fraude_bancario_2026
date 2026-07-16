@@ -4,13 +4,26 @@ import ScoreDistChart from "@/components/ScoreDistChart";
 import PageHeader from "@/components/PageHeader";
 import type { KPIs, PRCurve, ScoreDistribution } from "@/lib/types";
 
-import kpisRaw   from "@/public/data/kpis.json";
-import curvesRaw from "@/public/data/pr_curves.json";
-import distRaw   from "@/public/data/score_distribution.json";
+import kpisRaw     from "@/public/data/kpis.json";
+import curvesRaw   from "@/public/data/pr_curves.json";
+import distRaw     from "@/public/data/score_distribution.json";
+import temporalRaw from "@/public/data/temporal_eval.json";
 
 const kpis:   KPIs              = kpisRaw as KPIs;
 const curves: PRCurve[]         = curvesRaw as PRCurve[];
 const dist:   ScoreDistribution = distRaw as ScoreDistribution;
+
+type TemporalEval = { conditions: Record<string, { pr_auc: number }> };
+const temporal = temporalRaw as TemporalEval;
+
+/** Mirrors evaluate.py::recall_at_precision — highest recall where precision >= target. */
+function recallAtPrecision(curve: PRCurve | undefined, target = 0.9): number {
+  if (!curve) return 0;
+  for (let i = 0; i < curve.precision.length; i++) {
+    if (curve.precision[i] >= target) return curve.recall[i];
+  }
+  return 0;
+}
 
 const insights = [
   {
@@ -34,9 +47,17 @@ const insights = [
 ];
 
 export default function OverviewPage() {
-  const sageCurve = curves.find(c => c.model === "GraphSAGE");
-  const xgbCurve  = curves.find(c => c.model === "XGBoost");
-  const delta     = ((sageCurve?.pr_auc ?? 1) - (xgbCurve?.pr_auc ?? 0)).toFixed(3);
+  const sageCurve   = curves.find(c => c.model === "GraphSAGE");
+  const xgbCurve    = curves.find(c => c.model === "XGBoost");
+  const logregCurve = curves.find(c => c.model === "Logistic Regression");
+  const delta       = ((sageCurve?.pr_auc ?? 1) - (xgbCurve?.pr_auc ?? 0)).toFixed(3);
+
+  const sageMissedPct   = Math.round((1 - kpis.recall_at_p90) * 100);
+  const xgbMissedPct    = Math.round((1 - recallAtPrecision(xgbCurve, 0.9)) * 100);
+  const logregMissedPct = Math.round((1 - recallAtPrecision(logregCurve, 0.9)) * 100);
+
+  const transductivePrAuc = temporal.conditions.random_transductive?.pr_auc;
+  const inductivePrAuc    = temporal.conditions.random_inductive?.pr_auc;
 
   return (
     <div className="space-y-6">
@@ -69,8 +90,8 @@ export default function OverviewPage() {
         />
         <KPICard
           label="Fraude no detectado"
-          value="0%"
-          sub="vs 20% con XGBoost y LogReg"
+          value={`${sageMissedPct}%`}
+          sub={`vs ${xgbMissedPct}% XGBoost · ${logregMissedPct}% LogReg`}
           color="#16A34A"
         />
       </div>
@@ -94,7 +115,7 @@ export default function OverviewPage() {
             El GNN supera en{" "}
             <span style={{ color: "#2563EB", fontWeight: 600 }}>+{delta} PR-AUC</span>{" "}
             al mejor baseline tabular (XGBoost).
-            Evaluación transductiva: 1.000 · Inductiva (cuentas nuevas): 0.835.
+            Evaluación transductiva: {transductivePrAuc?.toFixed(3)} · Inductiva (cuentas nuevas): {inductivePrAuc?.toFixed(3)}.
           </p>
         </div>
 
