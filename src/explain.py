@@ -97,7 +97,7 @@ def select_targets(data, test_idx, all_scores, top_k=5):
 def build_explainer(model):
     return Explainer(
         model=model,
-        algorithm=GNNExplainer(epochs=300),
+        algorithm=GNNExplainer(epochs=50),
         explanation_type="model",
         node_mask_type="attributes",
         edge_mask_type="object",
@@ -357,7 +357,7 @@ def append_insights(explanations, targets, all_scores, node_ids, output_path):
 **Acción sugerida:** Implementar "investigación en cascada": cuando un analista confirma fraude en una cuenta, el sistema genera automáticamente alertas de nivel 2 para sus vecinos influyentes según GNNExplainer.
 """
 
-    with open(output_path, "a") as f:
+    with open(output_path, "a", encoding="utf-8") as f:
         f.write(text)
     print(f"  → {output_path}  (Insights 13-14 agregados)")
 
@@ -387,7 +387,7 @@ def main(config_path="config/config.yaml"):
         nid = node_ids[n] if n < len(node_ids) else str(n)
         print(f"  {nid}  score={all_scores[n]:.4f}")
 
-    print("\n── 4. GNNExplainer (300 épocas × 5 nodos) ─────────────")
+    print("\n── 4. GNNExplainer (50 épocas × 5 nodos) ──────────────")
     explainer    = build_explainer(model)
     explanations = explain_nodes(explainer, data, targets)
 

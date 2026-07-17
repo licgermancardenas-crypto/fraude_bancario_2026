@@ -1,10 +1,9 @@
 """
 Temporal evaluation of GraphSAGE.
 
-The random-split PR-AUC=1.000 (transductive) and PR-AUC=0.835 (inductive)
-are both computed on shuffled node splits — test nodes may share time period
-with train nodes. This overestimates performance in production, where the
-model is always applied to FUTURE data.
+The random-split transductive PR-AUC is computed on shuffled node splits —
+test nodes may share time period with train nodes. This overestimates
+performance in production, where the model is always applied to FUTURE data.
 
 This module implements a temporal graph split:
   - Train edges  : transactions in the first T_TRAIN% of the time window
@@ -15,9 +14,10 @@ Node labels and features remain the same. Only the graph structure seen
 during training changes. This simulates: "train on 8 months, deploy in month 9."
 
 Three conditions reported:
-  1. Random split — transductive   (existing, PR-AUC=1.000)
-  2. Random split — inductive      (existing, PR-AUC=0.835)
-  3. Temporal split — retrained    (this module, PR-AUC=?)
+  1. Random split — transductive : read from pr_curves.json (train.py's own eval)
+  2. Random split — inductive    : same trained model, re-run with all test-node
+                                   edges removed from the graph (this module)
+  3. Temporal split — retrained  : this module, trained on pre-cutoff edges only
 
 Outputs:
   reports/figures/24_temporal_eval.png
@@ -182,6 +182,44 @@ def get_scores(model, data):
     return F.softmax(logits, dim=1)[:, 1].numpy()
 
 
+def build_inductive_data(existing_data):
+    """
+    Same graph as existing_data but with every edge touching a test node
+    removed — the model can't use any test-node connectivity at inference
+    time, simulating a genuinely new account with no visible transaction
+    history to the neighbours it will eventually have (see Insight 15).
+    """
+    test_mask = existing_data.test_mask
+    src, dst  = existing_data.edge_index
+    keep = ~(test_mask[src] | test_mask[dst])
+
+    data = Data(
+        x          = existing_data.x,
+        y          = existing_data.y,
+        edge_index = existing_data.edge_index[:, keep],
+        train_mask = existing_data.train_mask,
+        val_mask   = existing_data.val_mask,
+        test_mask  = existing_data.test_mask,
+    )
+    data.node_ids = existing_data.node_ids
+    return data
+
+
+def load_trained_graphsage():
+    """Load the already-trained (transductive) GraphSAGE checkpoint."""
+    ckpt = torch.load("models/graphsage_best.pt", map_location="cpu", weights_only=True)
+    gnn_cfg = ckpt["config"]
+    model = GraphSAGE(
+        in_channels     = ckpt["in_channels"],
+        hidden_channels = gnn_cfg["hidden_channels"],
+        num_layers      = gnn_cfg["num_layers"],
+        dropout         = gnn_cfg["dropout"],
+    )
+    model.load_state_dict(ckpt["model_state"])
+    model.eval()
+    return model
+
+
 def pr_curve_points(y_true, y_score, n_points=200):
     """Return (recall, precision) arrays at n_points thresholds."""
     precision, recall, _ = precision_recall_curve(y_true, y_score)
@@ -295,7 +333,7 @@ def export_json(results, txn_info, dashboard_data_dir):
 
 
 def append_insight(results, txn_info, insights_path="reports/insights.md"):
-    with open(insights_path) as f:
+    with open(insights_path, encoding="utf-8") as f:
         if "Insight 18" in f.read():
             print(f"  → Insight 18 ya existe, omitiendo")
             return
@@ -332,7 +370,7 @@ def append_insight(results, txn_info, insights_path="reports/insights.md"):
         "los nuevos datos etiquetados por compliance.\n",
     ]
 
-    with open(insights_path, "a") as f:
+    with open(insights_path, "a", encoding="utf-8") as f:
         f.writelines(lines)
     print(f"  → {insights_path}  (Insight 18 agregado)")
 
@@ -422,17 +460,30 @@ def main(config_path="config/config.yaml"):
 
     sage_curve = next(c for c in pr_curves if c["model"] == "GraphSAGE")
     pr_auc_rand = sage_curve["pr_auc"]
-    # Build recall/precision arrays from points
-    rec_rand  = [p["recall"]    for p in sage_curve["points"]]
-    prec_rand = [p["precision"] for p in sage_curve["points"]]
+    # Build recall/precision arrays (pr_curves.json may use "points" or flat arrays)
+    if "points" in sage_curve:
+        rec_rand  = [p["recall"]    for p in sage_curve["points"]]
+        prec_rand = [p["precision"] for p in sage_curve["points"]]
+    else:
+        rec_rand  = sage_curve["recall"]
+        prec_rand = sage_curve["precision"]
     print(f"  PR-AUC random transductivo: {pr_auc_rand:.4f}")
 
-    # Inductive result from temporal_eval context (Insight 15 = 0.835)
-    pr_auc_ind = 0.835
-    # Approximate inductive PR curve (step down from transductive)
-    rec_ind  = rec_rand
-    prec_ind = [p * 0.835 for p in prec_rand]  # approximate scaling
-    print(f"  PR-AUC random inductivo:    {pr_auc_ind:.4f}")
+    # ── Real inductive evaluation ──────────────────────────────────
+    print("\n── 6b. Evaluación inductiva real (aristas de test removidas) ──")
+    inductive_data  = build_inductive_data(base_data)
+    model_trans     = load_trained_graphsage()
+    scores_ind_full = get_scores(model_trans, inductive_data)
+    scores_ind_test = scores_ind_full[test_mask_np]
+
+    pr_auc_ind = average_precision_score(y_test, scores_ind_test)
+    print(f"  PR-AUC random inductivo (real): {pr_auc_ind:.4f}")
+
+    rec_ind, prec_ind = pr_curve_points(y_test, scores_ind_test)
+    prec_arr_ind, rec_arr_ind, _ = precision_recall_curve(y_test, scores_ind_test)
+    valid_idx_ind = np.where(prec_arr_ind >= 0.90)[0]
+    recall_at_p90_ind = float(rec_arr_ind[valid_idx_ind[-1]]) if len(valid_idx_ind) else 0.0
+    print(f"  Recall@P90 inductivo: {recall_at_p90_ind:.3f}")
 
     # ── Collect results ───────────────────────────────────────────
     results = {
@@ -444,7 +495,7 @@ def main(config_path="config/config.yaml"):
         },
         "random_inductive": {
             "pr_auc":        pr_auc_ind,
-            "recall_at_p90": 0.835,
+            "recall_at_p90": recall_at_p90_ind,
             "recall_curve":  rec_ind,
             "precision_curve": prec_ind,
         },

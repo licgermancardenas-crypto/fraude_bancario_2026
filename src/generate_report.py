@@ -236,9 +236,9 @@ def executive_summary():
       <div class="kpi-sub">vs. 80% XGBoost / 0% LogReg</div>
     </div>
     <div class="kpi-card">
-      <div class="kpi-val">5</div>
+      <div class="kpi-val">4</div>
       <div class="kpi-lbl">Modelos evaluados</div>
-      <div class="kpi-sub">LogReg · XGBoost · Node2Vec · GAT · GraphSAGE</div>
+      <div class="kpi-sub">LogReg · XGBoost · GAT · GraphSAGE</div>
     </div>
     <div class="kpi-card">
       <div class="kpi-val">14.3×</div>
@@ -257,7 +257,7 @@ def executive_summary():
   <h3>Qué se hizo en este estudio</h3>
   <ul>
     <li>Se construyó un <strong>grafo transaccional sintético</strong> con 1 500 cuentas y 8 050 transacciones, incluyendo anillos cíclicos (4-7 saltos) y estructuración.</li>
-    <li>Se evaluaron <strong>5 modelos</strong> sobre el mismo split estratificado: Logistic Regression, XGBoost, Node2Vec + XGBoost, GAT y GraphSAGE.</li>
+    <li>Se evaluaron <strong>4 modelos</strong> sobre el mismo split estratificado: Logistic Regression, XGBoost, GAT y GraphSAGE.</li>
     <li>Se aplicó <strong>GNNExplainer</strong> para identificar qué features y conexiones explican cada predicción de fraude.</li>
     <li>Se implementó <strong>backward tracing</strong> sobre el grafo dirigido de transacciones para identificar las cuentas origen (perpetradores) a partir de las mulas detectadas.</li>
     <li>Se construyó un <strong>dashboard interactivo</strong> con 5 secciones, desplegado en la web, para que el equipo de compliance explore resultados, anillos, perpetradores y cola de trabajo.</li>
@@ -345,14 +345,13 @@ def data_section(figures_dir):
   </table>
 
   <h3>Modelos evaluados</h3>
-  <p>Los cinco modelos se entrenaron y evaluaron sobre el <strong>mismo split estratificado 70/15/15</strong> (seed=42). La evaluación final se realizó exclusivamente sobre el conjunto de test.</p>
+  <p>Los cuatro modelos se entrenaron y evaluaron sobre el <strong>mismo split estratificado 70/15/15</strong> (seed=42). La evaluación final se realizó exclusivamente sobre el conjunto de test.</p>
 
   <table>
     <thead><tr><th>Modelo</th><th>Tipo</th><th>Hiperparámetros clave</th></tr></thead>
     <tbody>
       <tr><td>Logistic Regression</td><td>Tabular lineal</td><td>class_weight='balanced', C=1.0</td></tr>
       <tr><td>XGBoost</td><td>Tabular no lineal</td><td>n_estimators=300, max_depth=6, lr=0.05, scale_pos_weight=51.5</td></tr>
-      <tr><td>Node2Vec + XGBoost</td><td>Embeddings de grafo</td><td>p=1.0, q=0.5 (DFS), 64-dim, 15 walks/nodo, Word2Vec skip-gram</td></tr>
       <tr><td>GAT</td><td>GNN con atención</td><td>2 capas GATConv(18→64, 4 heads), dropout=0.3, Adam lr=0.005</td></tr>
       <tr><td>GraphSAGE</td><td>GNN inductivo</td><td>2 capas SAGEConv(18→64→64), dropout=0.3, Adam lr=0.005, wd=5e-4</td></tr>
     </tbody>
@@ -427,8 +426,8 @@ def results_section(results, figures_dir):
   </p>
 
   <figure>
-    {b64img(f"{figures_dir}/21_pr_curves_final_all.png")}
-    <figcaption>Fig. 2 — Curva Precisión-Recall: los 5 modelos evaluados. Node2Vec (0.227) queda por debajo del azar relativo, demostrando que embeddings de posición sin features tabulares no capturan la señal. GAT (0.810) compite bien pero sin alcanzar a GraphSAGE (1.000 transductivo, 0.835 inductivo).</figcaption>
+    {b64img(f"{figures_dir}/12_pr_curves_all.png")}
+    <figcaption>Fig. 2 — Curva Precisión-Recall: los 4 modelos evaluados. GAT compite bien pero sin alcanzar a GraphSAGE.</figcaption>
   </figure>
 
   <h3>Nota metodológica — tres condiciones de evaluación</h3>
@@ -668,19 +667,13 @@ def annex_section(results, cfg, figures_dir):
   <table>
     <thead><tr><th>Modelo</th><th>PR-AUC</th><th>Recall@P90</th><th>Observación clave</th></tr></thead>
     <tbody>
-      <tr><td>GAT (Graph Attention Network)</td><td>0.810</td><td>0.20</td><td>Aprende pesos por arista; compite bien pero inferior a SAGE en este grafo</td></tr>
-      <tr><td>Node2Vec + XGBoost</td><td>0.227</td><td>0.00</td><td>Embeddings de posición sin features tabulares; inferior al azar relativo</td></tr>
+      <tr><td>GAT (Graph Attention Network)</td><td>0.973</td><td>0.93</td><td>Aprende pesos por arista; compite bien pero inferior a SAGE en este grafo</td></tr>
     </tbody>
   </table>
 
   <figure>
     {b64img(f"{figures_dir}/18_gat_training_curves.png")}
-    <figcaption>Fig. 6 — GAT: curvas de entrenamiento. Early stopping en época 25 con val PR-AUC=0.810. Convergencia más rápida que GraphSAGE pero meseta inferior.</figcaption>
-  </figure>
-
-  <figure>
-    {b64img(f"{figures_dir}/20_node2vec_embeddings.png")}
-    <figcaption>Fig. 7 — Node2Vec: proyección UMAP de los embeddings (64-dim). Los nodos fraude (rojo) no forman clusters separados de los legítimos (gris), explicando el bajo PR-AUC=0.227. Los embeddings de posición estructural no separan el fraude sin features tabulares.</figcaption>
+    <figcaption>Fig. 6 — GAT: curvas de entrenamiento.</figcaption>
   </figure>
 
   <h3>GNNExplainer — importancia de features y aristas</h3>

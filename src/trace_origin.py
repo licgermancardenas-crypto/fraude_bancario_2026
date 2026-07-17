@@ -300,7 +300,7 @@ def export_json(perpetrators, G_ring, gnn_scores, acct_index, dashboard_data_dir
 
 
 def append_insight(summary, perpetrators, insights_path="reports/insights.md"):
-    with open(insights_path) as f:
+    with open(insights_path, encoding="utf-8") as f:
         if "Insight 16" in f.read():
             print(f"  → Insight 16 ya existe en {insights_path}, omitiendo")
             return
@@ -328,7 +328,7 @@ def append_insight(summary, perpetrators, insights_path="reports/insights.md"):
         "Priorizar por monto inyectado y antigüedad de la cuenta.\n",
     ]
 
-    with open(insights_path, "a") as f:
+    with open(insights_path, "a", encoding="utf-8") as f:
         f.writelines(lines)
     print(f"  → {insights_path}  (Insight 16 agregado)")
 

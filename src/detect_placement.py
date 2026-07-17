@@ -276,7 +276,7 @@ def export_json(cand_df, known_perp_ids, dashboard_data_dir, top_n=30):
 
 
 def append_insight(out, cand_df, insights_path="reports/insights.md"):
-    with open(insights_path) as f:
+    with open(insights_path, encoding="utf-8") as f:
         if "Insight 17" in f.read():
             print(f"  → Insight 17 ya existe, omitiendo")
             return
@@ -307,7 +307,7 @@ def append_insight(out, cand_df, insights_path="reports/insights.md"):
         "normales además de las fraudulentas.\n",
     ]
 
-    with open(insights_path, "a") as f:
+    with open(insights_path, "a", encoding="utf-8") as f:
         f.writelines(lines)
     print(f"  → {insights_path}  (Insight 17 agregado)")
 

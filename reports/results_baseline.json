@@ -1,48 +1,48 @@
 [
   {
     "model": "Logistic Regression",
-    "pr_auc": 0.5554,
-    "roc_auc": 0.9258,
+    "pr_auc": 0.6754,
+    "roc_auc": 0.9856,
     "rec_at_p90": 0.0,
     "thr_at_p90": null,
-    "f1_optimal": 0.8,
-    "threshold_opt": 0.9996,
+    "f1_optimal": 0.6801,
+    "threshold_opt": 0.9966,
     "confusion_matrix": [
       [
-        220,
-        1
+        11022,
+        66
       ],
       [
-        1,
-        4
+        45,
+        118
       ]
     ],
-    "biz_daily_alerts": 26,
-    "biz_daily_fraud_tp": 21,
-    "biz_pct_fraud_missed": 20.0,
-    "biz_scale_factor": 1930.0
+    "biz_daily_alerts": 30,
+    "biz_daily_fraud_tp": 19,
+    "biz_pct_fraud_missed": 27.6,
+    "biz_scale_factor": 59.2
   },
   {
     "model": "XGBoost",
-    "pr_auc": 0.925,
-    "roc_auc": 0.9973,
-    "rec_at_p90": 0.8,
-    "thr_at_p90": 0.9128,
-    "f1_optimal": 0.8889,
-    "threshold_opt": 0.9128,
+    "pr_auc": 0.9265,
+    "roc_auc": 0.9982,
+    "rec_at_p90": 0.8037,
+    "thr_at_p90": 0.9327,
+    "f1_optimal": 0.8581,
+    "threshold_opt": 0.9491,
     "confusion_matrix": [
       [
-        221,
-        0
+        11078,
+        10
       ],
       [
-        1,
-        4
+        33,
+        130
       ]
     ],
-    "biz_daily_alerts": 21,
+    "biz_daily_alerts": 23,
     "biz_daily_fraud_tp": 21,
-    "biz_pct_fraud_missed": 20.0,
-    "biz_scale_factor": 1930.0
+    "biz_pct_fraud_missed": 20.2,
+    "biz_scale_factor": 59.2
   }
 ]
