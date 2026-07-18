@@ -20,11 +20,11 @@ export default function NavBar() {
 
         <div className="flex items-center gap-3">
           <div className="flex items-center justify-center w-7 h-7 rounded"
-               style={{ backgroundColor: "#C9A227" }}>
-            <span className="text-[10px] font-black text-[#050f1f] tracking-tight">BRS</span>
+               style={{ background: "linear-gradient(135deg, #0A1F44, #1E3A8A)" }}>
+            <span className="text-[10px] font-black text-white tracking-tight">PH</span>
           </div>
           <div className="hidden sm:block">
-            <p className="text-white text-sm font-semibold leading-none">Detección de Lavado</p>
+            <p className="text-white text-sm font-semibold leading-none">Phantom AI</p>
             <p className="text-white/35 text-[10px] leading-none mt-0.5 tracking-wider">GNN · Germán Cárdenas</p>
           </div>
         </div>

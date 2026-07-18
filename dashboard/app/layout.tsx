@@ -4,8 +4,8 @@ import Sidebar from "@/components/Sidebar";
 import MobileNav from "@/components/MobileNav";
 
 export const metadata: Metadata = {
-  title: "Fraude BRS — Dashboard de Detección de Lavado",
-  description: "Sistema de detección de redes de lavado mediante Graph Neural Networks — Germán Cárdenas",
+  title: "Phantom AI — Detección de Fraude con GNN",
+  description: "Phantom AI: detección de redes de lavado mediante Graph Neural Networks — Germán Cárdenas",
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
@@ -19,11 +19,11 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         >
           <div
             className="flex items-center justify-center w-7 h-7 rounded-lg flex-shrink-0"
-            style={{ background: "linear-gradient(135deg, #1E3A8A, #2563EB)" }}
+            style={{ background: "linear-gradient(135deg, #0A1F44, #1E3A8A)" }}
           >
-            <span className="text-[9px] font-black text-white tracking-tight">BRS</span>
+            <span className="text-[9px] font-black text-white tracking-tight">PH</span>
           </div>
-          <p className="text-sm font-bold" style={{ color: "#0F172A" }}>Detección AML</p>
+          <p className="text-sm font-bold" style={{ color: "#0F172A" }}>Phantom AI</p>
         </div>
         <div className="flex-1 min-w-0 flex flex-col">
           <main className="flex-1 px-6 lg:px-8 pt-16 pb-20 sm:pt-8 sm:pb-8">

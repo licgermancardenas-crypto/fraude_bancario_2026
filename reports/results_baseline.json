@@ -1,48 +1,48 @@
 [
   {
     "model": "Logistic Regression",
-    "pr_auc": 0.5554,
-    "roc_auc": 0.9258,
-    "rec_at_p90": 0.0,
-    "thr_at_p90": null,
-    "f1_optimal": 0.8,
-    "threshold_opt": 0.9996,
+    "pr_auc": 0.6462,
+    "roc_auc": 0.9687,
+    "rec_at_p90": 0.4286,
+    "thr_at_p90": 1.0,
+    "f1_optimal": 0.5965,
+    "threshold_opt": 0.9994,
     "confusion_matrix": [
       [
-        220,
-        1
+        2211,
+        5
       ],
       [
-        1,
-        4
+        18,
+        17
       ]
     ],
-    "biz_daily_alerts": 26,
-    "biz_daily_fraud_tp": 21,
-    "biz_pct_fraud_missed": 20.0,
-    "biz_scale_factor": 1930.0
+    "biz_daily_alerts": 17,
+    "biz_daily_fraud_tp": 13,
+    "biz_pct_fraud_missed": 51.4,
+    "biz_scale_factor": 275.7
   },
   {
     "model": "XGBoost",
-    "pr_auc": 0.925,
-    "roc_auc": 0.9973,
-    "rec_at_p90": 0.8,
-    "thr_at_p90": 0.9128,
-    "f1_optimal": 0.8889,
-    "threshold_opt": 0.9128,
+    "pr_auc": 0.843,
+    "roc_auc": 0.9893,
+    "rec_at_p90": 0.5429,
+    "thr_at_p90": 0.9967,
+    "f1_optimal": 0.8286,
+    "threshold_opt": 0.5508,
     "confusion_matrix": [
       [
-        221,
-        0
+        2210,
+        6
       ],
       [
-        1,
-        4
+        6,
+        29
       ]
     ],
-    "biz_daily_alerts": 21,
-    "biz_daily_fraud_tp": 21,
-    "biz_pct_fraud_missed": 20.0,
-    "biz_scale_factor": 1930.0
+    "biz_daily_alerts": 26,
+    "biz_daily_fraud_tp": 22,
+    "biz_pct_fraud_missed": 17.1,
+    "biz_scale_factor": 275.7
   }
 ]

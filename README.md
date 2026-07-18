@@ -1,4 +1,4 @@
-# Detección de Redes de Lavado mediante Inteligencia de Grafos
+# Phantom AI — Detección de Redes de Lavado mediante Inteligencia de Grafos
 
 **Dashboard en vivo → [fraude-bancario-2026.vercel.app](https://fraude-bancario-2026.vercel.app)**
 
@@ -8,13 +8,13 @@ Engagement simulado para *Banco Regional del Sur (BRS)*: prueba de concepto end-
 
 ## Resultados
 
-| Modelo | PR-AUC (transductivo) | PR-AUC (inductivo) | PR-AUC (temporal) | Recall @ P90 | Fraude no detectado |
-|---|---|---|---|---|---|
-| Logistic Regression | 0.555 | — | — | 0% | 20% |
-| XGBoost | 0.925 | — | — | 80% | 20% |
-| Node2Vec + XGBoost | 0.227 | — | — | 0% | 60% |
-| GAT | 0.810 | — | — | 20% | 0% |
-| **GraphSAGE** | **1.000** | **0.835** | **0.810** | **100%** | **0%** |
+| Modelo | PR-AUC | ROC-AUC | Recall @ P90 | Fraude no detectado |
+|---|---|---|---|---|
+| Logistic Regression | 0.646 | 0.969 | 43% | 51.4% |
+| XGBoost | 0.843 | 0.989 | 54% | 17.1% |
+| Node2Vec + XGBoost | 0.057 | 0.758 | 0% | 82.9% |
+| GAT | 0.950 | 0.999 | 89% | 11.4% |
+| **GraphSAGE** | **0.946** | **0.997** | **89%** | **11.4%** |
 
 **Nota metodológica — tres condiciones de evaluación:**
 - **Transductivo** (1.000): el modelo ve todas las aristas durante el forward pass — estimación optimista.

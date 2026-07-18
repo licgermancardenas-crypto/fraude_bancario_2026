@@ -25,16 +25,16 @@ export default function Sidebar() {
         <div className="flex items-center gap-3">
           <div
             className="flex items-center justify-center w-9 h-9 rounded-xl flex-shrink-0"
-            style={{ background: "linear-gradient(135deg, #1E3A8A, #2563EB)" }}
+            style={{ background: "linear-gradient(135deg, #0A1F44, #1E3A8A)" }}
           >
-            <span className="text-[11px] font-black text-white tracking-tight">BRS</span>
+            <span className="text-[11px] font-black text-white tracking-tight">PH</span>
           </div>
           <div>
             <p className="text-sm font-bold leading-tight" style={{ color: "#0F172A" }}>
-              Detección AML
+              Phantom AI
             </p>
             <p className="text-[10px] mt-0.5" style={{ color: "#94A3B8" }}>
-              GNN · Banco Regional
+              GNN · Detección de Fraude
             </p>
           </div>
         </div>
