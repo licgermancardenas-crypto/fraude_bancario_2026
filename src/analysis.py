@@ -43,8 +43,19 @@ GRID   = "#E0E0E0"
 MODEL_COLORS = {
     "Logistic Regression": NAVY,
     "XGBoost":             GOLD,
+    "Node2Vec + XGBoost":  "#8E44AD",
+    "GAT":                 "#2E86AB",
     "GraphSAGE":           RED,
     "GraphSAGE (ablation — solo topología)": TEAL,
+}
+
+# Ordered so the legend/table lists baselines before the GNNs.
+MODEL_SCORE_FILES = {
+    "Logistic Regression": "scores_logreg.npy",
+    "XGBoost":             "scores_xgboost.npy",
+    "Node2Vec + XGBoost":  "scores_node2vec.npy",
+    "GAT":                 "scores_gat.npy",
+    "GraphSAGE":           "scores_graphsage.npy",
 }
 
 
@@ -66,9 +77,13 @@ def load_all(cfg):
     test_mask = data.test_mask.numpy()
     y_test    = data.y.numpy()[test_mask]
 
-    scores_lr  = np.load(f"{processed}/scores_logreg.npy")
-    scores_xgb = np.load(f"{processed}/scores_xgboost.npy")
-    scores_gnn = np.load(f"{processed}/scores_graphsage.npy")
+    scores_by_model = {}
+    for name, fname in MODEL_SCORE_FILES.items():
+        path = Path(processed) / fname
+        if path.exists():
+            scores_by_model[name] = np.load(path)
+        else:
+            print(f"  (omitido: {name} — {fname} no encontrado)")
 
     ckpt  = torch.load("models/graphsage_best.pt", weights_only=False)
     model = GraphSAGE(data.num_node_features, **{
@@ -77,21 +92,17 @@ def load_all(cfg):
     model.load_state_dict(ckpt["model_state"])
     model.eval()
 
-    return acc, txn, data, test_mask, y_test, scores_lr, scores_xgb, scores_gnn, model
+    return acc, txn, data, test_mask, y_test, scores_by_model, model
 
 
 # ── 2. Comparative PR curves (main figure) ────────────────────────────────────
 
-def plot_pr_all(y_test, scores_lr, scores_xgb, scores_gnn, figures_dir):
+def plot_pr_all(y_test, scores_by_model, figures_dir):
     fig, ax = plt.subplots(figsize=(9, 7))
     fig.patch.set_facecolor("white")
 
-    entries = [
-        ("Logistic Regression", scores_lr,  NAVY),
-        ("XGBoost",             scores_xgb, GOLD),
-        ("GraphSAGE",           scores_gnn, RED),
-    ]
-    for name, scores, color in entries:
+    for name, scores in scores_by_model.items():
+        color = MODEL_COLORS.get(name, GREY)
         prec, rec, _ = precision_recall_curve(y_test, scores)
         auc = average_precision_score(y_test, scores)
         ax.step(rec, prec, where="post", color=color, linewidth=2.5,
@@ -423,7 +434,7 @@ def append_model_insights(results_list, abl_prauc, error_df, cfg):
 """
 
     insights_path = f"{reports}/insights.md"
-    with open(insights_path, "a") as f:
+    with open(insights_path, "a", encoding="utf-8") as f:
         f.write(new_section)
     print(f"  → {insights_path} actualizado con Insights 9-12")
 
@@ -441,7 +452,8 @@ def run_analysis(config_path="config/config.yaml"):
 
     # 1. Load
     print("\n── 1. Cargando artefactos ────────────────────────────────")
-    acc, txn, data, test_mask, y_test, scores_lr, scores_xgb, scores_gnn, model = load_all(cfg)
+    acc, txn, data, test_mask, y_test, scores_by_model, model = load_all(cfg)
+    scores_gnn = scores_by_model["GraphSAGE"]
 
     # full-graph scores (all nodes, for distribution / export)
     model.eval()
@@ -456,16 +468,14 @@ def run_analysis(config_path="config/config.yaml"):
     results = []
     n_acc   = data.num_nodes
     fr_rate = (data.y == 1).float().mean().item()
-    for name, scores in [("Logistic Regression", scores_lr),
-                          ("XGBoost",             scores_xgb),
-                          ("GraphSAGE",           scores_gnn)]:
+    for name, scores in scores_by_model.items():
         r = evaluate_model(name, y_test, scores,
                            dataset_n_accounts=n_acc, dataset_fraud_rate=fr_rate)
         results.append(r)
 
     # 3. Figures
     print("\n── 3. Figuras ───────────────────────────────────────────")
-    plot_pr_all(y_test, scores_lr, scores_xgb, scores_gnn, figures_dir)
+    plot_pr_all(y_test, scores_by_model, figures_dir)
     plot_score_distribution(data, scores_gnn_full, figures_dir)
 
     # 4. Ablation

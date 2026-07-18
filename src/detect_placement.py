@@ -276,7 +276,7 @@ def export_json(cand_df, known_perp_ids, dashboard_data_dir, top_n=30):
 
 
 def append_insight(out, cand_df, insights_path="reports/insights.md"):
-    with open(insights_path) as f:
+    with open(insights_path, encoding="utf-8") as f:
         if "Insight 17" in f.read():
             print(f"  → Insight 17 ya existe, omitiendo")
             return
@@ -307,7 +307,7 @@ def append_insight(out, cand_df, insights_path="reports/insights.md"):
         "normales además de las fraudulentas.\n",
     ]
 
-    with open(insights_path, "a") as f:
+    with open(insights_path, "a", encoding="utf-8") as f:
         f.writelines(lines)
     print(f"  → {insights_path}  (Insight 17 agregado)")
 
@@ -340,8 +340,11 @@ def main(config_path="config/config.yaml"):
 
     # ── Candidates ────────────────────────────────────────────────
     print("\n── 3. Candidatos de colocación ─────────────────────────")
-    # Known perpetrators from trace_origin
-    known_perp_ids = {"ACC0001330", "ACC0000210", "ACC0001046"}
+    # Known perpetrators from trace_origin (requires trace_origin.py to have run first)
+    with open(f"{dd}/origin_trace.json") as f:
+        origin_data = json.load(f)
+    known_perp_ids = {p["node_id"] for p in origin_data["perpetrators"]}
+    print(f"  Perpetradores conocidos (de trace_origin.py): {sorted(known_perp_ids)}")
     cand_df = build_candidate_records(txn, acct, gnn_dict, placement_scores,
                                        known_perp_ids, top_n=50)
     print(f"  Top candidatos: {len(cand_df)}")

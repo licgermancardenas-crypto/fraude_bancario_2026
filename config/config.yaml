@@ -4,7 +4,7 @@ project:
   client: "Banco Regional del Sur (BRS)"
 
 data:
-  scale_factor: 0.1
+  scale_factor: 0.5
   raw_dir: data/raw
   processed_dir: data/processed
   workers: 4

@@ -79,7 +79,7 @@ def generate_legitimate_txns(
     base_ts: int = 1_700_000_000,
 ) -> list[dict]:
     """Generate random legitimate transactions between accounts."""
-    ids = accounts["account_id"].tolist()
+    ids = np.asarray(accounts["account_id"])
     txns = []
     for i in range(n_txns):
         src, dst = rng.choice(ids, size=2, replace=False)

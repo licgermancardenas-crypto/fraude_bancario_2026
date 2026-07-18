@@ -1,5 +1,5 @@
 "use client";
-import { useState, useEffect, useRef } from "react";
+import { Fragment, useState, useEffect, useRef } from "react";
 import originRaw from "@/public/data/origin_trace.json";
 import placementRaw from "@/public/data/placement_candidates.json";
 import PageHeader from "@/components/PageHeader";
@@ -71,9 +71,15 @@ function ScoreChip({ detected }: { detected: boolean }) {
   );
 }
 
+const GRAPH_TOP_N = 15;
+
 function RingGraphDirected() {
   const containerRef = useRef<HTMLDivElement>(null);
   const [selected, setSelected] = useState<RingNode | null>(null);
+
+  const topPerps = [...data.perpetrators]
+    .sort((a, b) => b.amount_injected - a.amount_injected)
+    .slice(0, GRAPH_TOP_N);
 
   useEffect(() => {
     if (!containerRef.current) return;
@@ -83,10 +89,22 @@ function RingGraphDirected() {
     (async () => {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const cytoscape = (await import("cytoscape")).default as any;
-      const nodeMap = new Map(data.ring_nodes.map(n => [n.node_id, n]));
+
+      // Cap the graph to the top-N perpetrators by amount + their direct
+      // mules — rendering all 1000+ nodes freezes the breadthfirst layout
+      // and the result is unreadable regardless. Full detail stays in the
+      // table above.
+      const visibleIds = new Set<string>();
+      topPerps.forEach(p => {
+        visibleIds.add(p.node_id);
+        p.mules.forEach(m => visibleIds.add(m));
+      });
+      const visibleNodes = data.ring_nodes.filter(n => visibleIds.has(n.node_id));
+      const visibleEdges = data.ring_edges.filter(e => visibleIds.has(e.src) && visibleIds.has(e.dst));
+      const nodeMap = new Map(visibleNodes.map(n => [n.node_id, n]));
 
       const elements = [
-        ...data.ring_nodes.map(n => {
+        ...visibleNodes.map(n => {
           const shortName = n.nombre_completo
             ? n.nombre_completo.split(" ").slice(0, 2).join(" ")
             : n.node_id.replace("ACC000", "#");
@@ -101,8 +119,8 @@ function RingGraphDirected() {
             },
           };
         }),
-        ...data.ring_edges.map((e, i) => {
-          const maxAmt = Math.max(...data.ring_edges.map(x => x.amount));
+        ...visibleEdges.map((e, i) => {
+          const maxAmt = Math.max(...visibleEdges.map(x => x.amount), 1);
           const w = 1 + 4 * (e.amount / maxAmt);
           return { data: { id: `e${i}`, source: e.src, target: e.dst, amount: e.amount, width: w } };
         }),
@@ -148,12 +166,15 @@ function RingGraphDirected() {
             style: { "border-width": 4, "border-color": "#2563EB" },
           },
         ],
+        // breadthfirst assumes one tree; with 15 disconnected perpetrator
+        // clusters it crams everything into a single row. cose (force-
+        // directed) spreads independent components across the canvas.
         layout: {
-          name:          "breadthfirst",
-          roots:         data.perpetrators.map(p => p.node_id),
-          directed:      true,
-          padding:       30,
-          spacingFactor: 1.4,
+          name:            "cose",
+          padding:         30,
+          nodeRepulsion:   8000,
+          idealEdgeLength: 60,
+          animate:         false,
         },
         userZoomingEnabled: true,
         userPanningEnabled: true,
@@ -173,7 +194,7 @@ function RingGraphDirected() {
       <div
         ref={containerRef}
         className="rounded-xl flex-1"
-        style={{ height: 440, backgroundColor: "#F8FAFC", border: "1px solid #E2E8F0" }}
+        style={{ height: 560, backgroundColor: "#F8FAFC", border: "1px solid #E2E8F0" }}
       />
 
       <div className="w-full lg:w-64 space-y-4">
@@ -240,9 +261,25 @@ const card = {
   boxShadow: "0 1px 3px rgba(0,0,0,0.06)",
 };
 
+const PERPS_PER_PAGE = 20;
+
 export default function OrigenPage() {
   const { summary, perpetrators } = data;
   const [expanded, setExpanded] = useState<string | null>(null);
+  const [search, setSearch]     = useState("");
+  const [page, setPage]         = useState(0);
+
+  const filteredPerps = perpetrators.filter(p => {
+    const q = search.toLowerCase();
+    if (!q) return true;
+    return (
+      p.node_id.toLowerCase().includes(q) ||
+      p.nombre_completo?.toLowerCase().includes(q) ||
+      p.ocupacion?.toLowerCase().includes(q)
+    );
+  });
+  const totalPages = Math.max(1, Math.ceil(filteredPerps.length / PERPS_PER_PAGE));
+  const pageRows    = filteredPerps.slice(page * PERPS_PER_PAGE, (page + 1) * PERPS_PER_PAGE);
 
   return (
     <div className="space-y-6">
@@ -273,7 +310,22 @@ export default function OrigenPage() {
 
       {/* perpetrators table */}
       <div>
-        <h2 className="text-base font-semibold mb-3" style={{ color: "#0F172A" }}>Cuentas Origen Identificadas</h2>
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-3">
+          <h2 className="text-base font-semibold" style={{ color: "#0F172A" }}>Cuentas Origen Identificadas</h2>
+          <div className="flex items-center gap-3">
+            <input
+              type="text"
+              placeholder="Buscar por nombre, ID u ocupación…"
+              value={search}
+              onChange={e => { setSearch(e.target.value); setPage(0); }}
+              className="rounded-lg px-3 py-1.5 text-sm outline-none w-64"
+              style={{ backgroundColor: "#F8FAFC", border: "1px solid #E2E8F0", color: "#0F172A" }}
+            />
+            <span className="text-xs whitespace-nowrap" style={{ color: "#94A3B8" }}>
+              {filteredPerps.length} de {perpetrators.length}
+            </span>
+          </div>
+        </div>
         <div className="rounded-xl overflow-hidden" style={card}>
           <table className="w-full text-sm" style={{ backgroundColor: "#FFFFFF" }}>
             <thead>
@@ -284,13 +336,12 @@ export default function OrigenPage() {
               </tr>
             </thead>
             <tbody>
-              {perpetrators.map(p => {
+              {pageRows.map(p => {
                 const detected = p.gnn_score > 0.5;
                 const isOpen   = expanded === p.node_id;
                 return (
-                  <>
+                  <Fragment key={p.node_id}>
                     <tr
-                      key={p.node_id}
                       className="transition-colors cursor-pointer"
                       style={{ borderTop: "1px solid #F1F5F9" }}
                       onClick={() => setExpanded(isOpen ? null : p.node_id)}
@@ -371,12 +422,33 @@ export default function OrigenPage() {
                         </td>
                       </tr>
                     )}
-                  </>
+                  </Fragment>
                 );
               })}
             </tbody>
           </table>
         </div>
+        {totalPages > 1 && (
+          <div className="flex items-center justify-between text-xs mt-3" style={{ color: "#64748B" }}>
+            <button
+              onClick={() => setPage(p => Math.max(0, p - 1))}
+              disabled={page === 0}
+              className="px-3 py-1.5 rounded-lg transition-colors disabled:opacity-30"
+              style={{ border: "1px solid #E2E8F0", backgroundColor: "#FFFFFF" }}
+            >
+              ← Anterior
+            </button>
+            <span className="font-mono">{page + 1} / {totalPages}</span>
+            <button
+              onClick={() => setPage(p => Math.min(totalPages - 1, p + 1))}
+              disabled={page === totalPages - 1}
+              className="px-3 py-1.5 rounded-lg transition-colors disabled:opacity-30"
+              style={{ border: "1px solid #E2E8F0", backgroundColor: "#FFFFFF" }}
+            >
+              Siguiente →
+            </button>
+          </div>
+        )}
       </div>
 
       {/* directed graph */}
@@ -385,6 +457,9 @@ export default function OrigenPage() {
         <p className="text-xs mb-4" style={{ color: "#94A3B8" }}>
           Las flechas indican dirección del flujo de dinero. Tamaño del nodo = relevancia en el anillo.
           Grosor de arista = monto transferido.
+          Mostrando los <strong>{Math.min(GRAPH_TOP_N, perpetrators.length)} perpetradores</strong> de mayor
+          monto inyectado (de {perpetrators.length} totales) y sus mulas directas —
+          ver la tabla de arriba para el resto.
         </p>
         <RingGraphDirected />
       </div>
