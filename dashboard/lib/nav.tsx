@@ -38,6 +38,23 @@ export function BookIcon() {
     </svg>
   );
 }
+export function CasesIcon() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round">
+      <path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2" />
+      <rect x="9" y="3" width="6" height="4" rx="1" />
+      <line x1="9" y1="12" x2="15" y2="12" /><line x1="9" y1="16" x2="13" y2="16" />
+    </svg>
+  );
+}
+export function EntitiesIcon() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round">
+      <circle cx="12" cy="5" r="2" /><circle cx="5" cy="19" r="2" /><circle cx="19" cy="19" r="2" />
+      <line x1="12" y1="7" x2="5" y2="17" /><line x1="12" y1="7" x2="19" y2="17" /><line x1="5" y1="19" x2="19" y2="19" />
+    </svg>
+  );
+}
 
 export type NavItem = { href: string; label: string; Icon: () => React.ReactElement };
 
@@ -48,6 +65,13 @@ export const navGroups: { label: string; items: NavItem[] }[] = [
       { href: "/",        label: "Inicio",  Icon: HomeIcon },
       { href: "/anillos", label: "Anillos", Icon: GraphIcon },
       { href: "/origen",  label: "Origen",  Icon: TargetIcon },
+    ],
+  },
+  {
+    label: "Compliance",
+    items: [
+      { href: "/casos",      label: "Casos",      Icon: CasesIcon },
+      { href: "/entidades",  label: "Entidades",  Icon: EntitiesIcon },
     ],
   },
   {
