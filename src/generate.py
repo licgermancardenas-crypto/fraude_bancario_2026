@@ -10,10 +10,15 @@ Fraud patterns embedded:
   - Structuring (pitufeo): one source splitting large sums into many small transfers
   - Fan-in aggregation: many mule accounts funneling into one collector
 
-Scale factor controls graph size:
+Scale factor controls graph size (transaction count assumes the default
+365-day window; see time_window_days below):
   scale=0.01  →  ~1 500 accounts,  ~8 000 transactions  (dev/test)
   scale=0.10  →  ~15 000 accounts, ~80 000 transactions
   scale=1.00  →  ~150 000 accounts, ~800 000 transactions
+
+time_window_days stretches (or compresses) the date range transactions are
+spread over, keeping the same daily transaction density: doubling it from
+the default 365 to 730 doubles transaction count for a given scale.
 """
 
 import argparse
@@ -77,6 +82,7 @@ def generate_legitimate_txns(
     n_txns: int,
     rng: np.random.Generator,
     base_ts: int = 1_700_000_000,
+    time_window_days: int = 365,
 ) -> list[dict]:
     """Generate random legitimate transactions between accounts."""
     ids = np.asarray(accounts["account_id"])
@@ -84,7 +90,7 @@ def generate_legitimate_txns(
     for i in range(n_txns):
         src, dst = rng.choice(ids, size=2, replace=False)
         amount = round(float(rng.lognormal(mean=4.5, sigma=1.5)), 2)  # ~$90 median
-        ts = int(base_ts + rng.integers(0, 365 * 24 * 3600))
+        ts = int(base_ts + rng.integers(0, time_window_days * 24 * 3600))
         txns.append({
             "transaction_id": f"TXN{i:09d}",
             "src": src,
@@ -107,6 +113,7 @@ def embed_laundering_rings(
     rng: np.random.Generator,
     base_ts: int = 1_700_000_000,
     txn_offset: int = 0,
+    time_window_days: int = 365,
 ) -> tuple[set[str], list[dict]]:
     """
     Embed cyclic money-laundering rings (4-7 hops).
@@ -118,6 +125,10 @@ def embed_laundering_rings(
     new_txns: list[dict] = []
     txn_counter = txn_offset
 
+    # Leave a tail buffer so hops (up to 7 x 72h) + exit fan-out (up to 48h)
+    # always land inside the window — worst case is ~31 days.
+    entry_window_days = max(1, time_window_days - 40)
+
     for r in range(n_rings):
         ring_len = int(rng.integers(4, 8))      # 4-7 nodes
         ring_nodes = random.sample(ids, ring_len)
@@ -126,7 +137,7 @@ def embed_laundering_rings(
         # entry transaction (outside → ring[0])
         entry_src = random.choice([a for a in ids if a not in fraud_accounts])
         entry_amount = round(float(rng.uniform(5_000, 50_000)), 2)
-        entry_ts = int(base_ts + rng.integers(0, 300 * 24 * 3600))
+        entry_ts = int(base_ts + rng.integers(0, entry_window_days * 24 * 3600))
 
         new_txns.append({
             "transaction_id": f"TXN{txn_counter:09d}",
@@ -186,6 +197,7 @@ def embed_structuring(
     rng: np.random.Generator,
     base_ts: int = 1_700_000_000,
     txn_offset: int = 0,
+    time_window_days: int = 365,
 ) -> tuple[set[str], list[dict]]:
     """
     Embed structuring (pitufeo) patterns: one source fans out into many small
@@ -196,6 +208,10 @@ def embed_structuring(
     new_txns: list[dict] = []
     txn_counter = txn_offset
 
+    # Leave a tail buffer so fan-out (48h) + fan-in (120h) always land inside
+    # the window.
+    entry_window_days = max(1, time_window_days - 40)
+
     for _ in range(n_nets):
         n_mules = int(rng.integers(5, 15))
         source = random.choice(ids)
@@ -204,7 +220,7 @@ def embed_structuring(
         fraud_accounts.update([source, collector] + mules)
 
         total = round(float(rng.uniform(10_000, 100_000)), 2)
-        base = int(base_ts + rng.integers(0, 300 * 24 * 3600))
+        base = int(base_ts + rng.integers(0, entry_window_days * 24 * 3600))
 
         # source → mules (structured, below $10k each)
         per_mule = total / n_mules
@@ -242,37 +258,39 @@ def embed_structuring(
 
 # ── main ─────────────────────────────────────────────────────────────────────
 
-def generate(scale: float, output_dir: str, seed: int = 42):
+def generate(scale: float, output_dir: str, seed: int = 42, time_window_days: int = 365):
     set_seed(seed)
     rng = np.random.default_rng(seed)
     Path(output_dir).mkdir(parents=True, exist_ok=True)
 
+    duration_factor = time_window_days / 365
     n_accounts = max(100, int(BASE_ACCOUNTS * scale))
-    n_txns     = max(200, int(BASE_TRANSACTIONS * scale))
+    n_txns     = max(200, int(BASE_TRANSACTIONS * scale * duration_factor))
     n_rings    = max(1,   int(BASE_RINGS * scale))
     n_structs  = max(1,   int(BASE_STRUCT_NETS * scale))
 
     print(f"[generate] scale={scale}  accounts={n_accounts}  transactions={n_txns}  "
-          f"rings={n_rings}  structuring_nets={n_structs}")
+          f"rings={n_rings}  structuring_nets={n_structs}  "
+          f"time_window_days={time_window_days}")
 
     # 1. Accounts
     accounts = generate_accounts(n_accounts, rng)
 
     # 2. Legitimate transactions
-    legit_txns = generate_legitimate_txns(accounts, n_txns, rng)
+    legit_txns = generate_legitimate_txns(accounts, n_txns, rng, time_window_days=time_window_days)
     txn_offset = len(legit_txns)
 
     # 3. Fraud patterns
     fraud_accs: set[str] = set()
 
     ring_accs, ring_txns = embed_laundering_rings(
-        accounts, legit_txns, n_rings, rng, txn_offset=txn_offset
+        accounts, legit_txns, n_rings, rng, txn_offset=txn_offset, time_window_days=time_window_days
     )
     fraud_accs.update(ring_accs)
     txn_offset += len(ring_txns)
 
     struct_accs, struct_txns = embed_structuring(
-        accounts, legit_txns, n_structs, rng, txn_offset=txn_offset
+        accounts, legit_txns, n_structs, rng, txn_offset=txn_offset, time_window_days=time_window_days
     )
     fraud_accs.update(struct_accs)
     txn_offset += len(struct_txns)
@@ -311,12 +329,13 @@ def main():
     parser.add_argument("--config", default="config/config.yaml")
     args = parser.parse_args()
 
-    cfg    = load_config(args.config)
-    scale  = args.scale if args.scale is not None else cfg["data"]["scale_factor"]
-    outdir = cfg["data"]["raw_dir"]
-    seed   = cfg["project"]["seed"]
+    cfg     = load_config(args.config)
+    scale   = args.scale if args.scale is not None else cfg["data"]["scale_factor"]
+    outdir  = cfg["data"]["raw_dir"]
+    seed    = cfg["project"]["seed"]
+    window  = cfg["data"].get("time_window_days", 365)
 
-    generate(scale=scale, output_dir=outdir, seed=seed)
+    generate(scale=scale, output_dir=outdir, seed=seed, time_window_days=window)
 
 
 if __name__ == "__main__":
