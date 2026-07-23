@@ -6,8 +6,8 @@ interface KPICardProps {
   dim?: boolean;
 }
 
-export default function KPICard({ label, value, sub, color = "#2563EB", dim }: KPICardProps) {
-  const accent = dim ? "#94A3B8" : color;
+export default function KPICard({ label, value, sub, color = "#0A1F44", dim }: KPICardProps) {
+  const accent = dim ? "#64748B" : color;
   return (
     <div
       className="rounded-xl flex flex-col overflow-hidden"
@@ -21,7 +21,7 @@ export default function KPICard({ label, value, sub, color = "#2563EB", dim }: K
       <div className="p-5 flex flex-col gap-1.5 flex-1">
         <p
           className="text-[11px] font-semibold uppercase tracking-widest"
-          style={{ color: "#94A3B8" }}
+          style={{ color: "#64748B" }}
         >
           {label}
         </p>
@@ -32,7 +32,7 @@ export default function KPICard({ label, value, sub, color = "#2563EB", dim }: K
           {value}
         </p>
         {sub && (
-          <p className="text-xs leading-relaxed" style={{ color: "#94A3B8" }}>
+          <p className="text-xs leading-relaxed" style={{ color: "#64748B" }}>
             {sub}
           </p>
         )}

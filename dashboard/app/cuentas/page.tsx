@@ -29,10 +29,10 @@ export default function CuentasPage() {
 
       <div
         className="rounded-xl px-5 py-4 text-xs leading-relaxed"
-        style={{ backgroundColor: "#EFF6FF", border: "1px solid #BFDBFE" }}
+        style={{ backgroundColor: "#EAEDF5", border: "1px solid #C7CFE2" }}
       >
-        <span className="font-semibold" style={{ color: "#1E3A8A" }}>Nota operativa — </span>
-        <span style={{ color: "#1D4ED8" }}>
+        <span className="font-semibold" style={{ color: "#0A1F44" }}>Nota operativa — </span>
+        <span style={{ color: "#122855" }}>
           En producción esta tabla es la cola de trabajo del equipo de compliance de BRS.
           Los analistas revisan en orden descendente con una meta de 90% de precisión
           (9 de cada 10 revisiones deben confirmar fraude).

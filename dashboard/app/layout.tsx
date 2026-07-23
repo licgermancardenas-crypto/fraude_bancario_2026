@@ -19,7 +19,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         >
           <div
             className="flex items-center justify-center w-7 h-7 rounded-lg flex-shrink-0"
-            style={{ background: "linear-gradient(135deg, #0A1F44, #1E3A8A)" }}
+            style={{ background: "linear-gradient(135deg, #0A1F44, #122855)" }}
           >
             <span className="text-[9px] font-black text-white tracking-tight">PH</span>
           </div>

@@ -111,7 +111,7 @@ export default function SARPage() {
 
   const estadoColors = {
     borrador: { bg: "#FFF7ED", text: "#EA580C" },
-    revision: { bg: "#EFF6FF", text: "#2563EB" },
+    revision: { bg: "#EAEDF5", text: "#0A1F44" },
     enviado:  { bg: "#F0FDF4", text: "#16A34A" },
   };
   const ec = estadoColors[draft.estado_sar];
@@ -129,16 +129,16 @@ export default function SARPage() {
         </div>
         <div className="flex gap-2">
           <button onClick={handleSave}
-                  className="px-3 py-1.5 text-xs font-medium rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-50 transition-colors">
+                  className="px-3 min-h-[44px] text-xs font-medium rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-50 transition-colors">
             {saved ? "✓ Guardado" : "Guardar borrador"}
           </button>
           <button
             onClick={() => { if(draft) { const d={...draft,estado_sar:"revision" as const}; setDraft(d); saveStoredSAR(caseId,d); }}}
-            className="px-3 py-1.5 text-xs font-medium rounded-lg border border-blue-200 text-blue-700 bg-blue-50 hover:bg-blue-100 transition-colors">
+            className="px-3 min-h-[44px] text-xs font-medium rounded-lg border border-navy-50 text-navy bg-navy-50 hover:bg-[#DDE2EF] transition-colors">
             Enviar a revisión
           </button>
           <button onClick={handlePrint}
-                  className="px-3 py-1.5 text-xs font-medium rounded-lg text-white transition-colors"
+                  className="px-3 min-h-[44px] text-xs font-medium rounded-lg text-white transition-colors"
                   style={{ backgroundColor: "#0A1F44" }}>
             Imprimir / PDF
           </button>
@@ -228,7 +228,7 @@ export default function SARPage() {
               value={draft.descripcion}
               onChange={e => update("descripcion", e.target.value)}
               rows={10}
-              className="w-full text-sm text-slate-700 bg-slate-50 rounded-lg px-3 py-2.5 border border-slate-200 outline-none focus:ring-2 focus:ring-blue-100 leading-relaxed resize-none print:border-none print:bg-white"
+              className="w-full text-sm text-slate-700 bg-slate-50 rounded-lg px-3 py-2.5 border border-slate-200 outline-none focus:ring-2 focus:ring-[#C7CFE2] leading-relaxed resize-none print:border-none print:bg-white"
             />
           </Section>
 
@@ -272,7 +272,7 @@ function Field({ label, value, onChange }: { label: string; value: string; onCha
         type="text"
         value={value}
         onChange={e => onChange(e.target.value)}
-        className="w-full text-sm text-slate-700 bg-slate-50 rounded-lg px-3 py-2 border border-slate-200 outline-none focus:ring-2 focus:ring-blue-100 print:border-none print:bg-white"
+        className="w-full text-sm text-slate-700 bg-slate-50 rounded-lg px-3 py-2 border border-slate-200 outline-none focus:ring-2 focus:ring-[#C7CFE2] print:border-none print:bg-white"
       />
     </div>
   );

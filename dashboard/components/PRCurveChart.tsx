@@ -7,7 +7,7 @@ const MODEL_COLORS: Record<string, string> = {
   "XGBoost":             "#F59E0B",
   "Node2Vec + XGBoost":  "#A78BFA",
   "GAT":                 "#34D399",
-  "GraphSAGE":           "#2563EB",
+  "GraphSAGE":           "#0A1F44",
 };
 
 interface Props { curves: PRCurve[] }
@@ -55,7 +55,7 @@ export default function PRCurveChart({ curves }: Props) {
         />
         <Legend wrapperStyle={{ paddingTop: 12, fontSize: 12, color: "#64748B" }} />
         <ReferenceLine y={0.9} stroke="#CBD5E1" strokeDasharray="4 4"
-          label={{ value: "P=90%", fill: "#94A3B8", fontSize: 10, position: "insideTopRight" }} />
+          label={{ value: "P=90%", fill: "#64748B", fontSize: 10, position: "insideTopRight" }} />
         {curves.map(c => (
           <Line key={c.model} type="stepAfter" dataKey={c.model}
             stroke={MODEL_COLORS[c.model] ?? "#64748B"} strokeWidth={2.5}

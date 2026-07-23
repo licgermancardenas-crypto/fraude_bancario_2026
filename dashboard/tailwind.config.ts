@@ -8,7 +8,7 @@ const config: Config = {
   theme: {
     extend: {
       colors: {
-        navy:  { DEFAULT: "#0A1F44", light: "#122855", dark: "#061530" },
+        navy:  { DEFAULT: "#0A1F44", light: "#122855", dark: "#061530", 50: "#EAEDF5" },
         gold:  { DEFAULT: "#C9A227", light: "#E0B840", dark: "#A8861F" },
         fraud: "#C0392B",
         legit: "#BDC3C7",

@@ -25,7 +25,7 @@ export default function Sidebar() {
         <div className="flex items-center gap-3">
           <div
             className="flex items-center justify-center w-9 h-9 rounded-xl flex-shrink-0"
-            style={{ background: "linear-gradient(135deg, #0A1F44, #1E3A8A)" }}
+            style={{ background: "linear-gradient(135deg, #0A1F44, #122855)" }}
           >
             <span className="text-[11px] font-black text-white tracking-tight">PH</span>
           </div>
@@ -33,7 +33,7 @@ export default function Sidebar() {
             <p className="text-sm font-bold leading-tight" style={{ color: "#0F172A" }}>
               Phantom AI
             </p>
-            <p className="text-[10px] mt-0.5" style={{ color: "#94A3B8" }}>
+            <p className="text-[10px] mt-0.5" style={{ color: "#64748B" }}>
               GNN · Detección de Fraude
             </p>
           </div>
@@ -46,7 +46,7 @@ export default function Sidebar() {
           <div key={group.label}>
             <p
               className="px-3 mb-1.5 text-[10px] font-bold uppercase tracking-widest"
-              style={{ color: "#CBD5E1" }}
+              style={{ color: "#64748B" }}
             >
               {group.label}
             </p>
@@ -59,18 +59,19 @@ export default function Sidebar() {
                     href={href}
                     className="flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-all duration-150"
                     style={{
-                      backgroundColor: active ? "#EFF6FF" : "transparent",
-                      color: active ? "#2563EB" : "#64748B",
+                      backgroundColor: active ? "#EAEDF5" : "transparent",
+                      color: active ? "#0A1F44" : "#64748B",
+                      fontWeight: active ? 700 : 500,
                     }}
                   >
-                    <span style={{ color: active ? "#2563EB" : "#94A3B8" }}>
+                    <span style={{ color: active ? "#0A1F44" : "#64748B" }}>
                       <Icon />
                     </span>
                     {label}
                     {active && (
                       <span
                         className="ml-auto w-1.5 h-1.5 rounded-full flex-shrink-0"
-                        style={{ backgroundColor: "#2563EB" }}
+                        style={{ backgroundColor: "#C9A227" }}
                       />
                     )}
                   </Link>
@@ -86,10 +87,10 @@ export default function Sidebar() {
         <p className="text-xs font-semibold" style={{ color: "#0F172A" }}>
           Germán Cárdenas
         </p>
-        <p className="text-[10px] mt-0.5" style={{ color: "#94A3B8" }}>
+        <p className="text-[10px] mt-0.5" style={{ color: "#64748B" }}>
           Data & Analytics · 2026
         </p>
-        <p className="text-[9px] mt-2 leading-relaxed" style={{ color: "#CBD5E1" }}>
+        <p className="text-[9px] mt-2 leading-relaxed" style={{ color: "#64748B" }}>
           Datos 100% sintéticos —<br />engagement simulado para BRS
         </p>
       </div>

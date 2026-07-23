@@ -6,7 +6,7 @@ import PageHeader from "@/components/PageHeader";
 const COLORS = {
   cuenta_fraud: "#EF4444",
   cuenta_pep:   "#F59E0B",
-  cuenta_legit: "#2563EB",
+  cuenta_legit: "#64748B",
   empresa_shell:"#DC2626",
   empresa:      "#7C3AED",
 };
@@ -65,7 +65,7 @@ export default function EntidadesPage() {
               "font-size": 9,
               "text-valign": "bottom", "text-margin-y": 4,
               "color": "#374151",
-              "background-color": "#2563EB",
+              "background-color": "#64748B",
               "border-width": 0,
             }
           },
@@ -146,7 +146,7 @@ export default function EntidadesPage() {
       {stats && (
         <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
           {[
-            { label: "Cuentas", value: stats.cuentas, color: "#2563EB" },
+            { label: "Cuentas", value: stats.cuentas, color: "#0A1F44" },
             { label: "Empresas", value: stats.empresas, color: "#7C3AED" },
             { label: "Shells", value: stats.shells, color: "#DC2626" },
             { label: "PEPs", value: stats.peps, color: "#F59E0B" },
@@ -210,7 +210,11 @@ export default function EntidadesPage() {
               <span className="text-xs font-bold uppercase tracking-widest text-slate-400">
                 {selected.type === "empresa" ? "Empresa" : "Cuenta"}
               </span>
-              <button onClick={() => setSelected(null)} className="text-slate-400 hover:text-slate-600 text-lg leading-none">×</button>
+              <button
+                onClick={() => setSelected(null)}
+                aria-label="Cerrar panel de detalle"
+                className="w-11 h-11 -m-2 flex items-center justify-center text-slate-400 hover:text-slate-600 text-lg leading-none"
+              >×</button>
             </div>
 
             <div>

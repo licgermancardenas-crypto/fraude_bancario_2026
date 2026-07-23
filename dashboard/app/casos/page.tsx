@@ -12,7 +12,7 @@ const STATUS_LABELS: Record<CaseStatus, string> = {
   sar_enviado:  "SAR enviado",
 };
 const STATUS_COLORS: Record<CaseStatus, { bg: string; text: string }> = {
-  abierto:     { bg: "#EFF6FF", text: "#2563EB" },
+  abierto:     { bg: "#EAEDF5", text: "#0A1F44" },
   en_revision: { bg: "#FFF7ED", text: "#EA580C" },
   escalado:    { bg: "#FEF2F2", text: "#DC2626" },
   desestimado: { bg: "#F8FAFC", text: "#64748B" },
@@ -82,7 +82,7 @@ export default function CasosPage() {
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
         {[
           { label: "Total alertas", value: counts.total,     color: "#0A1F44" },
-          { label: "Abiertas",      value: counts.abiertos,  color: "#2563EB" },
+          { label: "Abiertas",      value: counts.abiertos,  color: "#122855" },
           { label: "Escaladas",     value: counts.escalados, color: "#DC2626" },
           { label: "Resueltas",     value: counts.resueltos, color: "#16A34A" },
         ].map(s => (
@@ -100,12 +100,12 @@ export default function CasosPage() {
           placeholder="Buscar por caso, cuenta o nombre…"
           value={search}
           onChange={e => setSearch(e.target.value)}
-          className="border border-slate-200 rounded-lg px-3 py-1.5 text-sm flex-1 min-w-48 outline-none focus:ring-2 focus:ring-blue-100"
+          className="border border-slate-200 rounded-lg px-3 min-h-[44px] text-sm flex-1 min-w-48 outline-none focus:ring-2 focus:ring-[#C7CFE2]"
         />
         <select
           value={filterStatus}
           onChange={e => setFS(e.target.value as any)}
-          className="border border-slate-200 rounded-lg px-3 py-1.5 text-sm outline-none"
+          className="border border-slate-200 rounded-lg px-3 min-h-[44px] text-sm outline-none"
         >
           <option value="all">Todos los estados</option>
           {Object.entries(STATUS_LABELS).map(([k, v]) => (
@@ -115,7 +115,7 @@ export default function CasosPage() {
         <select
           value={filterPattern}
           onChange={e => setFP(e.target.value as any)}
-          className="border border-slate-200 rounded-lg px-3 py-1.5 text-sm outline-none"
+          className="border border-slate-200 rounded-lg px-3 min-h-[44px] text-sm outline-none"
         >
           <option value="all">Todos los patrones</option>
           {Object.entries(PATTERN_LABELS).map(([k, v]) => (
@@ -125,7 +125,7 @@ export default function CasosPage() {
         <select
           value={sortBy}
           onChange={e => setSortBy(e.target.value as any)}
-          className="border border-slate-200 rounded-lg px-3 py-1.5 text-sm outline-none"
+          className="border border-slate-200 rounded-lg px-3 min-h-[44px] text-sm outline-none"
         >
           <option value="score">Ordenar: Mayor score</option>
           <option value="date">Ordenar: Más reciente</option>
@@ -182,7 +182,7 @@ export default function CasosPage() {
                     </td>
                     <td className="px-4 py-3">
                       <Link href={`/casos/${c.case_id}`}
-                            className="text-xs font-medium text-blue-600 hover:text-blue-800 whitespace-nowrap">
+                            className="text-xs font-medium text-navy hover:text-navy-dark whitespace-nowrap">
                         Ver caso →
                       </Link>
                     </td>

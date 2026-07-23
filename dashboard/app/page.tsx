@@ -28,8 +28,8 @@ function recallAtPrecision(curve: PRCurve | undefined, target = 0.9): number {
 const insights = [
   {
     tag: "Señal estructural",
-    color: "#2563EB",
-    bg: "#EFF6FF",
+    color: "#0A1F44",
+    bg: "#EAEDF5",
     text: "Lift fraude→fraude de 14.3× sobre el esperado por azar. El lavado no se detecta por monto — se detecta por patrón de red.",
   },
   {
@@ -80,7 +80,7 @@ export default function OverviewPage() {
           label="PR-AUC — GraphSAGE"
           value={kpis.pr_auc_gnn.toFixed(3)}
           sub={`+${delta} sobre XGBoost tabular`}
-          color="#2563EB"
+          color="#0A1F44"
         />
         <KPICard
           label="Recall @ Precisión 90%"
@@ -106,14 +106,14 @@ export default function OverviewPage() {
             boxShadow: "0 1px 3px rgba(0,0,0,0.06)",
           }}
         >
-          <p className="text-[11px] font-bold uppercase tracking-widest mb-1" style={{ color: "#94A3B8" }}>
+          <p className="text-[11px] font-bold uppercase tracking-widest mb-1" style={{ color: "#64748B" }}>
             Comparativa de modelos
           </p>
           <h2 className="text-sm font-semibold mb-4" style={{ color: "#0F172A" }}>Curva Precisión-Recall</h2>
           <PRCurveChart curves={curves} />
-          <p className="text-xs mt-3 leading-relaxed" style={{ color: "#94A3B8" }}>
+          <p className="text-xs mt-3 leading-relaxed" style={{ color: "#64748B" }}>
             El GNN supera en{" "}
-            <span style={{ color: "#2563EB", fontWeight: 600 }}>+{delta} PR-AUC</span>{" "}
+            <span style={{ color: "#0A1F44", fontWeight: 600 }}>+{delta} PR-AUC</span>{" "}
             al mejor baseline tabular (XGBoost).
             Evaluación transductiva: {transductivePrAuc?.toFixed(3)} · Inductiva (cuentas nuevas): {inductivePrAuc?.toFixed(3)}.
           </p>
@@ -127,12 +127,12 @@ export default function OverviewPage() {
             boxShadow: "0 1px 3px rgba(0,0,0,0.06)",
           }}
         >
-          <p className="text-[11px] font-bold uppercase tracking-widest mb-1" style={{ color: "#94A3B8" }}>
+          <p className="text-[11px] font-bold uppercase tracking-widest mb-1" style={{ color: "#64748B" }}>
             Separabilidad
           </p>
           <h2 className="text-sm font-semibold mb-4" style={{ color: "#0F172A" }}>Distribución de Scores GNN</h2>
           <ScoreDistChart dist={dist} />
-          <p className="text-xs mt-3 leading-relaxed" style={{ color: "#94A3B8" }}>
+          <p className="text-xs mt-3 leading-relaxed" style={{ color: "#64748B" }}>
             Separación casi perfecta: legítimas → 0, fraude → 1.
           </p>
         </div>
@@ -140,7 +140,7 @@ export default function OverviewPage() {
 
       {/* Insights */}
       <div>
-        <p className="text-[11px] font-bold uppercase tracking-widest mb-3" style={{ color: "#94A3B8" }}>
+        <p className="text-[11px] font-bold uppercase tracking-widest mb-3" style={{ color: "#64748B" }}>
           Hallazgos clave
         </p>
         <div className="grid md:grid-cols-3 gap-3">

@@ -26,7 +26,7 @@ export default function AnillosPage() {
       />
 
       {rings.length === 0 ? (
-        <p style={{ color: "#94A3B8" }}>No se detectaron anillos en este dataset.</p>
+        <p style={{ color: "#64748B" }}>No se detectaron anillos en este dataset.</p>
       ) : (
         <>
           {/* ring selector */}
@@ -37,9 +37,9 @@ export default function AnillosPage() {
                 onClick={() => setIdx(i)}
                 className="px-4 py-2 rounded-lg text-sm font-medium transition-all"
                 style={i === idx ? {
-                  backgroundColor: "#EFF6FF",
-                  border: "1px solid #2563EB",
-                  color: "#2563EB",
+                  backgroundColor: "#EAEDF5",
+                  border: "1px solid #0A1F44",
+                  color: "#0A1F44",
                 } : {
                   backgroundColor: "#FFFFFF",
                   border: "1px solid #E2E8F0",
@@ -56,11 +56,11 @@ export default function AnillosPage() {
             <div className="flex flex-wrap gap-6 mb-5">
               {[
                 { label: "Saltos",             value: String(ring.n_nodes),                                                            color: "#0F172A" },
-                { label: "Monto total",        value: "$" + ring.total_amount.toLocaleString("es-AR", { maximumFractionDigits: 0 }), color: "#2563EB" },
+                { label: "Monto total",        value: "$" + ring.total_amount.toLocaleString("es-AR", { maximumFractionDigits: 0 }), color: "#0A1F44" },
                 { label: "Score promedio GNN", value: (ring.avg_score * 100).toFixed(1) + "%",                                        color: "#DC2626" },
               ].map(({ label, value, color }) => (
                 <div key={label}>
-                  <p className="text-[11px] font-bold uppercase tracking-widest mb-1" style={{ color: "#94A3B8" }}>{label}</p>
+                  <p className="text-[11px] font-bold uppercase tracking-widest mb-1" style={{ color: "#64748B" }}>{label}</p>
                   <p className="text-xl font-bold" style={{ color }}>{value}</p>
                 </div>
               ))}
@@ -77,7 +77,7 @@ export default function AnillosPage() {
                     <th
                       key={h}
                       className="px-4 py-3 text-left text-[11px] font-bold uppercase tracking-widest"
-                      style={{ color: "#94A3B8" }}
+                      style={{ color: "#64748B" }}
                     >
                       {h}
                     </th>

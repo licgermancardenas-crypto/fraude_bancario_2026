@@ -20,7 +20,7 @@ function TabLink({ href, label, Icon, active, onClick }: NavItem & { active: boo
       href={href}
       onClick={onClick}
       className="flex-1 flex flex-col items-center gap-1 py-2.5"
-      style={{ color: active ? "#2563EB" : "#94A3B8" }}
+      style={{ color: active ? "#0A1F44" : "#64748B" }}
     >
       <Icon />
       <span className="text-[10px] font-medium leading-none">{label}</span>
@@ -60,7 +60,7 @@ export default function MobileNav() {
               onClick={() => setShowMore(false)}
               className="flex items-center gap-3 px-4 py-3 text-sm font-medium"
               style={{
-                color: isActive(href) ? "#2563EB" : "#0F172A",
+                color: isActive(href) ? "#0A1F44" : "#0F172A",
                 borderBottom: "1px solid #F1F5F9",
               }}
             >
@@ -87,7 +87,7 @@ export default function MobileNav() {
           <button
             onClick={() => setShowMore(s => !s)}
             className="flex-1 flex flex-col items-center gap-1 py-2.5"
-            style={{ color: showMore || overflowActive ? "#2563EB" : "#94A3B8" }}
+            style={{ color: showMore || overflowActive ? "#0A1F44" : "#64748B" }}
           >
             <MoreIcon />
             <span className="text-[10px] font-medium leading-none">Más</span>

@@ -20,15 +20,15 @@ function ScoreBar({ score }: { score: number }) {
 }
 
 function AfipBadge({ cond, cat }: { cond?: string; cat?: string | null }) {
-  if (!cond) return <span className="text-xs" style={{ color: "#CBD5E1" }}>—</span>;
+  if (!cond) return <span className="text-xs" style={{ color: "#64748B" }}>—</span>;
   const map: Record<string, { bg: string; color: string; short: string }> = {
-    "Monotributista":          { bg: "#EFF6FF", color: "#2563EB", short: cat ? `Mono ${cat}` : "Mono" },
+    "Monotributista":          { bg: "#EAEDF5", color: "#0A1F44", short: cat ? `Mono ${cat}` : "Mono" },
     "Responsable Inscripto":   { bg: "#F0FDF4", color: "#16A34A", short: "RI" },
     "Relación de dependencia": { bg: "#F8FAFC", color: "#64748B", short: "RD" },
     "No inscripto":            { bg: "#FEF3C7", color: "#D97706", short: "No inscr." },
     "Exento":                  { bg: "#F5F3FF", color: "#7C3AED", short: "Exento" },
   };
-  const style = map[cond] ?? { bg: "#F1F5F9", color: "#94A3B8", short: cond.slice(0, 6) };
+  const style = map[cond] ?? { bg: "#F1F5F9", color: "#64748B", short: cond.slice(0, 6) };
   return (
     <span className="inline-block px-2 py-0.5 rounded text-[11px] font-semibold whitespace-nowrap"
           style={{ backgroundColor: style.bg, color: style.color }}>
@@ -81,15 +81,26 @@ export default function AccountsTable({ accounts }: Props) {
     setPage(0);
   };
 
-  const Th = ({ k, label }: { k: SortKey; label: string }) => (
-    <th
-      className="px-4 py-3 text-left text-[11px] font-bold uppercase tracking-widest cursor-pointer whitespace-nowrap select-none"
-      style={{ color: sortKey === k ? "#2563EB" : "#94A3B8" }}
-      onClick={() => toggleSort(k)}
-    >
-      {label}{sortKey === k ? (sortDir === "desc" ? " ↓" : " ↑") : ""}
-    </th>
-  );
+  const Th = ({ k, label }: { k: SortKey; label: string }) => {
+    const active = sortKey === k;
+    const ariaSort: "ascending" | "descending" | "none" =
+      !active ? "none" : sortDir === "asc" ? "ascending" : "descending";
+    return (
+      <th
+        className="px-4 py-3 text-left text-[11px] font-bold uppercase tracking-widest whitespace-nowrap"
+        aria-sort={ariaSort}
+      >
+        <button
+          type="button"
+          onClick={() => toggleSort(k)}
+          className="cursor-pointer select-none bg-transparent p-0"
+          style={{ color: active ? "#0A1F44" : "#64748B" }}
+        >
+          {label}{active ? (sortDir === "desc" ? " ↓" : " ↑") : ""}
+        </button>
+      </th>
+    );
+  };
 
   return (
     <div className="space-y-4">
@@ -100,18 +111,18 @@ export default function AccountsTable({ accounts }: Props) {
           placeholder="Buscar por nombre, DNI, ocupación, ciudad…"
           value={search}
           onChange={e => { setSearch(e.target.value); setPage(0); }}
-          className="flex-1 rounded-lg px-4 py-2 text-sm outline-none"
+          className="flex-1 rounded-lg px-4 py-2.5 min-h-[44px] text-sm outline-none"
           style={{ backgroundColor: "#F8FAFC", border: "1px solid #E2E8F0", color: "#0F172A" }}
-          onFocus={e => (e.target.style.borderColor = "#2563EB")}
+          onFocus={e => (e.target.style.borderColor = "#0A1F44")}
           onBlur={e  => (e.target.style.borderColor = "#E2E8F0")}
         />
-        <label className="flex items-center gap-2 text-sm cursor-pointer whitespace-nowrap" style={{ color: "#64748B" }}>
+        <label className="flex items-center gap-2 text-sm cursor-pointer whitespace-nowrap min-h-[44px] px-1" style={{ color: "#64748B" }}>
           <input type="checkbox" checked={filterFraud}
                  onChange={e => { setFilterFraud(e.target.checked); setPage(0); }}
-                 className="accent-blue-600" />
+                 className="accent-navy" />
           Solo fraude
         </label>
-        <span className="text-xs whitespace-nowrap" style={{ color: "#94A3B8" }}>{sorted.length} cuentas</span>
+        <span className="text-xs whitespace-nowrap" style={{ color: "#64748B" }}>{sorted.length} cuentas</span>
       </div>
 
       {/* table */}
@@ -119,7 +130,7 @@ export default function AccountsTable({ accounts }: Props) {
         <table className="w-full text-sm" style={{ backgroundColor: "#FFFFFF" }}>
           <thead>
             <tr style={{ backgroundColor: "#F8FAFC", borderBottom: "1px solid #E2E8F0" }}>
-              <th className="px-4 py-3 text-left text-[11px] font-bold uppercase tracking-widest w-8" style={{ color: "#94A3B8" }}>#</th>
+              <th className="px-4 py-3 text-left text-[11px] font-bold uppercase tracking-widest w-8" style={{ color: "#64748B" }}>#</th>
               <Th k="nombre_completo" label="Titular" />
               <Th k="gnn_score"       label="Score GNN" />
               <Th k="is_fraud"        label="Fraude" />
@@ -127,7 +138,7 @@ export default function AccountsTable({ accounts }: Props) {
               <Th k="balance"         label="Balance" />
               <Th k="degree_in"       label="Grado" />
               <Th k="total_sent"      label="Enviado" />
-              <th className="px-4 py-3 text-left text-[11px] font-bold uppercase tracking-widest" style={{ color: "#94A3B8" }}>Anillo</th>
+              <th className="px-4 py-3 text-left text-[11px] font-bold uppercase tracking-widest" style={{ color: "#64748B" }}>Anillo</th>
             </tr>
           </thead>
           <tbody>
@@ -145,7 +156,7 @@ export default function AccountsTable({ accounts }: Props) {
                   onMouseEnter={e => (e.currentTarget.style.backgroundColor = "#F8FAFC")}
                   onMouseLeave={e => (e.currentTarget.style.backgroundColor = "transparent")}
                 >
-                  <td className="px-4 py-3 text-xs font-mono" style={{ color: "#CBD5E1" }}>{rank}</td>
+                  <td className="px-4 py-3 text-xs font-mono" style={{ color: "#64748B" }}>{rank}</td>
 
                   {/* Titular — nombre + DNI + ocupacion/ciudad */}
                   <td className="px-4 py-3 min-w-[200px]">
@@ -154,7 +165,7 @@ export default function AccountsTable({ accounts }: Props) {
                         <p className="text-sm font-semibold leading-tight" style={{ color: "#0F172A" }}>
                           {a.nombre_completo}
                         </p>
-                        <p className="text-[11px] font-mono leading-tight mt-0.5" style={{ color: "#94A3B8" }}>
+                        <p className="text-[11px] font-mono leading-tight mt-0.5" style={{ color: "#64748B" }}>
                           DNI {a.dni?.toLocaleString("es-AR")} · {a.account_id}
                         </p>
                         {a.ocupacion && (
@@ -174,7 +185,7 @@ export default function AccountsTable({ accounts }: Props) {
                     {isFraud
                       ? <span className="inline-flex items-center gap-1 text-xs font-bold px-2 py-0.5 rounded-full"
                                style={{ backgroundColor: "#FEE2E2", color: "#DC2626" }}>● Sí</span>
-                      : <span className="text-xs" style={{ color: "#CBD5E1" }}>—</span>}
+                      : <span className="text-xs" style={{ color: "#64748B" }}>—</span>}
                   </td>
 
                   <td className="px-4 py-3">
@@ -197,8 +208,8 @@ export default function AccountsTable({ accounts }: Props) {
 
                   <td className="px-4 py-3">
                     {a.in_ring
-                      ? <span className="text-xs font-bold" style={{ color: "#2563EB" }}>Sí</span>
-                      : <span className="text-xs" style={{ color: "#CBD5E1" }}>—</span>}
+                      ? <span className="text-xs font-bold" style={{ color: "#0A1F44" }}>Sí</span>
+                      : <span className="text-xs" style={{ color: "#64748B" }}>—</span>}
                   </td>
                 </tr>
               );
@@ -213,7 +224,7 @@ export default function AccountsTable({ accounts }: Props) {
           <button
             onClick={() => setPage(p => Math.max(0, p - 1))}
             disabled={page === 0}
-            className="px-3 py-1.5 rounded-lg transition-colors disabled:opacity-30"
+            className="px-4 min-h-[44px] rounded-lg transition-colors disabled:opacity-30"
             style={{ border: "1px solid #E2E8F0", backgroundColor: "#FFFFFF" }}
           >
             ← Anterior
@@ -222,7 +233,7 @@ export default function AccountsTable({ accounts }: Props) {
           <button
             onClick={() => setPage(p => Math.min(totalPages - 1, p + 1))}
             disabled={page === totalPages - 1}
-            className="px-3 py-1.5 rounded-lg transition-colors disabled:opacity-30"
+            className="px-4 min-h-[44px] rounded-lg transition-colors disabled:opacity-30"
             style={{ border: "1px solid #E2E8F0", backgroundColor: "#FFFFFF" }}
           >
             Siguiente →
