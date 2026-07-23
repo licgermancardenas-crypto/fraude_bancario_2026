@@ -44,7 +44,7 @@ const ROLE_COLOR: Record<string, string> = {
   perpetrador:       "#F59E0B",
   mula_detectada:    "#DC2626",
   mula_no_detectada: "#7C3AED",
-  receptor_normal:   "#64748B",
+  receptor_normal:   "#5A6478",
 };
 const ROLE_LABEL: Record<string, string> = {
   perpetrador:       "Perpetrador",
@@ -62,10 +62,10 @@ function ScoreChip({ detected }: { detected: boolean }) {
     <span
       className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold"
       style={detected
-        ? { backgroundColor: "#DCFCE7", color: "#16A34A" }
-        : { backgroundColor: "#FEE2E2", color: "#DC2626" }}
+        ? { backgroundColor: "rgba(34,197,94,0.15)", color: "#22C55E" }
+        : { backgroundColor: "rgba(239,68,68,0.15)", color: "#EF4444" }}
     >
-      <span className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: detected ? "#16A34A" : "#DC2626" }} />
+      <span className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: detected ? "#22C55E" : "#EF4444" }} />
       {detected ? "Detectado" : "No detectado"}
     </span>
   );
@@ -112,7 +112,7 @@ function RingGraphDirected() {
             data: {
               id:    n.node_id,
               label: shortName,
-              color: ROLE_COLOR[n.role] ?? "#64748B",
+              color: ROLE_COLOR[n.role] ?? "#5A6478",
               role:  n.role,
               score: n.gnn_score,
               size:  n.role === "perpetrador" ? 54 : n.role.startsWith("mula") ? 42 : 28,
@@ -134,10 +134,10 @@ function RingGraphDirected() {
             selector: "node",
             style: {
               "background-color": "data(color)",
-              "border-color":     "#FFFFFF",
+              "border-color":     "#1E2430",
               "border-width":     2,
               label:              "data(label)",
-              color:              "#1E293B",
+              color:              "#EDEAE6",
               "font-size":        "9px",
               "font-weight":      "600",
               "text-valign":      "bottom",
@@ -154,8 +154,8 @@ function RingGraphDirected() {
             selector: "edge",
             style: {
               width:                "data(width)",
-              "line-color":         "#CBD5E1",
-              "target-arrow-color": "#64748B",
+              "line-color":         "#3A4356",
+              "target-arrow-color": "#5A6478",
               "target-arrow-shape": "triangle",
               "curve-style":        "bezier",
               opacity:              0.7,
@@ -163,7 +163,7 @@ function RingGraphDirected() {
           },
           {
             selector: "node:selected",
-            style: { "border-width": 4, "border-color": "#C9A227" },
+            style: { "border-width": 4, "border-color": "#2E6BFF" },
           },
         ],
         // breadthfirst assumes one tree; with 15 disconnected perpetrator
@@ -194,40 +194,40 @@ function RingGraphDirected() {
       <div
         ref={containerRef}
         className="rounded-xl flex-1"
-        style={{ height: 560, backgroundColor: "#F8FAFC", border: "1px solid #E2E8F0" }}
+        style={{ height: 560, backgroundColor: "#12161F", border: "1px solid #1E2430" }}
       />
 
       <div className="w-full lg:w-64 space-y-4">
         {/* legend */}
-        <div className="rounded-xl p-4" style={{ backgroundColor: "#FFFFFF", border: "1px solid #E2E8F0" }}>
-          <p className="text-xs font-semibold uppercase tracking-widest mb-3" style={{ color: "#64748B" }}>Referencias</p>
+        <div className="rounded-xl p-4" style={{ backgroundColor: "#12161F", border: "1px solid #1E2430" }}>
+          <p className="text-xs font-semibold uppercase tracking-widest mb-3" style={{ color: "#5A6478" }}>Referencias</p>
           {Object.entries(ROLE_LABEL).map(([role, label]) => (
             <div key={role} className="flex items-center gap-2 mb-2">
               <span className="w-3 h-3 rounded-full flex-shrink-0" style={{ backgroundColor: ROLE_COLOR[role] }} />
-              <span className="text-xs" style={{ color: "#64748B" }}>{label}</span>
+              <span className="text-xs" style={{ color: "#5A6478" }}>{label}</span>
             </div>
           ))}
-          <div className="mt-3 pt-3" style={{ borderTop: "1px solid #F1F5F9" }}>
-            <p className="text-xs" style={{ color: "#64748B" }}>Grosor de arista = monto transferido</p>
+          <div className="mt-3 pt-3" style={{ borderTop: "1px solid #1E2430" }}>
+            <p className="text-xs" style={{ color: "#5A6478" }}>Grosor de arista = monto transferido</p>
           </div>
         </div>
 
         {/* selected node detail */}
-        <div className="rounded-xl p-4" style={{ backgroundColor: "#FFFFFF", border: "1px solid #E2E8F0" }}>
+        <div className="rounded-xl p-4" style={{ backgroundColor: "#12161F", border: "1px solid #1E2430" }}>
           {selected ? (
             <>
-              <p className="text-xs font-semibold uppercase tracking-widest mb-1" style={{ color: "#0A1F44" }}>Nodo seleccionado</p>
+              <p className="text-xs font-semibold uppercase tracking-widest mb-1" style={{ color: "#7AA2FF" }}>Nodo seleccionado</p>
               {selected.nombre_completo && (
-                <div className="mb-3 pb-3" style={{ borderBottom: "1px solid #F1F5F9" }}>
-                  <p className="text-sm font-bold" style={{ color: "#0F172A" }}>{selected.nombre_completo}</p>
+                <div className="mb-3 pb-3" style={{ borderBottom: "1px solid #1E2430" }}>
+                  <p className="text-sm font-bold" style={{ color: "#EDEAE6" }}>{selected.nombre_completo}</p>
                   {selected.dni && (
-                    <p className="text-[11px] font-mono" style={{ color: "#64748B" }}>DNI {selected.dni.toLocaleString("es-AR")}</p>
+                    <p className="text-[11px] font-mono" style={{ color: "#5A6478" }}>DNI {selected.dni.toLocaleString("es-AR")}</p>
                   )}
                   {selected.ocupacion && (
-                    <p className="text-[11px]" style={{ color: "#64748B" }}>{selected.ocupacion}</p>
+                    <p className="text-[11px]" style={{ color: "#5A6478" }}>{selected.ocupacion}</p>
                   )}
                   {selected.municipio && (
-                    <p className="text-[11px]" style={{ color: "#64748B" }}>{selected.municipio}</p>
+                    <p className="text-[11px]" style={{ color: "#5A6478" }}>{selected.municipio}</p>
                   )}
                 </div>
               )}
@@ -240,14 +240,14 @@ function RingGraphDirected() {
                   ["Grado in/out",  `${selected.in_degree} / ${selected.out_degree}`],
                 ] as [string, string][]).map(([k, v]) => (
                   <div key={k} className="flex justify-between gap-2">
-                    <dt className="text-xs" style={{ color: "#64748B" }}>{k}</dt>
-                    <dd className="font-semibold text-xs text-right" style={{ color: "#0F172A" }}>{v}</dd>
+                    <dt className="text-xs" style={{ color: "#5A6478" }}>{k}</dt>
+                    <dd className="font-semibold text-xs text-right" style={{ color: "#EDEAE6" }}>{v}</dd>
                   </div>
                 ))}
               </dl>
             </>
           ) : (
-            <p className="text-xs" style={{ color: "#64748B" }}>Hacé clic en un nodo para ver sus detalles.</p>
+            <p className="text-xs" style={{ color: "#5A6478" }}>Hacé clic en un nodo para ver sus detalles.</p>
           )}
         </div>
       </div>
@@ -256,9 +256,8 @@ function RingGraphDirected() {
 }
 
 const card = {
-  backgroundColor: "#FFFFFF",
-  border: "1px solid #E2E8F0",
-  boxShadow: "0 1px 3px rgba(0,0,0,0.06)",
+  backgroundColor: "#12161F",
+  border: "1px solid #1E2430",
 };
 
 const PERPS_PER_PAGE = 20;
@@ -293,16 +292,16 @@ export default function OrigenPage() {
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
         {[
           { label: "Perpetradores",     value: String(summary.n_perpetrators),      sub: "raíces del anillo",     color: "#F59E0B" },
-          { label: "Mulas detectadas",  value: String(summary.n_mules_detected),    sub: "score GNN > 0.5",       color: "#DC2626" },
+          { label: "Mulas detectadas",  value: String(summary.n_mules_detected),    sub: "score GNN > 0.5",       color: "#EF4444" },
           { label: "Mulas no detect.",  value: String(summary.n_mules_missed),      sub: "en cadena fraude",      color: "#7C3AED" },
-          { label: "Monto total",       value: fmt(summary.total_amount_laundered), sub: "en anillo completo",    color: "#0A1F44" },
+          { label: "Monto total",       value: fmt(summary.total_amount_laundered), sub: "en anillo completo",    color: "#7AA2FF" },
         ].map(({ label, value, sub, color }) => (
           <div key={label} className="rounded-xl overflow-hidden" style={card}>
             <div className="h-1" style={{ backgroundColor: color }} />
             <div className="p-4">
-              <p className="text-[11px] uppercase tracking-widest font-semibold mb-1" style={{ color: "#64748B" }}>{label}</p>
+              <p className="text-[11px] uppercase tracking-widest font-semibold mb-1" style={{ color: "#5A6478" }}>{label}</p>
               <p className="text-2xl font-bold leading-none" style={{ color }}>{value}</p>
-              <p className="text-xs mt-1" style={{ color: "#64748B" }}>{sub}</p>
+              <p className="text-xs mt-1" style={{ color: "#5A6478" }}>{sub}</p>
             </div>
           </div>
         ))}
@@ -311,7 +310,7 @@ export default function OrigenPage() {
       {/* perpetrators table */}
       <div>
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-3">
-          <h2 className="text-base font-semibold" style={{ color: "#0F172A" }}>Cuentas Origen Identificadas</h2>
+          <h2 className="text-base font-semibold" style={{ color: "#EDEAE6" }}>Cuentas Origen Identificadas</h2>
           <div className="flex items-center gap-3">
             <input
               type="text"
@@ -319,19 +318,19 @@ export default function OrigenPage() {
               value={search}
               onChange={e => { setSearch(e.target.value); setPage(0); }}
               className="rounded-lg px-3 py-1.5 text-sm outline-none w-64"
-              style={{ backgroundColor: "#F8FAFC", border: "1px solid #E2E8F0", color: "#0F172A" }}
+              style={{ backgroundColor: "#12161F", border: "1px solid #1E2430", color: "#EDEAE6" }}
             />
-            <span className="text-xs whitespace-nowrap" style={{ color: "#64748B" }}>
+            <span className="text-xs whitespace-nowrap" style={{ color: "#5A6478" }}>
               {filteredPerps.length} de {perpetrators.length}
             </span>
           </div>
         </div>
         <div className="rounded-xl overflow-hidden" style={card}>
-          <table className="w-full text-sm" style={{ backgroundColor: "#FFFFFF" }}>
+          <table className="w-full text-sm" style={{ backgroundColor: "#0E1219" }}>
             <thead>
-              <tr style={{ backgroundColor: "#F8FAFC", borderBottom: "1px solid #E2E8F0" }}>
+              <tr style={{ backgroundColor: "#12161F", borderBottom: "1px solid #1E2430" }}>
                 {["Titular", "Estado en GNN", "Mulas alimentadas", "Monto inyectado", "Primera txn", ""].map(h => (
-                  <th key={h} className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider" style={{ color: "#64748B" }}>{h}</th>
+                  <th key={h} className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider" style={{ color: "#5A6478" }}>{h}</th>
                 ))}
               </tr>
             </thead>
@@ -343,40 +342,40 @@ export default function OrigenPage() {
                   <Fragment key={p.node_id}>
                     <tr
                       className="transition-colors cursor-pointer"
-                      style={{ borderTop: "1px solid #F1F5F9" }}
+                      style={{ borderTop: "1px solid #1E2430" }}
                       onClick={() => setExpanded(isOpen ? null : p.node_id)}
-                      onMouseEnter={e => (e.currentTarget.style.backgroundColor = "#F8FAFC")}
+                      onMouseEnter={e => (e.currentTarget.style.backgroundColor = "#12161F")}
                       onMouseLeave={e => (e.currentTarget.style.backgroundColor = "transparent")}
                     >
                       <td className="px-4 py-3 min-w-[180px]">
                         {p.nombre_completo ? (
                           <div>
-                            <p className="text-sm font-semibold leading-tight" style={{ color: "#0F172A" }}>{p.nombre_completo}</p>
-                            <p className="text-[11px] font-mono leading-tight mt-0.5" style={{ color: "#64748B" }}>
+                            <p className="text-sm font-semibold leading-tight" style={{ color: "#EDEAE6" }}>{p.nombre_completo}</p>
+                            <p className="text-[11px] font-mono leading-tight mt-0.5" style={{ color: "#5A6478" }}>
                               DNI {p.dni?.toLocaleString("es-AR")} · {p.node_id}
                             </p>
                             {p.ocupacion && (
-                              <p className="text-[11px] leading-tight" style={{ color: "#64748B" }}>{p.ocupacion}</p>
+                              <p className="text-[11px] leading-tight" style={{ color: "#5A6478" }}>{p.ocupacion}</p>
                             )}
                           </div>
                         ) : (
-                          <span className="font-mono text-xs font-semibold" style={{ color: "#0F172A" }}>{p.node_id}</span>
+                          <span className="font-mono text-xs font-semibold" style={{ color: "#EDEAE6" }}>{p.node_id}</span>
                         )}
                       </td>
                       <td className="px-4 py-3"><ScoreChip detected={detected} /></td>
                       <td className="px-4 py-3 text-center">
-                        <span className="font-bold" style={{ color: "#0F172A" }}>{p.n_mules_fed}</span>
+                        <span className="font-bold" style={{ color: "#EDEAE6" }}>{p.n_mules_fed}</span>
                       </td>
-                      <td className="px-4 py-3 font-semibold" style={{ color: "#0A1F44" }}>{fmt(p.amount_injected)}</td>
-                      <td className="px-4 py-3 text-xs font-mono" style={{ color: "#64748B" }}>{p.first_transaction}</td>
-                      <td className="px-4 py-3 text-xs" style={{ color: "#64748B" }}>{isOpen ? "▲" : "▼"}</td>
+                      <td className="px-4 py-3 font-semibold" style={{ color: "#7AA2FF" }}>{fmt(p.amount_injected)}</td>
+                      <td className="px-4 py-3 text-xs font-mono" style={{ color: "#5A6478" }}>{p.first_transaction}</td>
+                      <td className="px-4 py-3 text-xs" style={{ color: "#5A6478" }}>{isOpen ? "▲" : "▼"}</td>
                     </tr>
                     {isOpen && (
                       <tr key={`${p.node_id}-detail`}>
-                        <td colSpan={6} className="px-6 py-4" style={{ backgroundColor: "#F8FAFC", borderTop: "1px solid #E2E8F0" }}>
+                        <td colSpan={6} className="px-6 py-4" style={{ backgroundColor: "#12161F", borderTop: "1px solid #1E2430" }}>
                           {p.cuil && (
                             <div className="mb-3 grid grid-cols-2 sm:grid-cols-3 gap-x-6 gap-y-1 text-xs pb-3"
-                                 style={{ borderBottom: "1px solid #E2E8F0" }}>
+                                 style={{ borderBottom: "1px solid #1E2430" }}>
                               {([
                                 ["CUIL",      p.cuil],
                                 ["Ocupación", p.ocupacion ?? "—"],
@@ -386,13 +385,13 @@ export default function OrigenPage() {
                                 ["Sucursal",  p.sucursal ?? "—"],
                               ] as [string, string][]).map(([k, v]) => (
                                 <div key={k}>
-                                  <span style={{ color: "#64748B" }}>{k}: </span>
-                                  <span className="font-medium" style={{ color: "#0F172A" }}>{v}</span>
+                                  <span style={{ color: "#5A6478" }}>{k}: </span>
+                                  <span className="font-medium" style={{ color: "#EDEAE6" }}>{v}</span>
                                 </div>
                               ))}
                             </div>
                           )}
-                          <p className="text-xs uppercase tracking-wider font-semibold mb-2" style={{ color: "#64748B" }}>
+                          <p className="text-xs uppercase tracking-wider font-semibold mb-2" style={{ color: "#5A6478" }}>
                             Mulas alimentadas ({p.mules.length})
                           </p>
                           <div className="flex flex-wrap gap-2">
@@ -402,7 +401,7 @@ export default function OrigenPage() {
                                 <span
                                   key={m}
                                   className="px-2 py-1 rounded text-xs"
-                                  style={{ backgroundColor: "#FEE2E2", color: "#DC2626", border: "1px solid #FECACA" }}
+                                  style={{ backgroundColor: "rgba(239,68,68,0.15)", color: "#EF4444", border: "1px solid rgba(239,68,68,0.3)" }}
                                   title={m}
                                 >
                                   {mNode?.nombre_completo
@@ -413,7 +412,7 @@ export default function OrigenPage() {
                             })}
                           </div>
                           {!detected && (
-                            <p className="mt-3 text-xs flex items-center gap-1.5" style={{ color: "#D97706" }}>
+                            <p className="mt-3 text-xs flex items-center gap-1.5" style={{ color: "#F59E0B" }}>
                               <span>⚠</span>
                               Esta cuenta no fue detectada por el GNN (score = {(p.gnn_score * 100).toFixed(2)}%).
                               Baja centralidad de red: realizó pocas transacciones pero de alto monto.
@@ -429,12 +428,12 @@ export default function OrigenPage() {
           </table>
         </div>
         {totalPages > 1 && (
-          <div className="flex items-center justify-between text-xs mt-3" style={{ color: "#64748B" }}>
+          <div className="flex items-center justify-between text-xs mt-3" style={{ color: "#5A6478" }}>
             <button
               onClick={() => setPage(p => Math.max(0, p - 1))}
               disabled={page === 0}
               className="px-3 py-1.5 rounded-lg transition-colors disabled:opacity-30"
-              style={{ border: "1px solid #E2E8F0", backgroundColor: "#FFFFFF" }}
+              style={{ border: "1px solid #1E2430", backgroundColor: "#12161F" }}
             >
               ← Anterior
             </button>
@@ -443,7 +442,7 @@ export default function OrigenPage() {
               onClick={() => setPage(p => Math.min(totalPages - 1, p + 1))}
               disabled={page === totalPages - 1}
               className="px-3 py-1.5 rounded-lg transition-colors disabled:opacity-30"
-              style={{ border: "1px solid #E2E8F0", backgroundColor: "#FFFFFF" }}
+              style={{ border: "1px solid #1E2430", backgroundColor: "#12161F" }}
             >
               Siguiente →
             </button>
@@ -453,8 +452,8 @@ export default function OrigenPage() {
 
       {/* directed graph */}
       <div>
-        <h2 className="text-base font-semibold mb-2" style={{ color: "#0F172A" }}>Grafo Dirigido del Anillo</h2>
-        <p className="text-xs mb-4" style={{ color: "#64748B" }}>
+        <h2 className="text-base font-semibold mb-2" style={{ color: "#EDEAE6" }}>Grafo Dirigido del Anillo</h2>
+        <p className="text-xs mb-4" style={{ color: "#5A6478" }}>
           Las flechas indican dirección del flujo de dinero. Tamaño del nodo = relevancia en el anillo.
           Grosor de arista = monto transferido.
           Mostrando los <strong>{Math.min(GRAPH_TOP_N, perpetrators.length)} perpetradores</strong> de mayor
@@ -468,21 +467,21 @@ export default function OrigenPage() {
       <div>
         <div className="flex items-end justify-between mb-3">
           <div>
-            <h2 className="text-base font-semibold" style={{ color: "#0F172A" }}>
+            <h2 className="text-base font-semibold" style={{ color: "#EDEAE6" }}>
               Ranking de Colocación — Propagación Inversa de Riesgo
             </h2>
-            <p className="text-xs mt-0.5" style={{ color: "#64748B" }}>
+            <p className="text-xs mt-0.5" style={{ color: "#5A6478" }}>
               {placement.formula}
             </p>
           </div>
           <div className="flex gap-3 text-xs flex-shrink-0">
             {[
-              { label: "Candidatos", value: placement.n_flagged, color: "#0A1F44" },
-              { label: "Nuevos desc.", value: placement.n_new_discoveries, color: "#DC2626" },
+              { label: "Candidatos", value: placement.n_flagged, color: "#7AA2FF" },
+              { label: "Nuevos desc.", value: placement.n_new_discoveries, color: "#EF4444" },
             ].map(({ label, value, color }) => (
               <div key={label} className="text-right">
                 <p className="font-bold text-lg leading-none" style={{ color }}>{value}</p>
-                <p style={{ color: "#64748B" }}>{label}</p>
+                <p style={{ color: "#5A6478" }}>{label}</p>
               </div>
             ))}
           </div>
@@ -490,14 +489,14 @@ export default function OrigenPage() {
 
         <div className="rounded-xl overflow-hidden" style={card}>
           {/* legend */}
-          <div className="flex flex-wrap gap-4 px-5 py-3" style={{ backgroundColor: "#F8FAFC", borderBottom: "1px solid #E2E8F0" }}>
+          <div className="flex flex-wrap gap-4 px-5 py-3" style={{ backgroundColor: "#12161F", borderBottom: "1px solid #1E2430" }}>
             {[
               { color: "#F59E0B", label: "Perpetrador conocido (backward tracing)" },
-              { color: "#0A1F44", label: "Detectado por GNN (mula)" },
-              { color: "#DC2626", label: "Nuevo candidato" },
-              { color: "#64748B", label: "Señal baja" },
+              { color: "#7AA2FF", label: "Detectado por GNN (mula)" },
+              { color: "#EF4444", label: "Nuevo candidato" },
+              { color: "#5A6478", label: "Señal baja" },
             ].map(({ color, label }) => (
-              <div key={label} className="flex items-center gap-1.5 text-xs" style={{ color: "#64748B" }}>
+              <div key={label} className="flex items-center gap-1.5 text-xs" style={{ color: "#5A6478" }}>
                 <span className="w-2.5 h-2.5 rounded-sm flex-shrink-0" style={{ backgroundColor: color }} />
                 {label}
               </div>
@@ -505,15 +504,15 @@ export default function OrigenPage() {
           </div>
 
           {/* top 15 rows */}
-          <div className="divide-y" style={{ borderColor: "#F1F5F9" }}>
+          <div className="divide-y" style={{ borderColor: "#1E2430" }}>
             {placement.candidates.slice(0, 15).map((c, i) => {
               const barColor = c.is_known_perp ? "#F59E0B"
-                : c.detected_by_gnn ? "#0A1F44"
-                : c.placement_score_norm > 0.15 ? "#DC2626"
-                : "#64748B";
-              const bgColor = c.is_known_perp ? "#FFFBEB"
-                : c.detected_by_gnn ? "#EAEDF5"
-                : c.placement_score_norm > 0.15 ? "#FEF2F2"
+                : c.detected_by_gnn ? "#7AA2FF"
+                : c.placement_score_norm > 0.15 ? "#EF4444"
+                : "#5A6478";
+              const bgColor = c.is_known_perp ? "rgba(245,158,11,0.08)"
+                : c.detected_by_gnn ? "rgba(46,107,255,0.08)"
+                : c.placement_score_norm > 0.15 ? "rgba(239,68,68,0.08)"
                 : "transparent";
 
               return (
@@ -522,20 +521,20 @@ export default function OrigenPage() {
                   className="flex items-center gap-4 px-5 py-3 text-sm"
                   style={{ backgroundColor: bgColor }}
                 >
-                  <span className="text-xs font-mono w-5 flex-shrink-0" style={{ color: "#64748B" }}>
+                  <span className="text-xs font-mono w-5 flex-shrink-0" style={{ color: "#5A6478" }}>
                     {i + 1}
                   </span>
                   <div className="w-36 flex-shrink-0">
-                    <p className="text-xs font-semibold leading-tight" style={{ color: "#0F172A" }}>
+                    <p className="text-xs font-semibold leading-tight" style={{ color: "#EDEAE6" }}>
                       {c.nombre_completo
                         ? c.nombre_completo.split(" ").slice(0, 2).join(" ")
                         : c.account_id}
                     </p>
-                    <p className="text-[10px] font-mono leading-tight" style={{ color: "#64748B" }}>{c.account_id}</p>
+                    <p className="text-[10px] font-mono leading-tight" style={{ color: "#5A6478" }}>{c.account_id}</p>
                   </div>
                   {/* score bar */}
                   <div className="flex-1 flex items-center gap-2">
-                    <div className="flex-1 h-2 rounded-full" style={{ backgroundColor: "#E2E8F0" }}>
+                    <div className="flex-1 h-2 rounded-full" style={{ backgroundColor: "#1E2430" }}>
                       <div
                         className="h-full rounded-full"
                         style={{ width: `${c.placement_score_norm * 100}%`, backgroundColor: barColor }}
@@ -545,27 +544,27 @@ export default function OrigenPage() {
                       {(c.placement_score_norm * 100).toFixed(1)}%
                     </span>
                   </div>
-                  <span className="text-xs w-16 text-right font-mono" style={{ color: "#64748B" }}>
+                  <span className="text-xs w-16 text-right font-mono" style={{ color: "#5A6478" }}>
                     GNN {(c.gnn_score * 100).toFixed(1)}%
                   </span>
-                  <span className="text-xs w-20 text-right font-mono" style={{ color: "#64748B" }}>
+                  <span className="text-xs w-20 text-right font-mono" style={{ color: "#5A6478" }}>
                     ${c.total_sent_to_fraud.toLocaleString("es-AR", { maximumFractionDigits: 0 })}
                   </span>
                   {c.is_known_perp && (
                     <span className="text-[10px] font-bold px-2 py-0.5 rounded-full flex-shrink-0"
-                          style={{ backgroundColor: "#FEF3C7", color: "#D97706" }}>
+                          style={{ backgroundColor: "rgba(245,158,11,0.15)", color: "#F59E0B" }}>
                       PERP
                     </span>
                   )}
                   {!c.detected_by_gnn && !c.is_known_perp && c.placement_score_norm > 0.15 && (
                     <span className="text-[10px] font-bold px-2 py-0.5 rounded-full flex-shrink-0"
-                          style={{ backgroundColor: "#FEE2E2", color: "#DC2626" }}>
+                          style={{ backgroundColor: "rgba(239,68,68,0.15)", color: "#EF4444" }}>
                       NUEVO
                     </span>
                   )}
                   {c.detected_by_gnn && (
                     <span className="text-[10px] font-bold px-2 py-0.5 rounded-full flex-shrink-0"
-                          style={{ backgroundColor: "#EAEDF5", color: "#0A1F44" }}>
+                          style={{ backgroundColor: "rgba(46,107,255,0.15)", color: "#7AA2FF" }}>
                       MULA
                     </span>
                   )}
@@ -577,18 +576,18 @@ export default function OrigenPage() {
       </div>
 
       {/* insight box */}
-      <div className="rounded-xl p-5 text-sm" style={{ backgroundColor: "#EAEDF5", border: "1px solid #C7CFE2" }}>
-        <p className="text-xs font-semibold uppercase tracking-widest mb-2" style={{ color: "#0A1F44" }}>
+      <div className="rounded-xl p-5 text-sm" style={{ backgroundColor: "rgba(46,107,255,0.08)", border: "1px solid rgba(46,107,255,0.25)" }}>
+        <p className="text-xs font-semibold uppercase tracking-widest mb-2" style={{ color: "#7AA2FF" }}>
           Insight 16 — Limitación del modelo
         </p>
-        <p className="leading-relaxed" style={{ color: "#122855" }}>
-          El GNN detecta la <strong style={{ color: "#0A1F44" }}>estratificación</strong> (las mulas que mueven y dispersan
-          el dinero) pero no la <strong style={{ color: "#0A1F44" }}>colocación</strong> (el depósito inicial del perpetrador).
+        <p className="leading-relaxed" style={{ color: "rgba(237,234,230,0.75)" }}>
+          El GNN detecta la <strong style={{ color: "#7AA2FF" }}>estratificación</strong> (las mulas que mueven y dispersan
+          el dinero) pero no la <strong style={{ color: "#7AA2FF" }}>colocación</strong> (el depósito inicial del perpetrador).
           Las cuentas origen tienen baja centralidad de red — hacen pocas transacciones de alto monto — y resultan
           invisibles para un clasificador basado en patrones de conectividad.
-          El backward tracing identifica a <strong style={{ color: "#0A1F44" }}>ACC0000210</strong> y{" "}
-          <strong style={{ color: "#0A1F44" }}>ACC0001046</strong> como perpetradores con score GNN ≈ 0%,
-          inyectando <strong style={{ color: "#0A1F44" }}>$66,422</strong> al anillo desde cuentas aparentemente legítimas.
+          El backward tracing identifica a <strong style={{ color: "#7AA2FF" }}>ACC0000210</strong> y{" "}
+          <strong style={{ color: "#7AA2FF" }}>ACC0001046</strong> como perpetradores con score GNN ≈ 0%,
+          inyectando <strong style={{ color: "#7AA2FF" }}>$66,422</strong> al anillo desde cuentas aparentemente legítimas.
         </p>
         <p className="text-xs mt-3" style={{ color: "#3B82F6" }}>
           Acción sugerida: combinar el scoring GNN con backward tracing automático sobre el grafo dirigido temporal.

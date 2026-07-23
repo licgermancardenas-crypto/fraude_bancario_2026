@@ -28,20 +28,20 @@ function recallAtPrecision(curve: PRCurve | undefined, target = 0.9): number {
 const insights = [
   {
     tag: "Señal estructural",
-    color: "#0A1F44",
-    bg: "#EAEDF5",
+    color: "#7AA2FF",
+    bg: "rgba(46,107,255,0.15)",
     text: "Lift fraude→fraude de 14.3× sobre el esperado por azar. El lavado no se detecta por monto — se detecta por patrón de red.",
   },
   {
     tag: "Score crediticio ciego",
-    color: "#D97706",
-    bg: "#FFFBEB",
+    color: "#F59E0B",
+    bg: "rgba(217,119,6,0.15)",
     text: "Cohen d = 0.055 entre cuentas fraude y legítimas. El riesgo crediticio es ortogonal al riesgo AML.",
   },
   {
     tag: "Ventana de 72 h",
-    color: "#DC2626",
-    bg: "#FEF2F2",
+    color: "#EF4444",
+    bg: "rgba(239,68,68,0.15)",
     text: "Los anillos completan sus ciclos antes de que activen los sistemas de monitoreo batch diario.",
   },
 ];
@@ -73,26 +73,26 @@ export default function OverviewPage() {
           label="Cuentas analizadas"
           value={kpis.n_accounts.toLocaleString("es-AR")}
           sub={`${kpis.n_fraud} fraudulentas · ${kpis.pct_fraud}% prevalencia`}
-          color="#64748B"
+          color="#5A6478"
           dim
         />
         <KPICard
           label="PR-AUC — GraphSAGE"
           value={kpis.pr_auc_gnn.toFixed(3)}
           sub={`+${delta} sobre XGBoost tabular`}
-          color="#0A1F44"
+          color="#2E6BFF"
         />
         <KPICard
           label="Recall @ Precisión 90%"
           value={(kpis.recall_at_p90 * 100).toFixed(0) + "%"}
           sub="Con 9/10 alertas correctas"
-          color="#7C3AED"
+          color="#A78BFA"
         />
         <KPICard
           label="Fraude no detectado"
           value={`${sageMissedPct}%`}
           sub={`vs ${xgbMissedPct}% XGBoost · ${logregMissedPct}% LogReg`}
-          color="#16A34A"
+          color="#22C55E"
         />
       </div>
 
@@ -101,19 +101,18 @@ export default function OverviewPage() {
         <div
           className="lg:col-span-3 rounded-xl p-5"
           style={{
-            backgroundColor: "#FFFFFF",
-            border: "1px solid #E2E8F0",
-            boxShadow: "0 1px 3px rgba(0,0,0,0.06)",
+            backgroundColor: "#0E1219",
+            border: "1px solid #1E2430",
           }}
         >
-          <p className="text-[11px] font-bold uppercase tracking-widest mb-1" style={{ color: "#64748B" }}>
+          <p className="text-[11px] font-bold uppercase tracking-widest mb-1" style={{ color: "#5A6478", fontFamily: "'JetBrains Mono', monospace" }}>
             Comparativa de modelos
           </p>
-          <h2 className="text-sm font-semibold mb-4" style={{ color: "#0F172A" }}>Curva Precisión-Recall</h2>
+          <h2 className="text-sm font-semibold mb-4" style={{ color: "#EDEAE6", fontFamily: "'Space Grotesk', sans-serif" }}>Curva Precisión-Recall</h2>
           <PRCurveChart curves={curves} />
-          <p className="text-xs mt-3 leading-relaxed" style={{ color: "#64748B" }}>
+          <p className="text-xs mt-3 leading-relaxed" style={{ color: "#5A6478" }}>
             El GNN supera en{" "}
-            <span style={{ color: "#0A1F44", fontWeight: 600 }}>+{delta} PR-AUC</span>{" "}
+            <span style={{ color: "#7AA2FF", fontWeight: 600 }}>+{delta} PR-AUC</span>{" "}
             al mejor baseline tabular (XGBoost).
             Evaluación transductiva: {transductivePrAuc?.toFixed(3)} · Inductiva (cuentas nuevas): {inductivePrAuc?.toFixed(3)}.
           </p>
@@ -122,17 +121,16 @@ export default function OverviewPage() {
         <div
           className="lg:col-span-2 rounded-xl p-5"
           style={{
-            backgroundColor: "#FFFFFF",
-            border: "1px solid #E2E8F0",
-            boxShadow: "0 1px 3px rgba(0,0,0,0.06)",
+            backgroundColor: "#0E1219",
+            border: "1px solid #1E2430",
           }}
         >
-          <p className="text-[11px] font-bold uppercase tracking-widest mb-1" style={{ color: "#64748B" }}>
+          <p className="text-[11px] font-bold uppercase tracking-widest mb-1" style={{ color: "#5A6478", fontFamily: "'JetBrains Mono', monospace" }}>
             Separabilidad
           </p>
-          <h2 className="text-sm font-semibold mb-4" style={{ color: "#0F172A" }}>Distribución de Scores GNN</h2>
+          <h2 className="text-sm font-semibold mb-4" style={{ color: "#EDEAE6", fontFamily: "'Space Grotesk', sans-serif" }}>Distribución de Scores GNN</h2>
           <ScoreDistChart dist={dist} />
-          <p className="text-xs mt-3 leading-relaxed" style={{ color: "#64748B" }}>
+          <p className="text-xs mt-3 leading-relaxed" style={{ color: "#5A6478" }}>
             Separación casi perfecta: legítimas → 0, fraude → 1.
           </p>
         </div>
@@ -140,18 +138,17 @@ export default function OverviewPage() {
 
       {/* Insights */}
       <div>
-        <p className="text-[11px] font-bold uppercase tracking-widest mb-3" style={{ color: "#64748B" }}>
+        <p className="text-[11px] font-bold uppercase tracking-widest mb-3" style={{ color: "#5A6478", fontFamily: "'JetBrains Mono', monospace" }}>
           Hallazgos clave
         </p>
         <div className="grid md:grid-cols-3 gap-3">
           {insights.map(ins => (
             <div
               key={ins.tag}
-              className="rounded-xl p-5 space-y-2 transition-shadow hover:shadow-md"
+              className="rounded-xl p-5 space-y-2 transition-colors"
               style={{
-                backgroundColor: "#FFFFFF",
-                border: "1px solid #E2E8F0",
-                boxShadow: "0 1px 3px rgba(0,0,0,0.06)",
+                backgroundColor: "#0E1219",
+                border: "1px solid #1E2430",
               }}
             >
               <div className="flex items-center gap-2">
@@ -162,7 +159,7 @@ export default function OverviewPage() {
                   {ins.tag}
                 </span>
               </div>
-              <p className="text-sm leading-relaxed" style={{ color: "#64748B" }}>{ins.text}</p>
+              <p className="text-sm leading-relaxed" style={{ color: "#5A6478" }}>{ins.text}</p>
             </div>
           ))}
         </div>

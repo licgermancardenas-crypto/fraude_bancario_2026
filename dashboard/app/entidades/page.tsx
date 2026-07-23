@@ -6,7 +6,7 @@ import PageHeader from "@/components/PageHeader";
 const COLORS = {
   cuenta_fraud: "#EF4444",
   cuenta_pep:   "#F59E0B",
-  cuenta_legit: "#64748B",
+  cuenta_legit: "#5A6478",
   empresa_shell:"#DC2626",
   empresa:      "#7C3AED",
 };
@@ -64,8 +64,8 @@ export default function EntidadesPage() {
               "label": "data(label)",
               "font-size": 9,
               "text-valign": "bottom", "text-margin-y": 4,
-              "color": "#374151",
-              "background-color": "#64748B",
+              "color": "#5A6478",
+              "background-color": "#5A6478",
               "border-width": 0,
             }
           },
@@ -87,14 +87,14 @@ export default function EntidadesPage() {
           },
           {
             selector: "node:selected",
-            style: { "border-width": 3, "border-color": "#C9A227" }
+            style: { "border-width": 3, "border-color": "#2E6BFF" }
           },
           {
             selector: "edge",
             style: {
               "width": 1.5,
-              "line-color": "#CBD5E1",
-              "target-arrow-color": "#CBD5E1",
+              "line-color": "#3A4356",
+              "target-arrow-color": "#3A4356",
               "target-arrow-shape": "triangle",
               "curve-style": "bezier",
               "opacity": 0.7,
@@ -146,15 +146,15 @@ export default function EntidadesPage() {
       {stats && (
         <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
           {[
-            { label: "Cuentas", value: stats.cuentas, color: "#0A1F44" },
+            { label: "Cuentas", value: stats.cuentas, color: "#7AA2FF" },
             { label: "Empresas", value: stats.empresas, color: "#7C3AED" },
             { label: "Shells", value: stats.shells, color: "#DC2626" },
             { label: "PEPs", value: stats.peps, color: "#F59E0B" },
             { label: "Alto riesgo", value: stats.fraud, color: "#EF4444" },
           ].map(s => (
-            <div key={s.label} className="bg-white rounded-xl p-3 border border-slate-100 text-center">
+            <div key={s.label} className="bg-[#0E1219] rounded-xl p-3 border border-[#1E2430] text-center">
               <p className="text-2xl font-bold" style={{ color: s.color }}>{s.value}</p>
-              <p className="text-xs text-slate-500 mt-0.5">{s.label}</p>
+              <p className="text-xs text-[#5A6478] mt-0.5">{s.label}</p>
             </div>
           ))}
         </div>
@@ -162,34 +162,34 @@ export default function EntidadesPage() {
 
       <div className="flex gap-4 flex-col lg:flex-row">
         {/* Graph */}
-        <div className="flex-1 bg-white rounded-xl border border-slate-100 overflow-hidden" style={{ minHeight: 520 }}>
+        <div className="flex-1 bg-[#0E1219] rounded-xl border border-[#1E2430] overflow-hidden" style={{ minHeight: 520 }}>
           {/* Toolbar */}
-          <div className="flex flex-wrap gap-2 p-3 border-b border-slate-100 items-center">
-            <span className="text-xs font-semibold text-slate-500 mr-1">Filtrar:</span>
+          <div className="flex flex-wrap gap-2 p-3 border-b border-[#1E2430] items-center">
+            <span className="text-xs font-semibold text-[#5A6478] mr-1">Filtrar:</span>
             {(["all", "cuenta", "empresa"] as FilterType[]).map(f => (
               <button
                 key={f}
                 onClick={() => setFilter(f)}
                 className="px-2.5 py-1 rounded-full text-xs font-medium transition-colors"
                 style={{
-                  backgroundColor: filter === f ? "#0A1F44" : "#F1F5F9",
-                  color: filter === f ? "#fff" : "#64748B",
+                  backgroundColor: filter === f ? "#2E6BFF" : "#1E2430",
+                  color: filter === f ? "#fff" : "#5A6478",
                 }}
               >
                 {f === "all" ? "Todos" : f === "cuenta" ? "Cuentas" : "Empresas"}
               </button>
             ))}
-            <div className="h-4 w-px bg-slate-200 mx-1" />
-            <label className="flex items-center gap-1.5 text-xs text-slate-600 cursor-pointer">
+            <div className="h-4 w-px bg-[#1E2430] mx-1" />
+            <label className="flex items-center gap-1.5 text-xs text-[#5A6478] cursor-pointer">
               <input type="checkbox" checked={showShell} onChange={e => setShowShell(e.target.checked)} className="rounded" />
               Solo shells
             </label>
-            <label className="flex items-center gap-1.5 text-xs text-slate-600 cursor-pointer">
+            <label className="flex items-center gap-1.5 text-xs text-[#5A6478] cursor-pointer">
               <input type="checkbox" checked={showPep} onChange={e => setShowPep(e.target.checked)} className="rounded" />
               Solo PEPs
             </label>
             {/* Legend */}
-            <div className="ml-auto flex items-center gap-3 text-[10px] text-slate-500">
+            <div className="ml-auto flex items-center gap-3 text-[10px] text-[#5A6478]">
               <span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-full inline-block" style={{background:COLORS.cuenta_fraud}}/>Fraude</span>
               <span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-full inline-block" style={{background:COLORS.cuenta_pep}}/>PEP</span>
               <span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-sm inline-block" style={{background:COLORS.empresa_shell}}/>Shell</span>
@@ -197,7 +197,7 @@ export default function EntidadesPage() {
             </div>
           </div>
           {!graph ? (
-            <div className="flex items-center justify-center h-96 text-slate-400 text-sm">Cargando red…</div>
+            <div className="flex items-center justify-center h-96 text-[#5A6478] text-sm">Cargando red…</div>
           ) : (
             <div ref={cyRef} style={{ width: "100%", height: 480 }} />
           )}
@@ -205,21 +205,21 @@ export default function EntidadesPage() {
 
         {/* Detail panel */}
         {selected && (
-          <div className="w-full lg:w-72 bg-white rounded-xl border border-slate-100 p-4 space-y-4 self-start">
+          <div className="w-full lg:w-72 bg-[#0E1219] rounded-xl border border-[#1E2430] p-4 space-y-4 self-start">
             <div className="flex items-center justify-between">
-              <span className="text-xs font-bold uppercase tracking-widest text-slate-400">
+              <span className="text-xs font-bold uppercase tracking-widest text-[#5A6478]">
                 {selected.type === "empresa" ? "Empresa" : "Cuenta"}
               </span>
               <button
                 onClick={() => setSelected(null)}
                 aria-label="Cerrar panel de detalle"
-                className="w-11 h-11 -m-2 flex items-center justify-center text-slate-400 hover:text-slate-600 text-lg leading-none"
+                className="w-11 h-11 -m-2 flex items-center justify-center text-[#5A6478] hover:text-[#5A6478] text-lg leading-none"
               >×</button>
             </div>
 
             <div>
-              <p className="font-semibold text-slate-800 text-sm leading-snug">{selected.label}</p>
-              <p className="text-xs text-slate-500 mt-0.5">{selected.id}</p>
+              <p className="font-semibold text-[#EDEAE6] text-sm leading-snug">{selected.label}</p>
+              <p className="text-xs text-[#5A6478] mt-0.5">{selected.id}</p>
             </div>
 
             {selected.type === "cuenta" && (
@@ -260,8 +260,8 @@ export default function EntidadesPage() {
 function Row({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <div className="flex justify-between gap-2">
-      <span className="text-slate-500 shrink-0">{label}</span>
-      <span className="text-slate-800 font-medium text-right">{children}</span>
+      <span className="text-[#5A6478] shrink-0">{label}</span>
+      <span className="text-[#EDEAE6] font-medium text-right">{children}</span>
     </div>
   );
 }

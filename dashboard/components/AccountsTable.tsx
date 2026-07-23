@@ -5,8 +5,8 @@ import type { Account } from "@/lib/types";
 interface Props { accounts: Account[] }
 
 function ScoreBar({ score }: { score: number }) {
-  const color = score > 0.7 ? "#DC2626" : score > 0.3 ? "#D97706" : "#16A34A";
-  const bg    = score > 0.7 ? "#FEE2E2" : score > 0.3 ? "#FEF3C7" : "#DCFCE7";
+  const color = score > 0.7 ? "#EF4444" : score > 0.3 ? "#D97706" : "#22C55E";
+  const bg    = score > 0.7 ? "rgba(239,68,68,0.15)" : score > 0.3 ? "rgba(217,119,6,0.15)" : "rgba(34,197,94,0.15)";
   return (
     <div className="flex items-center gap-2 min-w-[110px]">
       <div className="flex-1 h-1.5 rounded-full overflow-hidden" style={{ backgroundColor: bg }}>
@@ -20,15 +20,15 @@ function ScoreBar({ score }: { score: number }) {
 }
 
 function AfipBadge({ cond, cat }: { cond?: string; cat?: string | null }) {
-  if (!cond) return <span className="text-xs" style={{ color: "#64748B" }}>—</span>;
+  if (!cond) return <span className="text-xs" style={{ color: "#5A6478" }}>—</span>;
   const map: Record<string, { bg: string; color: string; short: string }> = {
-    "Monotributista":          { bg: "#EAEDF5", color: "#0A1F44", short: cat ? `Mono ${cat}` : "Mono" },
-    "Responsable Inscripto":   { bg: "#F0FDF4", color: "#16A34A", short: "RI" },
-    "Relación de dependencia": { bg: "#F8FAFC", color: "#64748B", short: "RD" },
-    "No inscripto":            { bg: "#FEF3C7", color: "#D97706", short: "No inscr." },
-    "Exento":                  { bg: "#F5F3FF", color: "#7C3AED", short: "Exento" },
+    "Monotributista":          { bg: "rgba(46,107,255,0.15)", color: "#7AA2FF", short: cat ? `Mono ${cat}` : "Mono" },
+    "Responsable Inscripto":   { bg: "rgba(34,197,94,0.15)", color: "#22C55E", short: "RI" },
+    "Relación de dependencia": { bg: "rgba(90,100,120,0.15)", color: "#8A93A6", short: "RD" },
+    "No inscripto":            { bg: "rgba(217,119,6,0.15)", color: "#D97706", short: "No inscr." },
+    "Exento":                  { bg: "rgba(124,58,237,0.15)", color: "#A78BFA", short: "Exento" },
   };
-  const style = map[cond] ?? { bg: "#F1F5F9", color: "#64748B", short: cond.slice(0, 6) };
+  const style = map[cond] ?? { bg: "rgba(90,100,120,0.15)", color: "#5A6478", short: cond.slice(0, 6) };
   return (
     <span className="inline-block px-2 py-0.5 rounded text-[11px] font-semibold whitespace-nowrap"
           style={{ backgroundColor: style.bg, color: style.color }}>
@@ -94,7 +94,7 @@ export default function AccountsTable({ accounts }: Props) {
           type="button"
           onClick={() => toggleSort(k)}
           className="cursor-pointer select-none bg-transparent p-0"
-          style={{ color: active ? "#0A1F44" : "#64748B" }}
+          style={{ color: active ? "#7AA2FF" : "#5A6478" }}
         >
           {label}{active ? (sortDir === "desc" ? " ↓" : " ↑") : ""}
         </button>
@@ -112,25 +112,25 @@ export default function AccountsTable({ accounts }: Props) {
           value={search}
           onChange={e => { setSearch(e.target.value); setPage(0); }}
           className="flex-1 rounded-lg px-4 py-2.5 min-h-[44px] text-sm outline-none"
-          style={{ backgroundColor: "#F8FAFC", border: "1px solid #E2E8F0", color: "#0F172A" }}
-          onFocus={e => (e.target.style.borderColor = "#0A1F44")}
-          onBlur={e  => (e.target.style.borderColor = "#E2E8F0")}
+          style={{ backgroundColor: "#0E1219", border: "1px solid #1E2430", color: "#EDEAE6" }}
+          onFocus={e => (e.target.style.borderColor = "#2E6BFF")}
+          onBlur={e  => (e.target.style.borderColor = "#1E2430")}
         />
-        <label className="flex items-center gap-2 text-sm cursor-pointer whitespace-nowrap min-h-[44px] px-1" style={{ color: "#64748B" }}>
+        <label className="flex items-center gap-2 text-sm cursor-pointer whitespace-nowrap min-h-[44px] px-1" style={{ color: "#5A6478" }}>
           <input type="checkbox" checked={filterFraud}
                  onChange={e => { setFilterFraud(e.target.checked); setPage(0); }}
-                 className="accent-navy" />
+                 className="accent-[#2E6BFF]" />
           Solo fraude
         </label>
-        <span className="text-xs whitespace-nowrap" style={{ color: "#64748B" }}>{sorted.length} cuentas</span>
+        <span className="text-xs whitespace-nowrap" style={{ color: "#5A6478" }}>{sorted.length} cuentas</span>
       </div>
 
       {/* table */}
-      <div className="rounded-xl overflow-x-auto" style={{ border: "1px solid #E2E8F0", boxShadow: "0 1px 3px rgba(0,0,0,0.06)" }}>
-        <table className="w-full text-sm" style={{ backgroundColor: "#FFFFFF" }}>
+      <div className="rounded-xl overflow-x-auto" style={{ border: "1px solid #1E2430" }}>
+        <table className="w-full text-sm" style={{ backgroundColor: "#0E1219" }}>
           <thead>
-            <tr style={{ backgroundColor: "#F8FAFC", borderBottom: "1px solid #E2E8F0" }}>
-              <th className="px-4 py-3 text-left text-[11px] font-bold uppercase tracking-widest w-8" style={{ color: "#64748B" }}>#</th>
+            <tr style={{ backgroundColor: "#12161F", borderBottom: "1px solid #1E2430" }}>
+              <th className="px-4 py-3 text-left text-[11px] font-bold uppercase tracking-widest w-8" style={{ color: "#5A6478" }}>#</th>
               <Th k="nombre_completo" label="Titular" />
               <Th k="gnn_score"       label="Score GNN" />
               <Th k="is_fraud"        label="Fraude" />
@@ -138,7 +138,7 @@ export default function AccountsTable({ accounts }: Props) {
               <Th k="balance"         label="Balance" />
               <Th k="degree_in"       label="Grado" />
               <Th k="total_sent"      label="Enviado" />
-              <th className="px-4 py-3 text-left text-[11px] font-bold uppercase tracking-widest" style={{ color: "#64748B" }}>Anillo</th>
+              <th className="px-4 py-3 text-left text-[11px] font-bold uppercase tracking-widest" style={{ color: "#5A6478" }}>Anillo</th>
             </tr>
           </thead>
           <tbody>
@@ -150,32 +150,32 @@ export default function AccountsTable({ accounts }: Props) {
                   key={a.account_id}
                   className="transition-colors"
                   style={{
-                    borderTop: "1px solid #F1F5F9",
-                    borderLeft: isFraud ? "3px solid #DC2626" : "3px solid transparent",
+                    borderTop: "1px solid #1E2430",
+                    borderLeft: isFraud ? "3px solid #EF4444" : "3px solid transparent",
                   }}
-                  onMouseEnter={e => (e.currentTarget.style.backgroundColor = "#F8FAFC")}
+                  onMouseEnter={e => (e.currentTarget.style.backgroundColor = "#12161F")}
                   onMouseLeave={e => (e.currentTarget.style.backgroundColor = "transparent")}
                 >
-                  <td className="px-4 py-3 text-xs font-mono" style={{ color: "#64748B" }}>{rank}</td>
+                  <td className="px-4 py-3 text-xs font-mono" style={{ color: "#5A6478" }}>{rank}</td>
 
                   {/* Titular — nombre + DNI + ocupacion/ciudad */}
                   <td className="px-4 py-3 min-w-[200px]">
                     {a.nombre_completo ? (
                       <div>
-                        <p className="text-sm font-semibold leading-tight" style={{ color: "#0F172A" }}>
+                        <p className="text-sm font-semibold leading-tight" style={{ color: "#EDEAE6" }}>
                           {a.nombre_completo}
                         </p>
-                        <p className="text-[11px] font-mono leading-tight mt-0.5" style={{ color: "#64748B" }}>
+                        <p className="text-[11px] font-mono leading-tight mt-0.5" style={{ color: "#5A6478" }}>
                           DNI {a.dni?.toLocaleString("es-AR")} · {a.account_id}
                         </p>
                         {a.ocupacion && (
-                          <p className="text-[11px] leading-tight mt-0.5" style={{ color: "#64748B" }}>
+                          <p className="text-[11px] leading-tight mt-0.5" style={{ color: "#5A6478" }}>
                             {a.ocupacion} · {a.municipio}
                           </p>
                         )}
                       </div>
                     ) : (
-                      <span className="font-mono text-xs" style={{ color: "#0F172A" }}>{a.account_id}</span>
+                      <span className="font-mono text-xs" style={{ color: "#EDEAE6" }}>{a.account_id}</span>
                     )}
                   </td>
 
@@ -184,32 +184,32 @@ export default function AccountsTable({ accounts }: Props) {
                   <td className="px-4 py-3">
                     {isFraud
                       ? <span className="inline-flex items-center gap-1 text-xs font-bold px-2 py-0.5 rounded-full"
-                               style={{ backgroundColor: "#FEE2E2", color: "#DC2626" }}>● Sí</span>
-                      : <span className="text-xs" style={{ color: "#64748B" }}>—</span>}
+                               style={{ backgroundColor: "rgba(239,68,68,0.15)", color: "#EF4444" }}>● Sí</span>
+                      : <span className="text-xs" style={{ color: "#5A6478" }}>—</span>}
                   </td>
 
                   <td className="px-4 py-3">
                     <AfipBadge cond={a.condicion_afip} cat={a.categoria_mono} />
                   </td>
 
-                  <td className="px-4 py-3 font-mono text-xs" style={{ color: "#0F172A" }}>
+                  <td className="px-4 py-3 font-mono text-xs" style={{ color: "#EDEAE6" }}>
                     ${a.balance.toLocaleString("es-AR", { maximumFractionDigits: 0 })}
                   </td>
 
-                  <td className="px-4 py-3 text-center text-xs" style={{ color: "#64748B" }}>
+                  <td className="px-4 py-3 text-center text-xs" style={{ color: "#5A6478" }}>
                     <span title="Grado de entrada">{a.degree_in}</span>
-                    <span style={{ color: "#CBD5E1" }}>/</span>
+                    <span style={{ color: "#3A4356" }}>/</span>
                     <span title="Grado de salida">{a.degree_out}</span>
                   </td>
 
-                  <td className="px-4 py-3 font-mono text-xs" style={{ color: "#64748B" }}>
+                  <td className="px-4 py-3 font-mono text-xs" style={{ color: "#5A6478" }}>
                     ${a.total_sent.toLocaleString("es-AR", { maximumFractionDigits: 0 })}
                   </td>
 
                   <td className="px-4 py-3">
                     {a.in_ring
-                      ? <span className="text-xs font-bold" style={{ color: "#0A1F44" }}>Sí</span>
-                      : <span className="text-xs" style={{ color: "#64748B" }}>—</span>}
+                      ? <span className="text-xs font-bold" style={{ color: "#7AA2FF" }}>Sí</span>
+                      : <span className="text-xs" style={{ color: "#5A6478" }}>—</span>}
                   </td>
                 </tr>
               );
@@ -220,12 +220,12 @@ export default function AccountsTable({ accounts }: Props) {
 
       {/* pagination */}
       {totalPages > 1 && (
-        <div className="flex items-center justify-between text-xs" style={{ color: "#64748B" }}>
+        <div className="flex items-center justify-between text-xs" style={{ color: "#5A6478" }}>
           <button
             onClick={() => setPage(p => Math.max(0, p - 1))}
             disabled={page === 0}
             className="px-4 min-h-[44px] rounded-lg transition-colors disabled:opacity-30"
-            style={{ border: "1px solid #E2E8F0", backgroundColor: "#FFFFFF" }}
+            style={{ border: "1px solid #1E2430", backgroundColor: "#12161F", color: "#EDEAE6" }}
           >
             ← Anterior
           </button>
@@ -234,7 +234,7 @@ export default function AccountsTable({ accounts }: Props) {
             onClick={() => setPage(p => Math.min(totalPages - 1, p + 1))}
             disabled={page === totalPages - 1}
             className="px-4 min-h-[44px] rounded-lg transition-colors disabled:opacity-30"
-            style={{ border: "1px solid #E2E8F0", backgroundColor: "#FFFFFF" }}
+            style={{ border: "1px solid #1E2430", backgroundColor: "#12161F", color: "#EDEAE6" }}
           >
             Siguiente →
           </button>

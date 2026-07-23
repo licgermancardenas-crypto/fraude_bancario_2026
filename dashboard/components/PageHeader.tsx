@@ -11,23 +11,26 @@ export default function PageHeader({ eyebrow, title, description, subtitle }: Pa
     <div
       className="rounded-2xl px-7 py-6 mb-6"
       style={{
-        background: "linear-gradient(135deg, #0A1F44 0%, #122855 100%)",
-        boxShadow: "0 4px 24px rgba(10,31,68,0.25)",
+        background: "linear-gradient(135deg, #0A1226 0%, #07090F 100%)",
+        border: "1px solid #1E2430",
       }}
     >
       {eyebrow && (
         <p
           className="text-[11px] font-bold uppercase tracking-widest mb-1.5"
-          style={{ color: "#E0B840" }}
+          style={{ color: "#7AA2FF", fontFamily: "'JetBrains Mono', monospace" }}
         >
           {eyebrow}
         </p>
       )}
-      <h1 className="text-2xl font-bold tracking-tight" style={{ color: "#FFFFFF" }}>
+      <h1
+        className="text-2xl font-semibold tracking-tight"
+        style={{ color: "#EDEAE6", fontFamily: "'Space Grotesk', sans-serif" }}
+      >
         {title}
       </h1>
       {body && (
-        <p className="mt-1.5 text-sm max-w-2xl leading-relaxed" style={{ color: "#CBD5E1" }}>
+        <p className="mt-1.5 text-sm max-w-2xl leading-relaxed" style={{ color: "rgba(237,234,230,0.7)" }}>
           {body}
         </p>
       )}

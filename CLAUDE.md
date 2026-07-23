@@ -21,7 +21,7 @@ Entregables finales: dashboard en Vercel + informe PDF institucional.
   (fraude ≈ 1-3% de los nodos; el desbalance domina todo)
 - Seed=42 en todo. Splits guardados en data/processed/ y compartidos
   entre baselines y GNN (comparación justa)
-- Estética de entregables: paleta navy (#0A1F44) y gold (#C9A227), marca personal GC
+- Estética dashboard: rebrand "Phantom AI" — paleta dark (void #07090F, panel #12161F, line #1E2430, bone #EDEAE6, pulse #2E6BFF/#7AA2FF), tipografía Inter+Space Grotesk+JetBrains Mono. PDF institucional sigue en navy (#0A1F44) y gold (#C9A227), marca personal GC — paletas distintas, no confundir.
 
 ## Skills disponibles (.claude/skills/)
 - eda-grafo: análisis exploratorio estándar de grafos transaccionales

@@ -106,13 +106,13 @@ export default function SARPage() {
   const handlePrint = () => window.print();
 
   if (!draft) return (
-    <div className="flex items-center justify-center h-64 text-slate-400">Generando borrador…</div>
+    <div className="flex items-center justify-center h-64 text-[#5A6478]">Generando borrador…</div>
   );
 
   const estadoColors = {
-    borrador: { bg: "#FFF7ED", text: "#EA580C" },
-    revision: { bg: "#EAEDF5", text: "#0A1F44" },
-    enviado:  { bg: "#F0FDF4", text: "#16A34A" },
+    borrador: { bg: "rgba(245,158,11,0.15)", text: "#F59E0B" },
+    revision: { bg: "rgba(46,107,255,0.15)", text: "#7AA2FF" },
+    enviado:  { bg: "rgba(34,197,94,0.15)",  text: "#22C55E" },
   };
   const ec = estadoColors[draft.estado_sar];
 
@@ -120,35 +120,35 @@ export default function SARPage() {
     <div className="space-y-5 max-w-4xl mx-auto print:max-w-none">
       {/* Header — hidden on print */}
       <div className="flex items-center justify-between print:hidden">
-        <div className="flex items-center gap-2 text-sm text-slate-500">
-          <Link href="/casos" className="hover:text-slate-800">Casos</Link>
+        <div className="flex items-center gap-2 text-sm text-[#5A6478]">
+          <Link href="/casos" className="hover:text-[#EDEAE6]">Casos</Link>
           <span>/</span>
-          <Link href={`/casos/${caseId}`} className="hover:text-slate-800">{caseId}</Link>
+          <Link href={`/casos/${caseId}`} className="hover:text-[#EDEAE6]">{caseId}</Link>
           <span>/</span>
-          <span className="text-slate-800 font-medium">Borrador SAR</span>
+          <span className="text-[#EDEAE6] font-medium">Borrador SAR</span>
         </div>
         <div className="flex gap-2">
           <button onClick={handleSave}
-                  className="px-3 min-h-[44px] text-xs font-medium rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-50 transition-colors">
+                  className="px-3 min-h-[44px] text-xs font-medium rounded-lg border border-[#1E2430] text-[#5A6478] hover:bg-[#12161F] transition-colors">
             {saved ? "✓ Guardado" : "Guardar borrador"}
           </button>
           <button
             onClick={() => { if(draft) { const d={...draft,estado_sar:"revision" as const}; setDraft(d); saveStoredSAR(caseId,d); }}}
-            className="px-3 min-h-[44px] text-xs font-medium rounded-lg border border-navy-50 text-navy bg-navy-50 hover:bg-[#DDE2EF] transition-colors">
+            className="px-3 min-h-[44px] text-xs font-medium rounded-lg border border-[#2E6BFF]/40 text-[#7AA2FF] bg-[#2E6BFF]/10 hover:bg-[#2E6BFF]/20 transition-colors">
             Enviar a revisión
           </button>
           <button onClick={handlePrint}
                   className="px-3 min-h-[44px] text-xs font-medium rounded-lg text-white transition-colors"
-                  style={{ backgroundColor: "#0A1F44" }}>
+                  style={{ backgroundColor: "#2E6BFF" }}>
             Imprimir / PDF
           </button>
         </div>
       </div>
 
       {/* SAR Document */}
-      <div ref={printRef} className="bg-white rounded-xl border border-slate-200 overflow-hidden print:rounded-none print:border-none">
+      <div ref={printRef} className="bg-[#0E1219] rounded-xl border border-[#1E2430] overflow-hidden print:rounded-none print:border-none">
         {/* Document header */}
-        <div className="p-6 border-b border-slate-100 print:border-slate-300" style={{ backgroundColor: "#0A1F44" }}>
+        <div className="p-6 border-b border-[#1E2430] print:border-[#1E2430]" style={{ backgroundColor: "#0A1226" }}>
           <div className="flex items-center justify-between">
             <div>
               <p className="text-white/60 text-xs uppercase tracking-widest">Phantom AI · Compliance</p>
@@ -192,10 +192,10 @@ export default function SARPage() {
               <Field label="Tipo de persona" value={draft.reportado_tipo}
                      onChange={v => update("reportado_tipo", v)} />
               <div>
-                <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider block mb-1.5">
+                <label className="text-xs font-semibold text-[#5A6478] uppercase tracking-wider block mb-1.5">
                   Cuentas involucradas
                 </label>
-                <p className="text-sm font-mono text-slate-700 bg-slate-50 rounded-lg px-3 py-2 leading-relaxed">
+                <p className="text-sm font-mono text-[#EDEAE6] bg-[#12161F] rounded-lg px-3 py-2 leading-relaxed">
                   {draft.cuentas_involucradas.join(" · ")}
                 </p>
               </div>
@@ -213,10 +213,10 @@ export default function SARPage() {
                      onChange={v => update("fecha_hasta", v)} />
             </div>
             <div className="mt-4">
-              <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider block mb-1.5">
+              <label className="text-xs font-semibold text-[#5A6478] uppercase tracking-wider block mb-1.5">
                 Patrón tipificado
               </label>
-              <p className="text-sm text-slate-700 bg-slate-50 rounded-lg px-3 py-2 leading-relaxed">
+              <p className="text-sm text-[#EDEAE6] bg-[#12161F] rounded-lg px-3 py-2 leading-relaxed">
                 {draft.patron_detectado}
               </p>
             </div>
@@ -228,17 +228,17 @@ export default function SARPage() {
               value={draft.descripcion}
               onChange={e => update("descripcion", e.target.value)}
               rows={10}
-              className="w-full text-sm text-slate-700 bg-slate-50 rounded-lg px-3 py-2.5 border border-slate-200 outline-none focus:ring-2 focus:ring-[#C7CFE2] leading-relaxed resize-none print:border-none print:bg-white"
+              className="w-full text-sm text-[#EDEAE6] bg-[#12161F] rounded-lg px-3 py-2.5 border border-[#1E2430] outline-none focus:ring-2 focus:ring-[#2E6BFF] leading-relaxed resize-none print:border-none print:bg-[#0E1219]"
             />
           </Section>
 
           {/* Footer */}
-          <div className="border-t border-slate-100 pt-4 flex justify-between items-end text-xs text-slate-400">
+          <div className="border-t border-[#1E2430] pt-4 flex justify-between items-end text-xs text-[#5A6478]">
             <div>
-              <p>Generado por: <span className="font-semibold text-slate-600">Phantom AI — Motor de detección GNN</span></p>
+              <p>Generado por: <span className="font-semibold text-[#5A6478]">Phantom AI — Motor de detección GNN</span></p>
               <p className="mt-0.5">Datos 100% sintéticos — engagement simulado Banco Regional del Sur (BRS)</p>
             </div>
-            <p>Score modelo: <span className="font-mono font-bold text-slate-600">{draft.case_id}</span></p>
+            <p>Score modelo: <span className="font-mono font-bold text-[#5A6478]">{draft.case_id}</span></p>
           </div>
         </div>
       </div>
@@ -258,7 +258,7 @@ export default function SARPage() {
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
     <div className="space-y-3">
-      <h3 className="text-sm font-bold text-slate-700 border-b border-slate-100 pb-2">{title}</h3>
+      <h3 className="text-sm font-bold text-[#EDEAE6] border-b border-[#1E2430] pb-2">{title}</h3>
       {children}
     </div>
   );
@@ -267,12 +267,12 @@ function Section({ title, children }: { title: string; children: React.ReactNode
 function Field({ label, value, onChange }: { label: string; value: string; onChange: (v: string) => void }) {
   return (
     <div>
-      <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider block mb-1.5">{label}</label>
+      <label className="text-xs font-semibold text-[#5A6478] uppercase tracking-wider block mb-1.5">{label}</label>
       <input
         type="text"
         value={value}
         onChange={e => onChange(e.target.value)}
-        className="w-full text-sm text-slate-700 bg-slate-50 rounded-lg px-3 py-2 border border-slate-200 outline-none focus:ring-2 focus:ring-[#C7CFE2] print:border-none print:bg-white"
+        className="w-full text-sm text-[#EDEAE6] bg-[#12161F] rounded-lg px-3 py-2 border border-[#1E2430] outline-none focus:ring-2 focus:ring-[#2E6BFF] print:border-none print:bg-[#0E1219]"
       />
     </div>
   );

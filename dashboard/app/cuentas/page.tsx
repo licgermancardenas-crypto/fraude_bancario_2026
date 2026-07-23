@@ -19,9 +19,8 @@ export default function CuentasPage() {
       <div
         className="rounded-xl p-5"
         style={{
-          backgroundColor: "#FFFFFF",
-          border: "1px solid #E2E8F0",
-          boxShadow: "0 1px 3px rgba(0,0,0,0.06)",
+          backgroundColor: "#12161F",
+          border: "1px solid #1E2430",
         }}
       >
         <AccountsTable accounts={accounts} />
@@ -29,10 +28,10 @@ export default function CuentasPage() {
 
       <div
         className="rounded-xl px-5 py-4 text-xs leading-relaxed"
-        style={{ backgroundColor: "#EAEDF5", border: "1px solid #C7CFE2" }}
+        style={{ backgroundColor: "rgba(46,107,255,0.08)", border: "1px solid rgba(46,107,255,0.25)" }}
       >
-        <span className="font-semibold" style={{ color: "#0A1F44" }}>Nota operativa — </span>
-        <span style={{ color: "#122855" }}>
+        <span className="font-semibold" style={{ color: "#7AA2FF" }}>Nota operativa — </span>
+        <span style={{ color: "rgba(237,234,230,0.75)" }}>
           En producción esta tabla es la cola de trabajo del equipo de compliance de BRS.
           Los analistas revisan en orden descendente con una meta de 90% de precisión
           (9 de cada 10 revisiones deben confirmar fraude).

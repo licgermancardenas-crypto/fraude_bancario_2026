@@ -14,11 +14,11 @@ const STATUS_LABELS: Record<CaseStatus, string> = {
   sar_enviado:  "SAR enviado",
 };
 const STATUS_COLORS: Record<CaseStatus, { bg: string; text: string; border: string }> = {
-  abierto:     { bg: "#EAEDF5", text: "#0A1F44", border: "#C7CFE2" },
-  en_revision: { bg: "#FFF7ED", text: "#EA580C", border: "#FED7AA" },
-  escalado:    { bg: "#FEF2F2", text: "#DC2626", border: "#FECACA" },
-  desestimado: { bg: "#F8FAFC", text: "#64748B", border: "#E2E8F0" },
-  sar_enviado: { bg: "#F0FDF4", text: "#16A34A", border: "#BBF7D0" },
+  abierto:     { bg: "rgba(46,107,255,0.15)", text: "#7AA2FF", border: "rgba(46,107,255,0.3)" },
+  en_revision: { bg: "rgba(245,158,11,0.15)", text: "#F59E0B", border: "rgba(245,158,11,0.3)" },
+  escalado:    { bg: "rgba(239,68,68,0.15)",  text: "#EF4444", border: "rgba(239,68,68,0.3)" },
+  desestimado: { bg: "rgba(90,100,120,0.15)", text: "#8A93A6", border: "#1E2430" },
+  sar_enviado: { bg: "rgba(34,197,94,0.15)",  text: "#22C55E", border: "rgba(34,197,94,0.3)" },
 };
 const PATTERN_DESC: Record<string, string> = {
   anillo_lavado:           "El modelo detectó un ciclo de transferencias entre múltiples cuentas consistente con un anillo de lavado de activos (layering).",
@@ -110,18 +110,18 @@ export default function CaseDetailPage() {
           { selector: "node", style: {
             "width": 36, "height": 36, "label": "data(label)",
             "font-size": 10, "text-valign": "bottom", "text-margin-y": 4,
-            "color": "#374151", "background-color": "#64748B",
+            "color": "#5A6478", "background-color": "#5A6478",
           }},
           { selector: "node[isCenter=true]", style: {
-            "background-color": "#0A1F44", "border-width": 3, "border-color": "#C9A227",
+            "background-color": "#0A1226", "border-width": 3, "border-color": "#2E6BFF",
             "width": 48, "height": 48, "font-size": 11, "font-weight": "bold",
           }},
           { selector: "node[is_fraud=1]", style: { "background-color": "#EF4444" }},
           { selector: "edge", style: {
-            "width": 2, "line-color": "#94A3B8",
-            "target-arrow-color": "#94A3B8", "target-arrow-shape": "triangle",
+            "width": 2, "line-color": "#5A6478",
+            "target-arrow-color": "#5A6478", "target-arrow-shape": "triangle",
             "curve-style": "bezier",
-            "label": "data(amount)", "font-size": 8, "color": "#64748B",
+            "label": "data(amount)", "font-size": 8, "color": "#5A6478",
             "text-rotation": "autorotate",
           }},
         ],
@@ -151,7 +151,7 @@ export default function CaseDetailPage() {
 
   if (!caseData) {
     return (
-      <div className="flex items-center justify-center h-64 text-slate-400">Cargando caso…</div>
+      <div className="flex items-center justify-center h-64 text-[#5A6478]">Cargando caso…</div>
     );
   }
 
@@ -160,53 +160,53 @@ export default function CaseDetailPage() {
   return (
     <div className="space-y-5">
       {/* Breadcrumb */}
-      <div className="flex items-center gap-2 text-sm text-slate-500">
-        <Link href="/casos" className="hover:text-slate-800">Cola de alertas</Link>
+      <div className="flex items-center gap-2 text-sm text-[#5A6478]">
+        <Link href="/casos" className="hover:text-[#EDEAE6]">Cola de alertas</Link>
         <span>/</span>
-        <span className="text-slate-800 font-medium">{caseId}</span>
+        <span className="text-[#EDEAE6] font-medium">{caseId}</span>
       </div>
 
       {/* Header */}
-      <div className="bg-white rounded-xl border border-slate-100 p-5">
+      <div className="bg-[#0E1219] rounded-xl border border-[#1E2430] p-5">
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div>
             <div className="flex items-center gap-3 flex-wrap">
-              <h1 className="text-xl font-bold text-slate-800">{caseData.persona?.nombre_completo || caseData.account_id}</h1>
+              <h1 className="text-xl font-bold text-[#EDEAE6]">{caseData.persona?.nombre_completo || caseData.account_id}</h1>
               <span className="text-xs font-medium px-2.5 py-1 rounded-full border"
                     style={{ backgroundColor: sc.bg, color: sc.text, borderColor: sc.border }}>
                 {STATUS_LABELS[status]}
               </span>
               {caseData.is_pep && (
-                <span className="text-xs font-medium px-2.5 py-1 rounded-full" style={{background:"#FFF7ED",color:"#EA580C"}}>PEP</span>
+                <span className="text-xs font-medium px-2.5 py-1 rounded-full" style={{background:"rgba(245,158,11,0.15)",color:"#F59E0B"}}>PEP</span>
               )}
             </div>
-            <p className="text-sm text-slate-500 mt-1">{caseData.account_id} · Alerta {caseData.alert_date}</p>
+            <p className="text-sm text-[#5A6478] mt-1">{caseData.account_id} · Alerta {caseData.alert_date}</p>
           </div>
 
           {/* Action buttons */}
           <div className="flex gap-2 flex-wrap">
             {status === "abierto" && (
               <button onClick={() => handleStatusChange("en_revision")}
-                      className="px-3 min-h-[44px] text-xs font-medium rounded-lg border border-orange-200 text-orange-700 bg-orange-50 hover:bg-orange-100 transition-colors">
+                      className="px-3 min-h-[44px] text-xs font-medium rounded-lg border border-[#F59E0B]/40 text-[#F59E0B] bg-[#F59E0B]/10 hover:bg-[#F59E0B]/20 transition-colors">
                 Tomar caso
               </button>
             )}
             {(status === "abierto" || status === "en_revision") && (
               <>
                 <button onClick={() => handleStatusChange("desestimado")}
-                        className="px-3 min-h-[44px] text-xs font-medium rounded-lg border border-slate-200 text-slate-600 bg-slate-50 hover:bg-slate-100 transition-colors">
+                        className="px-3 min-h-[44px] text-xs font-medium rounded-lg border border-[#1E2430] text-[#5A6478] bg-[#12161F] hover:bg-[#12161F] transition-colors">
                   Desestimar
                 </button>
                 <Link href={`/casos/${caseId}/sar`}
                       onClick={() => handleStatusChange("escalado")}
-                      className="px-3 min-h-[44px] text-xs font-medium rounded-lg bg-red-600 text-white hover:bg-red-700 transition-colors">
+                      className="px-3 min-h-[44px] text-xs font-medium rounded-lg bg-[#EF4444] text-white hover:bg-[#DC2626] transition-colors">
                   Escalar → SAR
                 </Link>
               </>
             )}
             {status === "escalado" && (
               <Link href={`/casos/${caseId}/sar`}
-                    className="px-3 min-h-[44px] text-xs font-medium rounded-lg bg-red-600 text-white hover:bg-red-700 transition-colors">
+                    className="px-3 min-h-[44px] text-xs font-medium rounded-lg bg-[#EF4444] text-white hover:bg-[#DC2626] transition-colors">
                 Ver borrador SAR
               </Link>
             )}
@@ -215,26 +215,25 @@ export default function CaseDetailPage() {
 
         {/* Score bar */}
         <div className="mt-4 flex items-center gap-3">
-          <span className="text-xs text-slate-500 w-24">Score GNN</span>
-          <div className="flex-1 h-2 rounded-full bg-slate-100 overflow-hidden">
+          <span className="text-xs text-[#5A6478] w-24">Score GNN</span>
+          <div className="flex-1 h-2 rounded-full bg-[#12161F] overflow-hidden">
             <div className="h-full rounded-full transition-all" style={{
               width: `${caseData.gnn_score * 100}%`,
               backgroundColor: caseData.gnn_score > 0.7 ? "#EF4444" : caseData.gnn_score > 0.4 ? "#F59E0B" : "#22C55E"
             }}/>
           </div>
-          <span className="font-mono text-sm font-bold text-slate-800">{caseData.gnn_score.toFixed(4)}</span>
+          <span className="font-mono text-sm font-bold text-[#EDEAE6]">{caseData.gnn_score.toFixed(4)}</span>
         </div>
       </div>
 
       {/* Tabs */}
-      <div className="flex gap-1 bg-slate-100 p-1 rounded-xl w-fit">
+      <div className="flex gap-1 bg-[#12161F] p-1 rounded-xl w-fit">
         {(["resumen","grafo","transacciones","notas"] as const).map(tab => (
           <button key={tab} onClick={() => setActiveTab(tab)}
                   className="px-4 min-h-[44px] rounded-lg text-sm font-medium transition-colors capitalize"
                   style={{
-                    backgroundColor: activeTab === tab ? "#fff" : "transparent",
-                    color: activeTab === tab ? "#0A1F44" : "#64748B",
-                    boxShadow: activeTab === tab ? "0 1px 3px rgba(0,0,0,0.08)" : "none",
+                    backgroundColor: activeTab === tab ? "rgba(46,107,255,0.15)" : "transparent",
+                    color: activeTab === tab ? "#7AA2FF" : "#5A6478",
                   }}>
             {tab === "notas" ? `Notas (${notes.length})` : tab.charAt(0).toUpperCase() + tab.slice(1)}
           </button>
@@ -245,19 +244,19 @@ export default function CaseDetailPage() {
       {activeTab === "resumen" && (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
           {/* Pattern */}
-          <div className="bg-white rounded-xl border border-slate-100 p-4 space-y-3">
-            <h3 className="text-sm font-bold text-slate-700">Patrón detectado</h3>
+          <div className="bg-[#0E1219] rounded-xl border border-[#1E2430] p-4 space-y-3">
+            <h3 className="text-sm font-bold text-[#EDEAE6]">Patrón detectado</h3>
             <div className="flex items-center gap-2">
-              <span className="text-xs font-semibold px-2.5 py-1 rounded-full" style={{background:"#FEF2F2",color:"#DC2626"}}>
+              <span className="text-xs font-semibold px-2.5 py-1 rounded-full" style={{background:"rgba(239,68,68,0.15)",color:"#EF4444"}}>
                 {caseData.pattern.replace(/_/g, " ").replace(/\b\w/g, c => c.toUpperCase())}
               </span>
             </div>
-            <p className="text-sm text-slate-600 leading-relaxed">{PATTERN_DESC[caseData.pattern]}</p>
+            <p className="text-sm text-[#5A6478] leading-relaxed">{PATTERN_DESC[caseData.pattern]}</p>
           </div>
 
           {/* Entity info */}
-          <div className="bg-white rounded-xl border border-slate-100 p-4 space-y-3">
-            <h3 className="text-sm font-bold text-slate-700">Información del titular</h3>
+          <div className="bg-[#0E1219] rounded-xl border border-[#1E2430] p-4 space-y-3">
+            <h3 className="text-sm font-bold text-[#EDEAE6]">Información del titular</h3>
             <div className="space-y-2 text-sm">
               {[
                 { label: "CUIL",       val: caseData.persona?.cuil },
@@ -270,8 +269,8 @@ export default function CaseDetailPage() {
                 { label: "Tipo cuenta",val: caseData.account_type },
               ].filter(r => r.val).map(r => (
                 <div key={r.label} className="flex justify-between gap-2">
-                  <span className="text-slate-500">{r.label}</span>
-                  <span className="text-slate-800 font-medium text-right">{r.val}</span>
+                  <span className="text-[#5A6478]">{r.label}</span>
+                  <span className="text-[#EDEAE6] font-medium text-right">{r.val}</span>
                 </div>
               ))}
             </div>
@@ -279,11 +278,11 @@ export default function CaseDetailPage() {
 
           {/* Empresa */}
           {caseData.empresa && (
-            <div className="bg-white rounded-xl border border-slate-100 p-4 space-y-3">
-              <h3 className="text-sm font-bold text-slate-700">Empresa vinculada</h3>
+            <div className="bg-[#0E1219] rounded-xl border border-[#1E2430] p-4 space-y-3">
+              <h3 className="text-sm font-bold text-[#EDEAE6]">Empresa vinculada</h3>
               {caseData.empresa.is_shell && (
                 <span className="text-xs font-medium px-2.5 py-1 rounded-full inline-flex items-center gap-1.5"
-                      style={{background:"#FEF2F2",color:"#DC2626"}}>
+                      style={{background:"rgba(239,68,68,0.15)",color:"#EF4444"}}>
                   <span className="w-1.5 h-1.5 rounded-full bg-red-500"/>
                   Empresa de fachada (shell)
                 </span>
@@ -296,8 +295,8 @@ export default function CaseDetailPage() {
                   { label: "País",          val: caseData.empresa.pais_constitucion },
                 ].map(r => (
                   <div key={r.label} className="flex justify-between gap-2">
-                    <span className="text-slate-500">{r.label}</span>
-                    <span className="text-slate-800 font-medium text-right">{r.val}</span>
+                    <span className="text-[#5A6478]">{r.label}</span>
+                    <span className="text-[#EDEAE6] font-medium text-right">{r.val}</span>
                   </div>
                 ))}
               </div>
@@ -305,19 +304,19 @@ export default function CaseDetailPage() {
           )}
 
           {/* Neighbors */}
-          <div className="bg-white rounded-xl border border-slate-100 p-4 space-y-3">
-            <h3 className="text-sm font-bold text-slate-700">Cuentas vinculadas</h3>
+          <div className="bg-[#0E1219] rounded-xl border border-[#1E2430] p-4 space-y-3">
+            <h3 className="text-sm font-bold text-[#EDEAE6]">Cuentas vinculadas</h3>
             <div className="space-y-2">
               {caseData.neighbors.map(n => (
                 <div key={n.account_id} className="flex items-center justify-between text-sm">
                   <div className="flex items-center gap-2">
-                    <span className={`w-1.5 h-1.5 rounded-full ${n.direction === "entrada" ? "bg-red-400" : "bg-navy-light"}`}/>
-                    <span className="font-mono text-xs text-slate-600">{n.account_id}</span>
-                    <span className="text-[10px] text-slate-400">{n.direction}</span>
+                    <span className={`w-1.5 h-1.5 rounded-full ${n.direction === "entrada" ? "bg-[#EF4444]" : "bg-[#5A6478]"}`}/>
+                    <span className="font-mono text-xs text-[#5A6478]">{n.account_id}</span>
+                    <span className="text-[10px] text-[#5A6478]">{n.direction}</span>
                   </div>
                   <div className="flex items-center gap-3">
                     {n.is_fraud === 1 && <span className="text-[10px] text-red-500 font-semibold">FRAUDE</span>}
-                    <span className="font-mono text-xs text-slate-700">{n.gnn_score.toFixed(3)}</span>
+                    <span className="font-mono text-xs text-[#EDEAE6]">{n.gnn_score.toFixed(3)}</span>
                   </div>
                 </div>
               ))}
@@ -327,38 +326,38 @@ export default function CaseDetailPage() {
       )}
 
       {activeTab === "grafo" && (
-        <div className="bg-white rounded-xl border border-slate-100 overflow-hidden">
-          <div className="p-3 border-b border-slate-100 text-xs text-slate-500">
-            Subgrafo de vecinos directos — nodo central en navy/gold, fraude en rojo
+        <div className="bg-[#0E1219] rounded-xl border border-[#1E2430] overflow-hidden">
+          <div className="p-3 border-b border-[#1E2430] text-xs text-[#5A6478]">
+            Subgrafo de vecinos directos — nodo central en azul, fraude en rojo
           </div>
           <div ref={cyRef} style={{ width: "100%", height: 420 }} />
         </div>
       )}
 
       {activeTab === "transacciones" && (
-        <div className="bg-white rounded-xl border border-slate-100 overflow-hidden">
+        <div className="bg-[#0E1219] rounded-xl border border-[#1E2430] overflow-hidden">
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
-                <tr style={{ backgroundColor: "#F8FAFC", borderBottom: "1px solid #E2E8F0" }}>
+                <tr style={{ backgroundColor: "#12161F", borderBottom: "1px solid #1E2430" }}>
                   {["Origen", "Destino", "Monto", "Dirección", "Timestamp"].map(h => (
-                    <th key={h} className="px-4 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">{h}</th>
+                    <th key={h} className="px-4 py-3 text-left text-xs font-semibold text-[#5A6478] uppercase tracking-wider">{h}</th>
                   ))}
                 </tr>
               </thead>
               <tbody>
                 {caseData.recent_transactions.map((t, i) => (
-                  <tr key={i} style={{ borderBottom: i < caseData.recent_transactions.length-1 ? "1px solid #F1F5F9" : undefined }}
-                      className={t.is_fraud ? "bg-red-50" : ""}>
-                    <td className="px-4 py-2.5 font-mono text-xs text-slate-600">{t.src}</td>
-                    <td className="px-4 py-2.5 font-mono text-xs text-slate-600">{t.dst}</td>
-                    <td className="px-4 py-2.5 text-xs font-semibold text-slate-800">${t.amount.toLocaleString("es-AR")}</td>
+                  <tr key={i} style={{ borderBottom: i < caseData.recent_transactions.length-1 ? "1px solid #1E2430" : undefined }}
+                      className={t.is_fraud ? "bg-[#EF4444]/10" : ""}>
+                    <td className="px-4 py-2.5 font-mono text-xs text-[#5A6478]">{t.src}</td>
+                    <td className="px-4 py-2.5 font-mono text-xs text-[#5A6478]">{t.dst}</td>
+                    <td className="px-4 py-2.5 text-xs font-semibold text-[#EDEAE6]">${t.amount.toLocaleString("es-AR")}</td>
                     <td className="px-4 py-2.5">
-                      <span className={`text-[11px] font-medium px-2 py-0.5 rounded-full ${t.direction === "entrada" ? "bg-red-50 text-red-600" : "bg-navy-50 text-navy"}`}>
+                      <span className={`text-[11px] font-medium px-2 py-0.5 rounded-full ${t.direction === "entrada" ? "bg-[#EF4444]/15 text-[#EF4444]" : "bg-[#2E6BFF]/15 text-[#7AA2FF]"}`}>
                         {t.direction}
                       </span>
                     </td>
-                    <td className="px-4 py-2.5 text-xs text-slate-500 font-mono">{t.timestamp}</td>
+                    <td className="px-4 py-2.5 text-xs text-[#5A6478] font-mono">{t.timestamp}</td>
                   </tr>
                 ))}
               </tbody>
@@ -371,33 +370,33 @@ export default function CaseDetailPage() {
         <div className="space-y-4">
           <div className="space-y-3">
             {notes.length === 0 && (
-              <div className="bg-white rounded-xl border border-slate-100 p-8 text-center text-slate-400 text-sm">
+              <div className="bg-[#0E1219] rounded-xl border border-[#1E2430] p-8 text-center text-[#5A6478] text-sm">
                 Sin notas aún. Agregá observaciones del caso aquí.
               </div>
             )}
             {notes.map((n, i) => (
-              <div key={i} className="bg-white rounded-xl border border-slate-100 p-4">
+              <div key={i} className="bg-[#0E1219] rounded-xl border border-[#1E2430] p-4">
                 <div className="flex justify-between items-center mb-2">
-                  <span className="text-xs font-semibold text-slate-700">{n.author}</span>
-                  <span className="text-xs text-slate-400">{new Date(n.timestamp).toLocaleString("es-AR")}</span>
+                  <span className="text-xs font-semibold text-[#EDEAE6]">{n.author}</span>
+                  <span className="text-xs text-[#5A6478]">{new Date(n.timestamp).toLocaleString("es-AR")}</span>
                 </div>
-                <p className="text-sm text-slate-600 leading-relaxed">{n.text}</p>
+                <p className="text-sm text-[#5A6478] leading-relaxed">{n.text}</p>
               </div>
             ))}
           </div>
-          <div className="bg-white rounded-xl border border-slate-100 p-4 space-y-3">
-            <h4 className="text-sm font-semibold text-slate-700">Agregar nota</h4>
+          <div className="bg-[#0E1219] rounded-xl border border-[#1E2430] p-4 space-y-3">
+            <h4 className="text-sm font-semibold text-[#EDEAE6]">Agregar nota</h4>
             <textarea
               value={noteText}
               onChange={e => setNoteText(e.target.value)}
               rows={3}
               placeholder="Observaciones, hallazgos, fuentes consultadas…"
-              className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-[#C7CFE2] resize-none"
+              className="w-full border border-[#1E2430] rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-[#2E6BFF] resize-none"
             />
             <button onClick={handleAddNote}
                     disabled={!noteText.trim()}
                     className="px-4 min-h-[44px] text-sm font-medium rounded-lg text-white transition-colors disabled:opacity-40"
-                    style={{ backgroundColor: "#0A1F44" }}>
+                    style={{ backgroundColor: "#2E6BFF" }}>
               Guardar nota
             </button>
           </div>
