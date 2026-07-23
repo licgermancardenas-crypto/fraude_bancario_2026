@@ -4,10 +4,13 @@
 ![PyTorch](https://img.shields.io/badge/PyTorch-2.x-EE4C2C?logo=pytorch&logoColor=white)
 ![PyG](https://img.shields.io/badge/PyTorch_Geometric-2.x-orange)
 ![Next.js](https://img.shields.io/badge/Next.js-14-black?logo=next.js)
+![FastAPI](https://img.shields.io/badge/FastAPI-API-009688?logo=fastapi&logoColor=white)
 ![Vercel](https://img.shields.io/badge/Deploy-Vercel-black?logo=vercel)
+![Render](https://img.shields.io/badge/Deploy-Render-46E3B7?logo=render&logoColor=white)
 ![License](https://img.shields.io/badge/datos-100%25_sintéticos-green)
 
 **Dashboard en vivo → [fraude-bancario-2026.vercel.app](https://fraude-bancario-2026.vercel.app)**
+**API en vivo → [phantom-rcs9.onrender.com/docs](https://phantom-rcs9.onrender.com/docs)**
 
 Engagement simulado para *Banco Regional del Sur (BRS)*: prueba de concepto end-to-end de detección de redes de lavado de activos usando **Graph Neural Networks** sobre un grafo transaccional sintético de 75.000 cuentas y ~400.000 transacciones.
 
@@ -68,6 +71,20 @@ El sistema detecta estructuras que los controles basados en reglas no pueden ver
 | `/entidades` | **Red de entidades** (personas, empresas, PEPs, shell companies) en Cytoscape.js |
 | `/casos/[id]/sar` | **Formulario ROS/SAR** pre-completado, narrativa automática, referencia a Ley 25.246 / UIF |
 
+### API de scoring (FastAPI)
+
+**API en vivo → [phantom-rcs9.onrender.com](https://phantom-rcs9.onrender.com) · [docs interactivas](https://phantom-rcs9.onrender.com/docs)**
+
+Servicio independiente en `api/` (FastAPI, deploy en Render free tier) que expone las cuentas, casos, anillos y scores pre-computados vía REST. No está conectado al dashboard — el dashboard sigue siendo un deploy 100% estático (JSONs en `dashboard/public/data/`); la API es un componente separado pensado para integraciones o consumo por sistemas externos.
+
+| Endpoint | Contenido |
+|---|---|
+| `GET /health`, `/stats` | Estado del servicio y métricas agregadas del modelo |
+| `GET /accounts`, `/accounts/{id}`, `POST /accounts/score` | Ranking de riesgo y scoring de cuentas |
+| `GET /cases`, `/cases/{id}` | Cola de alertas y detalle de casos |
+| `GET /rings`, `/perpetrators`, `/placement` | Anillos, perpetradores de origen y scores de colocación |
+| `GET /models/performance` | Métricas comparativas de los 5 modelos entrenados |
+
 ### Informe institucional PDF
 
 Informe de 9 secciones con identidad visual BRS: resultados, insights, roadmap de implementación, glosario de 20 términos y lenguaje accesible para directores y equipos de compliance. Generado vía HTML/CSS → Playwright/Chromium.
@@ -102,11 +119,13 @@ Datos sintéticos (gen-fraud-graph)
                                 ▼
                     src/export_dashboard.py   ← JSONs para el dashboard
                                 │
-                    ┌───────────┴────────────┐
-                    ▼                        ▼
-             Next.js 14                  generate_report.py
-             (Vercel)                    (PDF institucional)
+                    ┌───────────┴────────────┬─────────────────────┐
+                    ▼                        ▼                     ▼
+             Next.js 14                  generate_report.py    api/main.py
+             (Vercel)                    (PDF institucional)   FastAPI (Render)
 ```
+
+> `api/` es un servicio independiente, no forma parte de la cadena del dashboard: lee los mismos artefactos pre-computados (`data/processed/`) y los expone vía REST para integraciones externas.
 
 ---
 
@@ -116,9 +135,11 @@ Datos sintéticos (gen-fraud-graph)
 
 **Dashboard:** Next.js 14 · TypeScript · Tailwind CSS · Recharts · Cytoscape.js
 
+**API:** FastAPI · Uvicorn/Gunicorn
+
 **PDF:** Playwright/Chromium · HTML/CSS → A4
 
-**Deploy:** Vercel
+**Deploy:** Vercel (dashboard) · Render (API)
 
 ---
 
@@ -161,6 +182,11 @@ fraud-gnn/
 │   │   ├── casos/[id]/sar/    # formulario ROS/SAR (Ley 25.246 / UIF)
 │   │   └── entidades/         # red de entidades (Cytoscape.js)
 │   └── public/data/           # JSONs exportados (cuentas, casos, entidades)
+├── api/                        # FastAPI scoring service (deploy en Render)
+│   ├── main.py                 # 11 endpoints — cuentas, casos, anillos, placement, modelos
+│   ├── loader.py                # carga de artefactos pre-computados (data/processed/)
+│   └── requirements.txt         # dependencias livianas para el deploy
+├── render.yaml                 # config de deploy (Render, plan free)
 ├── config/config.yaml         # hiperparámetros centralizados
 ├── reports/
 │   ├── informe_final.pdf      # informe institucional (Playwright → PDF)
@@ -202,6 +228,10 @@ python -m src.generate_report       # informe PDF
 # Dashboard local
 cd dashboard && npm install && npm run dev
 # → http://localhost:3000
+
+# API local
+uvicorn api.main:app --reload
+# → http://localhost:8000/docs
 ```
 
 > **Nota de escala:** el pipeline fue validado a `scale_factor=0.5` (75K cuentas). A `scale_factor=1.0` (150K cuentas) el entrenamiento full-batch puede quedarse sin memoria en equipos con menos de 4 GB RAM. Se recomienda implementar `NeighborLoader` antes de escalar.
