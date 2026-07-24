@@ -37,7 +37,7 @@ export default function Navbar() {
             className="inline-flex items-center gap-2 px-3 mkt:px-6 py-2.5 rounded-md text-sm font-medium whitespace-nowrap"
             style={{ fontFamily: "var(--font-display)", backgroundColor: "transparent", color: "#EDEAE6", border: "1px solid #1E2430" }}
           >
-            Ver plataforma
+            Entrar al dashboard
           </Link>
           <a
             href="#cta"
