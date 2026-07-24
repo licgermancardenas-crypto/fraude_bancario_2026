@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import "../globals.css";
 import Sidebar from "@/components/Sidebar";
 import MobileNav from "@/components/MobileNav";
@@ -20,6 +21,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         >
           <PhantomMark size={22} />
           <p className="text-sm font-bold" style={{ color: "#EDEAE6", fontFamily: "'Space Grotesk', sans-serif" }}>Phantom AI</p>
+          <Link href="/" className="ml-auto text-xs font-medium" style={{ color: "#5A6478" }}>
+            ← Sitio
+          </Link>
         </div>
         <div className="flex-1 min-w-0 flex flex-col">
           <main className="flex-1 px-6 lg:px-8 pt-16 pb-20 sm:pt-8 sm:pb-8">
