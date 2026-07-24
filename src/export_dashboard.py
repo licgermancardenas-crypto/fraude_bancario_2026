@@ -49,7 +49,7 @@ def _save(obj, path):
     with open(path, "w") as f:
         json.dump(obj, f, separators=(",", ":"))
     kb = Path(path).stat().st_size / 1024
-    print(f"  → {path}  ({kb:.1f} KB)")
+    print(f"  -> {path}  ({kb:.1f} KB)")
 
 
 # ── load artefacts ────────────────────────────────────────────────────────────
@@ -459,6 +459,22 @@ def export_cases(acc, txn, data, scores_all, cfg, out_dir, n_cases=80):
         return rows[:top_k]
 
     base_date = datetime(2026, 6, 1)
+
+    # Ley 25.246 (UIF Argentina), art. 21 inc. b — plazo máximo para que un
+    # sujeto obligado reporte una Operación Sospechosa (ROS) desde que la
+    # detecta: 150 días corridos para entidades financieras/bancarias.
+    DIAS_PLAZO_ROS = 150
+
+    # Pool de analistas de compliance (ficticio) — asignación determinística
+    # por caso, no por cuenta, para distribuir la carga de forma pareja.
+    ANALISTAS = [
+        "Lic. Valentina Ibarra",
+        "Lic. Tomás Ferreyra",
+        "Lic. Camila Suárez",
+        "Lic. Nicolás Paredes",
+        "Lic. Agustina Domínguez",
+    ]
+
     cases = []
     for i, acc_id in enumerate(candidates):
         row = acc_idx.loc[acc_id]
@@ -467,7 +483,9 @@ def export_cases(acc, txn, data, scores_all, cfg, out_dir, n_cases=80):
             p = personas_idx.loc[acc_id]
             persona = {k: str(p[k]) if pd.notna(p[k]) else "" for k in p.index}
 
-        alert_date = (base_date + timedelta(days=int(rng.integers(0, 45)))).strftime("%Y-%m-%d")
+        alert_dt   = base_date + timedelta(days=int(rng.integers(0, 45)))
+        alert_date = alert_dt.strftime("%Y-%m-%d")
+        vencimiento_ros = (alert_dt + timedelta(days=DIAS_PLAZO_ROS)).strftime("%Y-%m-%d")
         score = id2score.get(acc_id, 0)
 
         cases.append({
@@ -482,6 +500,9 @@ def export_cases(acc, txn, data, scores_all, cfg, out_dir, n_cases=80):
             "balance":      round(float(row.balance), 2),
             "risk_score":   round(float(row.risk_score), 4),
             "account_type": row.account_type,
+            "analista_asignado": ANALISTAS[int(rng.integers(0, len(ANALISTAS)))],
+            "dias_plazo_ros":    DIAS_PLAZO_ROS,
+            "vencimiento_ros":   vencimiento_ros,
             "persona":      persona,
             "empresa":      _empresa_info(acc_id),
             "neighbors":    _neighbors(acc_id),

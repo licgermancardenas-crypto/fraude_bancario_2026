@@ -3,6 +3,7 @@ import { useEffect, useState, useRef } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import type { Case, CaseStatus, CaseNote } from "@/lib/types";
+import { RESOLVED_STATUSES, daysUntil, rosUrgency } from "@/lib/dates";
 import PageHeader from "@/components/PageHeader";
 
 
@@ -181,6 +182,19 @@ export default function CaseDetailPage() {
               )}
             </div>
             <p className="text-sm text-[#5A6478] mt-1">{caseData.account_id} · Alerta {caseData.alert_date}</p>
+            <div className="flex items-center gap-3 mt-2 flex-wrap">
+              <span className="text-xs text-[#5A6478]">
+                Analista asignado: <span className="text-[#EDEAE6] font-medium">{caseData.analista_asignado}</span>
+              </span>
+              {!RESOLVED_STATUSES.includes(status) && (() => {
+                const { bg, text, label } = rosUrgency(daysUntil(caseData.vencimiento_ros));
+                return (
+                  <span className="text-xs font-medium px-2.5 py-1 rounded-full whitespace-nowrap" style={{ backgroundColor: bg, color: text }}>
+                    Plazo ROS ({caseData.dias_plazo_ros}d, Ley 25.246): {label} — vence {caseData.vencimiento_ros}
+                  </span>
+                );
+              })()}
+            </div>
           </div>
 
           {/* Action buttons */}
@@ -205,7 +219,7 @@ export default function CaseDetailPage() {
               </>
             )}
             {status === "escalado" && (
-              <Link href={`/casos/${caseId}/sar`}
+              <Link href={`/app/casos/${caseId}/sar`}
                     className="px-3 min-h-[44px] text-xs font-medium rounded-lg bg-[#EF4444] text-white hover:bg-[#DC2626] transition-colors">
                 Ver borrador SAR
               </Link>

@@ -173,6 +173,9 @@ export interface Case {
   balance: number;
   risk_score: number;
   account_type: string;
+  analista_asignado: string;
+  dias_plazo_ros: number;
+  vencimiento_ros: string;
   persona: Persona;
   empresa: Empresa | null;
   neighbors: CaseNeighbor[];

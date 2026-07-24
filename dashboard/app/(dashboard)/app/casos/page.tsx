@@ -2,6 +2,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import type { Case, CaseStatus, CasePattern } from "@/lib/types";
+import { RESOLVED_STATUSES, daysUntil, rosUrgency } from "@/lib/dates";
 import PageHeader from "@/components/PageHeader";
 
 const STATUS_LABELS: Record<CaseStatus, string> = {
@@ -30,12 +31,25 @@ function getStoredStatuses(): Record<string, CaseStatus> {
   try { return JSON.parse(localStorage.getItem("phantom_case_statuses") || "{}"); } catch { return {}; }
 }
 
+function RosBadge({ c, status }: { c: Case; status: CaseStatus }) {
+  if (RESOLVED_STATUSES.includes(status)) {
+    return <span className="text-xs" style={{ color: "#5A6478" }}>— caso cerrado</span>;
+  }
+  const { bg, text, label } = rosUrgency(daysUntil(c.vencimiento_ros));
+  return (
+    <span className="text-xs font-medium px-2 py-0.5 rounded-full whitespace-nowrap" style={{ backgroundColor: bg, color: text }}>
+      {label}
+    </span>
+  );
+}
+
 export default function CasosPage() {
   const [cases, setCases]         = useState<Case[]>([]);
   const [statuses, setStatuses]   = useState<Record<string, CaseStatus>>({});
   const [filterStatus, setFS]     = useState<CaseStatus | "all">("all");
   const [filterPattern, setFP]    = useState<CasePattern | "all">("all");
-  const [sortBy, setSortBy]       = useState<"score" | "date">("score");
+  const [filterAnalista, setFA]   = useState<string>("all");
+  const [sortBy, setSortBy]       = useState<"score" | "date" | "vencimiento">("score");
   const [search, setSearch]       = useState("");
 
   useEffect(() => {
@@ -46,9 +60,12 @@ export default function CasosPage() {
   const effectiveStatus = (c: Case): CaseStatus =>
     statuses[c.case_id] ?? c.status;
 
+  const analistas = Array.from(new Set(cases.map(c => c.analista_asignado))).sort();
+
   const filtered = cases
     .filter(c => filterStatus === "all" || effectiveStatus(c) === filterStatus)
     .filter(c => filterPattern === "all" || c.pattern === filterPattern)
+    .filter(c => filterAnalista === "all" || c.analista_asignado === filterAnalista)
     .filter(c => {
       if (!search) return true;
       const q = search.toLowerCase();
@@ -59,9 +76,9 @@ export default function CasosPage() {
       );
     })
     .sort((a, b) =>
-      sortBy === "score"
-        ? b.gnn_score - a.gnn_score
-        : new Date(b.alert_date).getTime() - new Date(a.alert_date).getTime()
+      sortBy === "score"       ? b.gnn_score - a.gnn_score :
+      sortBy === "vencimiento" ? new Date(a.vencimiento_ros).getTime() - new Date(b.vencimiento_ros).getTime() :
+                                 new Date(b.alert_date).getTime() - new Date(a.alert_date).getTime()
     );
 
   const counts = {
@@ -123,12 +140,23 @@ export default function CasosPage() {
           ))}
         </select>
         <select
+          value={filterAnalista}
+          onChange={e => setFA(e.target.value)}
+          className="border border-[#1E2430] rounded-lg px-3 min-h-[44px] text-sm outline-none"
+        >
+          <option value="all">Todos los analistas</option>
+          {analistas.map(a => (
+            <option key={a} value={a}>{a}</option>
+          ))}
+        </select>
+        <select
           value={sortBy}
           onChange={e => setSortBy(e.target.value as any)}
           className="border border-[#1E2430] rounded-lg px-3 min-h-[44px] text-sm outline-none"
         >
           <option value="score">Ordenar: Mayor score</option>
           <option value="date">Ordenar: Más reciente</option>
+          <option value="vencimiento">Ordenar: Vencimiento ROS</option>
         </select>
         <span className="text-xs text-[#5A6478] ml-auto">{filtered.length} casos</span>
       </div>
@@ -139,7 +167,7 @@ export default function CasosPage() {
           <table className="w-full text-sm">
             <thead>
               <tr style={{ backgroundColor: "#12161F", borderBottom: "1px solid #1E2430" }}>
-                {["Caso", "Cuenta / Titular", "Patrón", "Score", "Fecha", "Estado", ""].map(h => (
+                {["Caso", "Cuenta / Titular", "Patrón", "Score", "Analista", "Vencimiento ROS", "Estado", ""].map(h => (
                   <th key={h} className="px-4 py-3 text-left text-xs font-semibold text-[#5A6478] uppercase tracking-wider whitespace-nowrap">{h}</th>
                 ))}
               </tr>
@@ -174,7 +202,10 @@ export default function CasosPage() {
                         <span className="font-mono text-xs text-[#EDEAE6]">{c.gnn_score.toFixed(3)}</span>
                       </div>
                     </td>
-                    <td className="px-4 py-3 text-xs text-[#5A6478] whitespace-nowrap">{c.alert_date}</td>
+                    <td className="px-4 py-3 text-xs text-[#EDEAE6] whitespace-nowrap">{c.analista_asignado}</td>
+                    <td className="px-4 py-3">
+                      <RosBadge c={c} status={status} />
+                    </td>
                     <td className="px-4 py-3">
                       <span className="text-xs font-medium px-2 py-0.5 rounded-full" style={{ backgroundColor: sc.bg, color: sc.text }}>
                         {STATUS_LABELS[status]}
@@ -190,7 +221,7 @@ export default function CasosPage() {
                 );
               })}
               {filtered.length === 0 && (
-                <tr><td colSpan={7} className="px-4 py-10 text-center text-[#5A6478] text-sm">Sin resultados</td></tr>
+                <tr><td colSpan={8} className="px-4 py-10 text-center text-[#5A6478] text-sm">Sin resultados</td></tr>
               )}
             </tbody>
           </table>

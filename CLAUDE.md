@@ -81,6 +81,27 @@ NEXT_PUBLIC_API_URL (dashboard/.env.local, no versionado; ver dashboard/.env.exa
 README.md es la fuente de verdad del estado del proyecto; actualizar esta sección junto
 con el README cuando cambie algo relevante.
 
+## Realismo del módulo Compliance (en curso)
+Plan de 4 mejoras para que la cola de casos suene a plataforma AML real de un
+banco, no a demo. Progreso:
+1. ✅ **Asignación de analista + plazo regulatorio.** `src/export_dashboard.py`
+   (`export_cases`) asigna `analista_asignado` (pool de 5 analistas ficticios,
+   determinístico vía `rng`) y calcula `vencimiento_ros` = `alert_date` + 150
+   días (Ley 25.246 art. 21 inc. b — plazo UIF para reportar ROS). Nuevos
+   campos en `Case` (lib/types.ts), helper compartido `lib/dates.ts`
+   (`daysUntil`, `rosUrgency`), badge de vencimiento en `/app/casos` (lista +
+   filtro por analista) y en el detalle de caso.
+2. ⏳ Rating de cliente (KYC, estático) separado del score GNN (dinámico).
+3. ⏳ Screening de sanciones/listas (ONU, OFAC, REPET) como sección propia,
+   más allá del flag PEP que ya existe.
+4. ⏳ Cuatro ojos — revisor + aprobador antes de escalar o enviar el SAR.
+
+Si se regenera `cases.json` desde cero, usar `export_cases()` (o `export_all()`
+completo) — **ojo:** `export_all()` hoy rompe en `export_pr_curves` por un
+mismatch de longitudes preexistente (scores_by_model vs y_test, ~22501 vs
+11251) que no tiene que ver con este cambio; para tocar solo casos, llamar
+`load_all(cfg)` + `export_cases(...)` directo, como se hizo acá.
+
 ## Pendientes
 - Setear NEXT_PUBLIC_API_URL=https://phantom-rcs9.onrender.com en las env vars del
   proyecto Vercel del dashboard (Settings → Environment Variables) para que
@@ -89,3 +110,5 @@ con el README cuando cambie algo relevante.
   docs/phantom-landing.html (no se pudo verificar con Claude in Chrome en esta
   sesión — la extensión no estaba conectada). La fidelidad se validó a mano,
   valor por valor de CSS, pero falta el chequeo pixel-a-pixel.
+- Investigar el mismatch de longitudes en export_pr_curves (ver arriba) —
+  probablemente un .npy de scores desactualizado en data/processed/.
