@@ -121,9 +121,9 @@ export default function SARPage() {
       {/* Header — hidden on print */}
       <div className="flex items-center justify-between print:hidden">
         <div className="flex items-center gap-2 text-sm text-[#5A6478]">
-          <Link href="/casos" className="hover:text-[#EDEAE6]">Casos</Link>
+          <Link href="/app/casos" className="hover:text-[#EDEAE6]">Casos</Link>
           <span>/</span>
-          <Link href={`/casos/${caseId}`} className="hover:text-[#EDEAE6]">{caseId}</Link>
+          <Link href={`/app/casos/${caseId}`} className="hover:text-[#EDEAE6]">{caseId}</Link>
           <span>/</span>
           <span className="text-[#EDEAE6] font-medium">Borrador SAR</span>
         </div>

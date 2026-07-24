@@ -161,7 +161,7 @@ export default function CaseDetailPage() {
     <div className="space-y-5">
       {/* Breadcrumb */}
       <div className="flex items-center gap-2 text-sm text-[#5A6478]">
-        <Link href="/casos" className="hover:text-[#EDEAE6]">Cola de alertas</Link>
+        <Link href="/app/casos" className="hover:text-[#EDEAE6]">Cola de alertas</Link>
         <span>/</span>
         <span className="text-[#EDEAE6] font-medium">{caseId}</span>
       </div>
@@ -197,7 +197,7 @@ export default function CaseDetailPage() {
                         className="px-3 min-h-[44px] text-xs font-medium rounded-lg border border-[#1E2430] text-[#5A6478] bg-[#12161F] hover:bg-[#12161F] transition-colors">
                   Desestimar
                 </button>
-                <Link href={`/casos/${caseId}/sar`}
+                <Link href={`/app/casos/${caseId}/sar`}
                       onClick={() => handleStatusChange("escalado")}
                       className="px-3 min-h-[44px] text-xs font-medium rounded-lg bg-[#EF4444] text-white hover:bg-[#DC2626] transition-colors">
                   Escalar → SAR

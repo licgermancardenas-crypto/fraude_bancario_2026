@@ -7,6 +7,11 @@ const config: Config = {
   ],
   theme: {
     extend: {
+      screens: {
+        // breakpoint del layout de la landing (docs/phantom-landing.html
+        // usa @media(max-width:900px) para colapsar a 1 columna)
+        mkt: "900px",
+      },
       colors: {
         phantom: {
           void:     "#07090F",
@@ -24,9 +29,13 @@ const config: Config = {
         legit: "#5A6478",
       },
       fontFamily: {
-        sans:    ["Inter", "sans-serif"],
-        display: ["'Space Grotesk'", "sans-serif"],
-        mono:    ["'JetBrains Mono'", "monospace"],
+        // var(--font-*, fallback) — el fallback solo se usa si la variable no
+        // está definida (rutas del dashboard, que cargan las fuentes por
+        // @import en globals.css). La landing (app/(marketing)) define estas
+        // variables vía next/font/google en su layout.
+        sans:    ["var(--font-body, 'Inter')", "sans-serif"],
+        display: ["var(--font-display, 'Space Grotesk')", "sans-serif"],
+        mono:    ["var(--font-mono, 'JetBrains Mono')", "monospace"],
       },
     },
   },

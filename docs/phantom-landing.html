@@ -1,0 +1,339 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Phantom AI — Financial Crime Intelligence</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600&family=Inter:wght@300;400;500&family=JetBrains+Mono:wght@300;400&display=swap" rel="stylesheet">
+<style>
+:root{
+  --void:#07090F;--graph:#0E1219;--panel:#12161F;--line:#1E2430;
+  --steel:#5A6478;--dim:#6B7486;--bone:#EDEAE6;
+  --pulse:#2E6BFF;--phi:#7AA2FF;--navy:#0A1226;
+  --display:'Space Grotesk',system-ui,sans-serif;
+  --body:'Inter',system-ui,sans-serif;
+  --mono:'JetBrains Mono',monospace;
+}
+*{margin:0;padding:0;box-sizing:border-box}
+html{scroll-behavior:smooth;font-size:16px}
+body{background:var(--void);color:var(--bone);font-family:var(--body);font-weight:300;line-height:1.7;overflow-x:hidden}
+::selection{background:var(--pulse);color:#fff}
+a{color:var(--phi);text-decoration:none}
+
+.wrap{max-width:1200px;margin:0 auto;padding:0 32px}
+.eyebrow{font-family:var(--mono);font-size:11px;letter-spacing:.4em;text-transform:uppercase;color:var(--phi)}
+
+/* ====== NAV ====== */
+nav{position:fixed;top:0;left:0;right:0;z-index:100;padding:20px 0;transition:background .3s}
+nav.scrolled{background:rgba(7,9,15,0.92);backdrop-filter:blur(20px);border-bottom:1px solid var(--line)}
+.nav-inner{max-width:1200px;margin:0 auto;padding:0 32px;display:flex;align-items:center;justify-content:space-between}
+.nav-logo{display:flex;align-items:center;gap:12px}
+.nav-logo svg{width:28px;height:28px}
+.nav-logo span{font-family:var(--display);font-weight:600;font-size:18px;color:var(--bone);letter-spacing:-.5px}
+.nav-links{display:flex;gap:32px;align-items:center}
+.nav-links a{font-family:var(--body);font-weight:400;font-size:14px;color:var(--steel);transition:color .2s}
+.nav-links a:hover{color:var(--bone)}
+.btn{display:inline-flex;align-items:center;gap:8px;padding:10px 24px;border-radius:6px;font-family:var(--display);font-weight:500;font-size:14px;transition:all .2s;cursor:pointer;border:none}
+.btn-primary{background:var(--pulse);color:#fff}
+.btn-primary:hover{background:#1a5ae6;transform:translateY(-1px)}
+.btn-ghost{background:transparent;color:var(--bone);border:1px solid var(--line)}
+.btn-ghost:hover{border-color:var(--steel)}
+
+/* ====== HERO ====== */
+.hero{min-height:100vh;display:flex;align-items:center;position:relative;overflow:hidden;padding:140px 0 100px}
+.hero::before{content:'';position:absolute;inset:0;background:
+  radial-gradient(ellipse at 20% 50%,rgba(46,107,255,0.06) 0%,transparent 50%),
+  radial-gradient(ellipse at 80% 20%,rgba(46,107,255,0.03) 0%,transparent 40%)}
+.hero::after{content:'';position:absolute;bottom:0;left:0;right:0;height:200px;background:linear-gradient(transparent,var(--void))}
+.hero-grid{display:grid;grid-template-columns:1fr 1fr;gap:80px;align-items:center;position:relative;z-index:2}
+.hero h1{font-family:var(--display);font-weight:600;font-size:clamp(40px,5.5vw,72px);letter-spacing:-2px;line-height:1.05;color:var(--bone);margin-bottom:28px}
+.hero h1 em{font-style:normal;display:block;color:var(--phi)}
+.hero .hero-body{font-size:18px;color:var(--steel);max-width:480px;margin-bottom:40px;line-height:1.7}
+.hero-actions{display:flex;gap:16px;flex-wrap:wrap}
+.hero-visual{position:relative}
+.hero-dash{background:var(--graph);border:1px solid var(--line);border-radius:16px;overflow:hidden;box-shadow:0 40px 120px rgba(0,0,0,0.5)}
+.hd-bar{display:flex;align-items:center;gap:8px;padding:12px 16px;border-bottom:1px solid var(--line)}
+.hd-bar svg{width:20px;height:20px}
+.hd-brand{font-family:var(--display);font-weight:600;font-size:14px;color:var(--bone)}
+.hd-tabs{margin-left:auto;display:flex;gap:14px;font-family:var(--mono);font-size:9px;letter-spacing:1.5px;color:var(--steel)}
+.hd-tabs .active{color:var(--phi)}
+.hd-body{padding:16px;display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+.hd-kpi{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:14px}
+.hd-kpi .v{font-family:var(--display);font-weight:600;font-size:24px;color:var(--bone)}
+.hd-kpi .l{font-family:var(--mono);font-size:8px;letter-spacing:1.5px;color:var(--dim);margin-top:4px}
+.hd-kpi:first-child .v{color:var(--phi)}
+.hd-chart{padding:0 16px 16px;display:flex;align-items:flex-end;gap:5px;height:100px}
+.hd-bar-chart{flex:1;border-radius:3px 3px 0 0;background:var(--line)}
+.hd-bar-chart.h{background:var(--pulse)}
+.hero-float{position:absolute;top:-40px;right:-60px;width:180px;height:110px;background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:14px;box-shadow:0 20px 60px rgba(0,0,0,0.4);transform:rotate(3deg)}
+.hero-float .hf-label{font-family:var(--mono);font-size:8px;letter-spacing:1.5px;color:var(--dim)}
+.hero-float .hf-val{font-family:var(--display);font-weight:600;font-size:28px;color:var(--phi);margin-top:6px}
+.hero-float .hf-sub{font-family:var(--body);font-size:11px;color:var(--steel);margin-top:4px}
+
+/* ====== PROBLEM ====== */
+.problem{padding:140px 0;position:relative}
+.problem::before{content:'';position:absolute;top:0;left:0;right:0;height:1px;background:linear-gradient(90deg,transparent,var(--line),transparent)}
+.problem-grid{display:grid;grid-template-columns:1fr 1fr;gap:80px;align-items:start}
+.problem h2{font-family:var(--display);font-weight:600;font-size:clamp(28px,3.5vw,44px);letter-spacing:-1px;line-height:1.15;margin-bottom:24px}
+.problem h2 em{font-style:normal;color:var(--phi)}
+.stat-row{display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-top:40px}
+.stat{background:var(--graph);border:1px solid var(--line);border-radius:10px;padding:24px}
+.stat .sv{font-family:var(--display);font-weight:600;font-size:36px;color:var(--bone)}
+.stat .sv span{color:var(--phi)}
+.stat .sl{font-size:14px;color:var(--steel);margin-top:8px;line-height:1.5}
+
+/* ====== HOW ====== */
+.how{padding:140px 0;position:relative}
+.how::before{content:'';position:absolute;top:0;left:0;right:0;height:1px;background:linear-gradient(90deg,transparent,var(--line),transparent)}
+.how-header{text-align:center;margin-bottom:72px}
+.how-header h2{font-family:var(--display);font-weight:600;font-size:clamp(28px,3.5vw,44px);letter-spacing:-1px;margin-top:16px}
+.how-header p{font-size:18px;color:var(--steel);max-width:600px;margin:20px auto 0}
+.pillars{display:grid;grid-template-columns:repeat(3,1fr);gap:24px}
+.pillar{background:var(--graph);border:1px solid var(--line);border-radius:12px;padding:32px;position:relative;overflow:hidden;transition:border-color .3s}
+.pillar:hover{border-color:var(--pulse)}
+.pillar::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;background:var(--pulse);opacity:0;transition:opacity .3s}
+.pillar:hover::before{opacity:1}
+.pillar-icon{width:48px;height:48px;background:var(--panel);border:1px solid var(--line);border-radius:10px;display:flex;align-items:center;justify-content:center;margin-bottom:20px}
+.pillar-icon svg{width:24px;height:24px}
+.pillar h3{font-family:var(--display);font-weight:500;font-size:18px;margin-bottom:12px}
+.pillar p{font-size:14px;color:var(--steel);line-height:1.7}
+.pillar .p-tag{display:inline-block;margin-top:16px;font-family:var(--mono);font-size:10px;letter-spacing:2px;color:var(--phi);background:rgba(46,107,255,0.08);padding:4px 12px;border-radius:100px}
+
+/* ====== FEATURES ====== */
+.features{padding:140px 0;position:relative}
+.features::before{content:'';position:absolute;top:0;left:0;right:0;height:1px;background:linear-gradient(90deg,transparent,var(--line),transparent)}
+.feat-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:20px;margin-top:56px}
+.feat{display:flex;gap:18px;padding:28px;background:var(--graph);border:1px solid var(--line);border-radius:10px;transition:border-color .3s}
+.feat:hover{border-color:rgba(46,107,255,0.3)}
+.feat-dot{width:8px;height:8px;background:var(--pulse);border-radius:50%;margin-top:7px;flex-shrink:0}
+.feat h4{font-family:var(--display);font-weight:500;font-size:16px;margin-bottom:6px}
+.feat p{font-size:13px;color:var(--steel);line-height:1.6}
+
+/* ====== TRUST ====== */
+.trust{padding:100px 0;text-align:center}
+.trust::before{content:'';position:absolute;top:0;left:0;right:0;height:1px;background:linear-gradient(90deg,transparent,var(--line),transparent)}
+.trust-stats{display:flex;justify-content:center;gap:80px;margin-top:48px}
+.ts{display:flex;flex-direction:column;align-items:center}
+.ts .tv{font-family:var(--display);font-weight:600;font-size:48px;color:var(--bone)}
+.ts .tv span{color:var(--phi)}
+.ts .tl{font-family:var(--mono);font-size:11px;letter-spacing:2px;color:var(--dim);margin-top:8px}
+
+/* ====== CTA ====== */
+.cta-section{padding:120px 0;position:relative}
+.cta-box{background:var(--navy);border:1px solid var(--line);border-radius:20px;padding:80px 60px;text-align:center;position:relative;overflow:hidden}
+.cta-box::before{content:'';position:absolute;inset:0;background:radial-gradient(ellipse at 50% 0%,rgba(46,107,255,0.08) 0%,transparent 60%)}
+.cta-box h2{font-family:var(--display);font-weight:600;font-size:clamp(28px,4vw,48px);letter-spacing:-1px;position:relative;z-index:2;margin-bottom:16px}
+.cta-box h2 em{font-style:normal;color:var(--phi)}
+.cta-box p{font-size:18px;color:var(--steel);max-width:560px;margin:0 auto 36px;position:relative;z-index:2}
+.cta-box .cta-actions{position:relative;z-index:2;display:flex;gap:16px;justify-content:center}
+
+/* ====== FOOTER ====== */
+footer{border-top:1px solid var(--line);padding:48px 0}
+.foot{display:flex;justify-content:space-between;align-items:center}
+.foot-logo{display:flex;align-items:center;gap:10px}
+.foot-logo svg{width:22px;height:22px}
+.foot-logo span{font-family:var(--display);font-weight:600;font-size:15px;color:var(--bone)}
+.foot-links{display:flex;gap:28px;font-size:13px;color:var(--steel)}
+.foot-copy{font-family:var(--mono);font-size:10px;color:var(--dim);letter-spacing:1px}
+
+/* ====== RESPONSIVE ====== */
+@media(max-width:900px){
+  .hero-grid,.problem-grid{grid-template-columns:1fr}
+  .pillars{grid-template-columns:1fr}
+  .feat-grid{grid-template-columns:1fr}
+  .trust-stats{flex-direction:column;gap:40px}
+  .hero-visual{order:-1}
+  .hero-float{display:none}
+  .nav-links a:not(.btn){display:none}
+}
+@media(prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+</style>
+</head>
+<body>
+
+<!-- NAV -->
+<nav id="nav">
+  <div class="nav-inner">
+    <div class="nav-logo">
+      <svg viewBox="20 16 186 190"><polygon points="66,36 98,36 72,186 40,186" fill="#EDEAE6"/><polygon points="110,36 142,36 116,186 84,186" fill="#EDEAE6"/><polygon points="154,36 186,36 171.09,122 139.09,122" fill="#2E6BFF"/></svg>
+      <span>Phantom</span>
+    </div>
+    <div class="nav-links">
+      <a href="#producto">Producto</a>
+      <a href="#como">Cómo funciona</a>
+      <a href="#features">Capacidades</a>
+      <a href="#cta" class="btn btn-primary">Solicitar demo</a>
+    </div>
+  </div>
+</nav>
+
+<!-- HERO -->
+<section class="hero">
+  <div class="wrap hero-grid">
+    <div>
+      <div class="eyebrow" style="margin-bottom:20px">Financial Crime Intelligence</div>
+      <h1>Las redes no se esconden.<em>Se revelan.</em></h1>
+      <p class="hero-body">Phantom detecta anillos de lavado, redes de mulas y esquemas de pitufeo que los sistemas de reglas no ven — analizando la estructura de la red, no solo la transacción.</p>
+      <div class="hero-actions">
+        <a href="#cta" class="btn btn-primary">Solicitar demo →</a>
+        <a href="#como" class="btn btn-ghost">Cómo funciona</a>
+      </div>
+    </div>
+    <div class="hero-visual">
+      <div class="hero-dash">
+        <div class="hd-bar">
+          <svg viewBox="20 16 186 190"><polygon points="66,36 98,36 72,186 40,186" fill="#EDEAE6"/><polygon points="110,36 142,36 116,186 84,186" fill="#EDEAE6"/><polygon points="154,36 186,36 171.09,122 139.09,122" fill="#2E6BFF"/></svg>
+          <span class="hd-brand">Phantom</span>
+          <div class="hd-tabs"><span class="active">OVERVIEW</span><span>ANILLOS</span><span>ORIGEN</span><span>CASOS</span></div>
+        </div>
+        <div class="hd-body">
+          <div class="hd-kpi"><div class="v">0.94</div><div class="l">PR-AUC INDUCTIVO</div></div>
+          <div class="hd-kpi"><div class="v">20</div><div class="l">REDES DETECTADAS</div></div>
+          <div class="hd-kpi"><div class="v">$4.9M</div><div class="l">MONTO EN RIESGO</div></div>
+        </div>
+        <div class="hd-chart">
+          <div class="hd-bar-chart" style="height:40%"></div>
+          <div class="hd-bar-chart" style="height:55%"></div>
+          <div class="hd-bar-chart" style="height:35%"></div>
+          <div class="hd-bar-chart h" style="height:82%"></div>
+          <div class="hd-bar-chart" style="height:48%"></div>
+          <div class="hd-bar-chart" style="height:42%"></div>
+          <div class="hd-bar-chart" style="height:58%"></div>
+          <div class="hd-bar-chart h" style="height:90%"></div>
+          <div class="hd-bar-chart" style="height:38%"></div>
+          <div class="hd-bar-chart" style="height:52%"></div>
+          <div class="hd-bar-chart" style="height:44%"></div>
+          <div class="hd-bar-chart" style="height:60%"></div>
+        </div>
+      </div>
+      <div class="hero-float">
+        <div class="hf-label">RED DETECTADA</div>
+        <div class="hf-val">Ring #07</div>
+        <div class="hf-sub">7 nodos · $493K · 48hs</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- PROBLEM -->
+<section class="problem" id="producto">
+  <div class="wrap problem-grid">
+    <div>
+      <div class="eyebrow" style="margin-bottom:16px">El problema</div>
+      <h2>Los sistemas de reglas detectan transacciones sospechosas.<br><em>No detectan redes.</em></h2>
+      <p style="font-size:16px;color:var(--steel);margin-top:20px;line-height:1.7">Un esquema de lavado estructurado mueve plata en montos chicos, a través de decenas de cuentas, en ventanas cortas. Cada transacción individual parece normal. Lo que delata el esquema es la <strong style="color:var(--bone)">estructura de la red</strong> — y eso es invisible para un sistema que mira una transacción a la vez.</p>
+    </div>
+    <div class="stat-row">
+      <div class="stat"><div class="sv"><span>90%</span></div><div class="sl">de las alertas de un sistema de reglas típico son falsos positivos. Los analistas pierden el día revisando ruido.</div></div>
+      <div class="stat"><div class="sv">48<span>hs</span></div><div class="sl">es la ventana promedio de un anillo de lavado. Para cuando una regla por umbral lo detecta, el dinero ya salió.</div></div>
+      <div class="stat"><div class="sv"><span>14x</span></div><div class="sl">más probabilidad de que una arista sea fraude→fraude que por azar. La señal está en la red, no en la transacción.</div></div>
+      <div class="stat"><div class="sv"><span>0%</span></div><div class="sl">de los perpetradores de colocación aparecen en alertas por umbral: inyectan montos chicos, tienen baja centralidad.</div></div>
+    </div>
+  </div>
+</section>
+
+<!-- HOW IT WORKS -->
+<section class="how" id="como">
+  <div class="wrap">
+    <div class="how-header">
+      <div class="eyebrow">Cómo funciona</div>
+      <h2>De millones de transacciones<br>a inteligencia accionable</h2>
+      <p>Tres capas que se complementan: lo que una no ve, la siguiente lo revela.</p>
+    </div>
+    <div class="pillars">
+      <div class="pillar">
+        <div class="pillar-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="#7AA2FF" stroke-width="1.5"><circle cx="12" cy="12" r="3"/><path d="M12 2v4m0 12v4M2 12h4m12 0h4"/><circle cx="12" cy="12" r="9" stroke-dasharray="4 3"/></svg>
+        </div>
+        <h3>Graph Neural Network</h3>
+        <p>Un modelo GraphSAGE analiza cada cuenta en el contexto de su vecindario transaccional. No mira la cuenta sola — mira con quién transacciona, y con quién transaccionan esos, hasta descubrir la firma de un anillo de lavado.</p>
+        <span class="p-tag">ESTRATIFICACIÓN</span>
+      </div>
+      <div class="pillar">
+        <div class="pillar-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="#7AA2FF" stroke-width="1.5"><path d="M21 12H9m0 0l4-4m-4 4l4 4"/><path d="M3 12h2"/><circle cx="6" cy="12" r="1.5"/></svg>
+        </div>
+        <h3>Backward Tracing</h3>
+        <p>El GNN detecta las mulas. El backward tracing remonta el grafo dirigido hasta encontrar el origen: quién inyectó el dinero. Revela a los perpetradores que ningún clasificador de conectividad ve.</p>
+        <span class="p-tag">COLOCACIÓN</span>
+      </div>
+      <div class="pillar">
+        <div class="pillar-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="#7AA2FF" stroke-width="1.5"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><path d="M14 17.5h7M17.5 14v7"/></svg>
+        </div>
+        <h3>Detección de pitufeo</h3>
+        <p>Features AML explícitas — clustering de montos bajo el umbral, fan-in temporal, velocidad de consolidación — capturan la firma del pitufeo que la topología de red sola no distingue.</p>
+        <span class="p-tag">STRUCTURING</span>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- FEATURES -->
+<section class="features" id="features">
+  <div class="wrap">
+    <div class="eyebrow" style="margin-bottom:16px">Capacidades</div>
+    <h2 style="font-family:var(--display);font-weight:600;font-size:clamp(28px,3.5vw,44px);letter-spacing:-1px">Todo lo que un equipo de compliance necesita</h2>
+    <div class="feat-grid">
+      <div class="feat"><div class="feat-dot"></div><div><h4>Scoring masivo de cuentas</h4><p>Clasifica cada cuenta del banco por probabilidad de pertenecer a una red ilícita. Cola de trabajo priorizada: los analistas empiezan por lo que importa.</p></div></div>
+      <div class="feat"><div class="feat-dot"></div><div><h4>Visualización de anillos</h4><p>Los anillos de lavado se ven como lo que son: ciclos en el grafo. Cada nodo coloreado por score, expandible con un clic. Investigación visual, no tabulada.</p></div></div>
+      <div class="feat"><div class="feat-dot"></div><div><h4>Screening de listas y PEPs</h4><p>Cruce contra sancionados, PEPs y jurisdicciones de riesgo — con un diferencial: no solo alertás al que está en la lista, sino al que está a 1-2 saltos en la red.</p></div></div>
+      <div class="feat"><div class="feat-dot"></div><div><h4>Narrativa pre-redactada para ROS</h4><p>Cada alerta con su texto listo para el Reporte de Operación Sospechosa: "cuenta X recibió 14 depósitos de 11 originantes en 48hs, 92% bajo el umbral".</p></div></div>
+      <div class="feat"><div class="feat-dot"></div><div><h4>Evaluación transductiva e inductiva</h4><p>El modelo se evalúa en ambos modos: con información de red completa y simulando cuentas nuevas que nunca vio. Las métricas que reportamos son las de producción.</p></div></div>
+      <div class="feat"><div class="feat-dot"></div><div><h4>Datos 100% del cliente</h4><p>No somos un SaaS con datos compartidos. Phantom se despliega sobre la infraestructura del banco: sus datos nunca salen de su perímetro.</p></div></div>
+    </div>
+  </div>
+</section>
+
+<!-- TRUST -->
+<section class="trust" style="position:relative">
+  <div class="wrap">
+    <div class="eyebrow">Resultados medidos</div>
+    <h2 style="font-family:var(--display);font-weight:600;font-size:clamp(28px,3.5vw,44px);letter-spacing:-1px;margin-top:16px">Métricas operativas, no de laboratorio</h2>
+    <div class="trust-stats">
+      <div class="ts"><div class="tv">0.<span>94</span></div><div class="tl">PR-AUC EN CUENTAS NUEVAS</div></div>
+      <div class="ts"><div class="tv"><span>78</span>%</div><div class="tl">RECALL EN NODOS DE ANILLO QUE XGBOOST NO VE</div></div>
+      <div class="ts"><div class="tv"><span>10</span>x</div><div class="tl">REDUCCIÓN DE FALSOS POSITIVOS VS. REGLAS</div></div>
+    </div>
+  </div>
+</section>
+
+<!-- CTA -->
+<section class="cta-section" id="cta">
+  <div class="wrap">
+    <div class="cta-box">
+      <svg viewBox="20 16 186 190" style="width:56px;height:56px;margin-bottom:24px;position:relative;z-index:2"><polygon points="66,36 98,36 72,186 40,186" fill="#EDEAE6"/><polygon points="110,36 142,36 116,186 84,186" fill="#EDEAE6"/><polygon points="154,36 186,36 171.09,122 139.09,122" fill="#2E6BFF"/></svg>
+      <h2>¿Querés ver qué hay <em>detrás</em> de tus transacciones?</h2>
+      <p>Armamos una prueba de concepto con datos sintéticos sobre la estructura transaccional de tu institución. Sin comprometer datos reales hasta que haya contrato.</p>
+      <div class="cta-actions">
+        <a href="mailto:german@phantom.ai" class="btn btn-primary">Solicitar demo →</a>
+        <a href="#" class="btn btn-ghost">Descargar one-pager</a>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- FOOTER -->
+<footer>
+  <div class="wrap foot">
+    <div class="foot-logo">
+      <svg viewBox="20 16 186 190"><polygon points="66,36 98,36 72,186 40,186" fill="#EDEAE6"/><polygon points="110,36 142,36 116,186 84,186" fill="#EDEAE6"/><polygon points="154,36 186,36 171.09,122 139.09,122" fill="#2E6BFF"/></svg>
+      <span>Phantom AI</span>
+    </div>
+    <div class="foot-links">
+      <a href="#">Producto</a>
+      <a href="#">Metodología</a>
+      <a href="#">Contacto</a>
+    </div>
+    <span class="foot-copy">© 2026 GERMÁN CÁRDENAS</span>
+  </div>
+</footer>
+
+<script>
+// Nav scroll effect
+const nav=document.getElementById('nav');
+window.addEventListener('scroll',()=>{nav.classList.toggle('scrolled',window.scrollY>60)});
+</script>
+</body>
+</html>

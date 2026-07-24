@@ -181,7 +181,7 @@ export default function CasosPage() {
                       </span>
                     </td>
                     <td className="px-4 py-3">
-                      <Link href={`/casos/${c.case_id}`}
+                      <Link href={`/app/casos/${c.case_id}`}
                             className="text-xs font-medium text-[#7AA2FF] hover:text-[#A8C4FF] whitespace-nowrap">
                         Ver caso →
                       </Link>

@@ -58,24 +58,34 @@ El sistema detecta estructuras que los controles basados en reglas no pueden ver
 | `src/evaluate_temporal.py` | Evaluación temporal: rendimiento sobre el período posterior al entrenamiento |
 | `src/enrich_personas.py` | Capa de identidad: nombre, DNI, CUIL, AFIP y domicilio argentinos por cuenta |
 
-### Dashboard (7 páginas + Compliance)
+### Landing + Dashboard (8 páginas + Compliance)
+
+El proyecto Next.js tiene dos árboles de rutas independientes (route groups,
+cada uno con su propio root layout): `app/(marketing)` es la landing pública
+en `/`, `app/(dashboard)` es la herramienta real bajo `/app/*`.
 
 | Ruta | Contenido |
 |---|---|
-| `/` | KPIs globales, curvas PR comparativas, distribución de scores GNN |
-| `/anillos` | Explorador de anillos cíclicos (Cytoscape.js interactivo) |
-| `/origen` | Grafo dirigido del anillo + tabla de perpetradores identificados |
-| `/cuentas` | Ranking de riesgo top 200, filtrable y ordenable |
-| `/metodologia` | Documentación técnica del sistema |
-| `/casos` | **Cola de alertas** con 80 casos pre-generados, filtros, KPIs, gestión de estado |
-| `/entidades` | **Red de entidades** (personas, empresas, PEPs, shell companies) en Cytoscape.js |
-| `/casos/[id]/sar` | **Formulario ROS/SAR** pre-completado, narrativa automática, referencia a Ley 25.246 / UIF |
+| `/` | **Landing de marketing** — Phantom AI, financial crime intelligence (`app/(marketing)/page.tsx`) |
+| `/app` | KPIs globales, curvas PR comparativas, distribución de scores GNN |
+| `/app/anillos` | Explorador de anillos cíclicos (Cytoscape.js interactivo) |
+| `/app/origen` | Grafo dirigido del anillo + tabla de perpetradores identificados |
+| `/app/cuentas` | Ranking de riesgo top 200, filtrable y ordenable |
+| `/app/metodologia` | Documentación técnica del sistema |
+| `/app/casos` | **Cola de alertas** con 80 casos pre-generados, filtros, KPIs, gestión de estado |
+| `/app/entidades` | **Red de entidades** (personas, empresas, PEPs, shell companies) en Cytoscape.js |
+| `/app/casos/[id]/sar` | **Formulario ROS/SAR** pre-completado, narrativa automática, referencia a Ley 25.246 / UIF |
+| `/app/en-vivo` | Consola de scoring en vivo contra la API FastAPI (Render) |
+
+Identidad visual (colores, tipografía, isotipo) centralizada en
+[`dashboard/brand-kit/`](dashboard/brand-kit/BRAND.md) — fuente de verdad
+compartida entre la landing y el dashboard.
 
 ### API de scoring (FastAPI)
 
 **API en vivo → [phantom-rcs9.onrender.com](https://phantom-rcs9.onrender.com) · [docs interactivas](https://phantom-rcs9.onrender.com/docs)**
 
-Servicio independiente en `api/` (FastAPI, deploy en Render free tier) que expone las cuentas, casos, anillos y scores pre-computados vía REST. No está conectado al dashboard — el dashboard sigue siendo un deploy 100% estático (JSONs en `dashboard/public/data/`); la API es un componente separado pensado para integraciones o consumo por sistemas externos.
+Servicio independiente en `api/` (FastAPI, deploy en Render free tier) que expone las cuentas, casos, anillos y scores pre-computados vía REST. El dashboard sigue siendo un deploy 100% estático (JSONs en `dashboard/public/data/`) para la navegación principal — rápido y sin dependencia de un servicio externo. La página **`/app/en-vivo`** del dashboard sí llama a esta API en tiempo real (`POST /accounts/score`, `GET /health`), como consola de demostración de la integración REST para sistemas externos (core bancario, SIEM, etc.).
 
 | Endpoint | Contenido |
 |---|---|
@@ -123,9 +133,11 @@ Datos sintéticos (gen-fraud-graph)
                     ▼                        ▼                     ▼
              Next.js 14                  generate_report.py    api/main.py
              (Vercel)                    (PDF institucional)   FastAPI (Render)
+                    │                                                 ▲
+                    └──────────────── /app/en-vivo (fetch runtime) ───────┘
 ```
 
-> `api/` es un servicio independiente, no forma parte de la cadena del dashboard: lee los mismos artefactos pre-computados (`data/processed/`) y los expone vía REST para integraciones externas.
+> `api/` lee los mismos artefactos pre-computados (`data/processed/`) y los expone vía REST. El dashboard la consume en runtime solo desde `/app/en-vivo` (consola de scoring en vivo); el resto de las páginas siguen sirviendo los JSONs estáticos para no depender de la disponibilidad de un servicio externo.
 
 ---
 

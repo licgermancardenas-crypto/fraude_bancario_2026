@@ -35,7 +35,7 @@ export default function MobileNav() {
   const overflowing = navItemsFlat.length > MAX_VISIBLE;
   const visible  = overflowing ? navItemsFlat.slice(0, MAX_VISIBLE - 1) : navItemsFlat;
   const overflow = overflowing ? navItemsFlat.slice(MAX_VISIBLE - 1) : [];
-  const isActive = (href: string) => (href === "/" ? pathname === "/" : pathname.startsWith(href));
+  const isActive = (href: string) => (href === "/app" ? pathname === "/app" : pathname.startsWith(href));
   const overflowActive = overflow.some(item => isActive(item.href));
 
   return (

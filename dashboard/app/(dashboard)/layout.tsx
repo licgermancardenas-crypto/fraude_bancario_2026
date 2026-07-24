@@ -1,8 +1,8 @@
 import type { Metadata } from "next";
-import "./globals.css";
+import "../globals.css";
 import Sidebar from "@/components/Sidebar";
 import MobileNav from "@/components/MobileNav";
-import { PhantomMark } from "@/components/PhantomMark";
+import { PhantomMark } from "@/brand-kit/react/PhantomMark";
 
 export const metadata: Metadata = {
   title: "Phantom AI — Detección de Fraude con GNN",

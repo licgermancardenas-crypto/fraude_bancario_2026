@@ -2,7 +2,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { navGroups } from "@/lib/nav";
-import { PhantomMark } from "@/components/PhantomMark";
+import { PhantomMark } from "@/brand-kit/react/PhantomMark";
 
 export default function Sidebar() {
   const pathname = usePathname();
@@ -51,7 +51,7 @@ export default function Sidebar() {
             </p>
             <div className="space-y-0.5">
               {group.items.map(({ href, label, Icon }) => {
-                const active = href === "/" ? pathname === "/" : pathname.startsWith(href);
+                const active = href === "/app" ? pathname === "/app" : pathname.startsWith(href);
                 return (
                   <Link
                     key={href}
