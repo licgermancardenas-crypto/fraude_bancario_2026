@@ -102,15 +102,30 @@ banco, no a demo. Progreso:
    `/app/cuentas` y `/app/anillos` + `RingGraph`. En el detalle de caso hay un
    callout "Punto ciego del onboarding" cuando KYC no es Alto pero el GNN
    score es alto (`isBlindSpot()`) — dispara en 64/80 casos actuales.
-3. ⏳ Screening de sanciones/listas (ONU, OFAC, REPET) como sección propia,
-   más allá del flag PEP que ya existe.
+3. ✅ **Screening de sanciones/listas (ONU, OFAC, REPET).** Nuevo
+   `src/generate_entities.py::generate_sanctions_hits()` — watchlist 100%
+   ficticia (9 entradas inventadas, ninguna corresponde a una designación
+   real) en 3 listas; ~0.3% de las cuentas matchean (5x más si es fraude,
+   2x más si es PEP — igual que el sesgo ya usado para PEP), con
+   `score_match` difuso y estado `pendiente/confirmado/descartado` (la
+   mayoría queda "descartado" tras revisión — mismo ~90% de falsos
+   positivos que ya se menciona en la landing). Se guarda en
+   `data/raw/sanctions_hits.csv` (gitignored, como el resto de data/raw/).
+   `export_cases()` arma el objeto `screening` por caso: `hit_directo` sobre
+   la cuenta + `exposicion_indirecta` sobre sus `neighbors` (1 salto) — es
+   la capacidad que la landing ya promete ("no solo alertás al que está en
+   la lista, sino al que está a 1-2 saltos"). Card dedicada en el detalle
+   de caso + columna/badge + KPI "Screening pendiente" en `/app/casos`.
 4. ⏳ Cuatro ojos — revisor + aprobador antes de escalar o enviar el SAR.
 
 Si se regenera `cases.json` desde cero, usar `export_cases()` (o `export_all()`
 completo) — **ojo:** `export_all()` hoy rompe en `export_pr_curves` por un
 mismatch de longitudes preexistente (scores_by_model vs y_test, ~22501 vs
 11251) que no tiene que ver con este cambio; para tocar solo casos, llamar
-`load_all(cfg)` + `export_cases(...)` directo, como se hizo acá.
+`load_all(cfg)` + `export_cases(...)` directo, como se hizo acá. Si se
+regenera la capa de entidades, correr `generate_entities()` (agrega
+`sanctions_hits.csv`; reproduce empresas/titularidades/directores/pep_flags
+idénticos porque el seed y el orden de generación no cambiaron).
 
 ## Pendientes
 - Setear NEXT_PUBLIC_API_URL=https://phantom-rcs9.onrender.com en las env vars del
@@ -122,3 +137,11 @@ mismatch de longitudes preexistente (scores_by_model vs y_test, ~22501 vs
   valor por valor de CSS, pero falta el chequeo pixel-a-pixel.
 - Investigar el mismatch de longitudes en export_pr_curves (ver arriba) —
   probablemente un .npy de scores desactualizado en data/processed/.
+- La mayoría de los scripts en src/ (analysis.py, build_graph.py, train*.py,
+  evaluate*.py, explain.py, trace_origin.py, detect_placement.py,
+  generate_report.py, eda.py, enrich_personas.py, business_impact.py,
+  detect_communities.py) tienen prints con "→" que crashean con
+  UnicodeEncodeError en la consola cp1252 default de Windows (ya se
+  encontró y arregló en export_dashboard.py y generate_entities.py). No
+  bloquea nada hoy porque el crash pasa DESPUÉS de guardar los archivos,
+  pero conviene limpiarlo si se automatiza el pipeline en Windows.

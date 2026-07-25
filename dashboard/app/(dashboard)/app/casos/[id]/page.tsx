@@ -5,6 +5,7 @@ import { useParams } from "next/navigation";
 import type { Case, CaseStatus, CaseNote } from "@/lib/types";
 import { RESOLVED_STATUSES, daysUntil, rosUrgency } from "@/lib/dates";
 import { kycTier, KYC_TIER_STYLE, isBlindSpot } from "@/lib/kyc";
+import { SCREENING_STATUS_STYLE } from "@/lib/screening";
 import PageHeader from "@/components/PageHeader";
 
 
@@ -294,6 +295,54 @@ export default function CaseDetailPage() {
               </span>
             </div>
             <p className="text-sm text-[#5A6478] leading-relaxed">{PATTERN_DESC[caseData.pattern]}</p>
+          </div>
+
+          {/* Screening de sanciones */}
+          <div className="bg-[#0E1219] rounded-xl border border-[#1E2430] p-4 space-y-3">
+            <div className="flex items-center justify-between">
+              <h3 className="text-sm font-bold text-[#EDEAE6]">Screening de sanciones y listas</h3>
+              <span className="text-[10px] font-mono" style={{ color: "#5A6478" }}>ONU · OFAC · REPET</span>
+            </div>
+
+            {caseData.screening.hit_directo ? (
+              (() => {
+                const hit = caseData.screening.hit_directo!;
+                const s = SCREENING_STATUS_STYLE[hit.estado];
+                return (
+                  <div className="rounded-lg p-3 space-y-1.5" style={{ backgroundColor: s.bg, border: `1px solid ${s.text}33` }}>
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-bold" style={{ color: s.text }}>{hit.lista} — {s.label}</span>
+                      <span className="text-[11px] font-mono" style={{ color: s.text }}>{(hit.score_match * 100).toFixed(0)}% match</span>
+                    </div>
+                    <p className="text-xs" style={{ color: "#EDEAE6" }}>Coincidencia: <strong>{hit.nombre_coincidencia}</strong></p>
+                    <p className="text-[11px] leading-relaxed" style={{ color: "#5A6478" }}>{hit.motivo}</p>
+                  </div>
+                );
+              })()
+            ) : caseData.screening.exposicion_indirecta.length > 0 ? (
+              <p className="text-xs" style={{ color: "#5A6478" }}>Sin coincidencia directa sobre esta cuenta.</p>
+            ) : null}
+
+            {caseData.screening.exposicion_indirecta.length > 0 && (
+              <div className="space-y-1.5 pt-1" style={{ borderTop: "1px solid #1E2430" }}>
+                <p className="text-[11px] font-semibold pt-2" style={{ color: "#A78BFA" }}>
+                  Exposición indirecta — cuentas vinculadas en listas
+                </p>
+                {caseData.screening.exposicion_indirecta.map(h => {
+                  const s = SCREENING_STATUS_STYLE[h.estado];
+                  return (
+                    <div key={h.account_id} className="flex items-center justify-between text-xs rounded-lg px-2.5 py-1.5" style={{ backgroundColor: "#12161F" }}>
+                      <span className="font-mono" style={{ color: "#5A6478" }}>{h.account_id} <span className="text-[10px]">({h.direction})</span></span>
+                      <span className="font-medium" style={{ color: s.text }}>{h.lista} · {s.label}</span>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+
+            {!caseData.screening.hit_directo && caseData.screening.exposicion_indirecta.length === 0 && (
+              <p className="text-xs" style={{ color: "#22C55E" }}>✓ Sin coincidencias, directas ni indirectas.</p>
+            )}
           </div>
 
           {/* Entity info */}

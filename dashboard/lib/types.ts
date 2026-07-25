@@ -161,6 +161,27 @@ export interface CaseNote {
   timestamp: string;
 }
 
+export type WatchList = "ONU" | "OFAC" | "REPET";
+export type ScreeningStatus = "pendiente" | "confirmado" | "descartado";
+
+export interface ScreeningHit {
+  lista: WatchList;
+  nombre_coincidencia: string;
+  motivo: string;
+  score_match: number;
+  estado: ScreeningStatus;
+}
+
+export interface IndirectScreeningHit extends ScreeningHit {
+  account_id: string;
+  direction: "entrada" | "salida";
+}
+
+export interface Screening {
+  hit_directo: ScreeningHit | null;
+  exposicion_indirecta: IndirectScreeningHit[];
+}
+
 export interface Case {
   case_id: string;
   account_id: string;
@@ -176,6 +197,7 @@ export interface Case {
   analista_asignado: string;
   dias_plazo_ros: number;
   vencimiento_ros: string;
+  screening: Screening;
   persona: Persona;
   empresa: Empresa | null;
   neighbors: CaseNeighbor[];

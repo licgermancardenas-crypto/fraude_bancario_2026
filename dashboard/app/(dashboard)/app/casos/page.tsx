@@ -4,6 +4,7 @@ import Link from "next/link";
 import type { Case, CaseStatus, CasePattern } from "@/lib/types";
 import { RESOLVED_STATUSES, daysUntil, rosUrgency } from "@/lib/dates";
 import { kycTier, KYC_TIER_STYLE } from "@/lib/kyc";
+import { SCREENING_STATUS_STYLE, screeningSummary } from "@/lib/screening";
 import PageHeader from "@/components/PageHeader";
 
 const STATUS_LABELS: Record<CaseStatus, string> = {
@@ -40,6 +41,26 @@ function RosBadge({ c, status }: { c: Case; status: CaseStatus }) {
   return (
     <span className="text-xs font-medium px-2 py-0.5 rounded-full whitespace-nowrap" style={{ backgroundColor: bg, color: text }}>
       {label}
+    </span>
+  );
+}
+
+function ScreeningBadge({ c }: { c: Case }) {
+  const summary = screeningSummary(c.screening);
+  if (summary.kind === "none") {
+    return <span className="text-xs" style={{ color: "#5A6478" }}>Sin coincidencias</span>;
+  }
+  if (summary.kind === "indirect") {
+    return (
+      <span className="text-xs font-medium px-2 py-0.5 rounded-full whitespace-nowrap" style={{ backgroundColor: "rgba(124,58,237,0.15)", color: "#A78BFA" }}>
+        Exposición indirecta
+      </span>
+    );
+  }
+  const s = SCREENING_STATUS_STYLE[summary.status];
+  return (
+    <span className="text-xs font-medium px-2 py-0.5 rounded-full whitespace-nowrap" style={{ backgroundColor: s.bg, color: s.text }}>
+      {summary.lista} · {s.label}
     </span>
   );
 }
@@ -87,6 +108,7 @@ export default function CasosPage() {
     abiertos:   cases.filter(c => effectiveStatus(c) === "abierto").length,
     escalados:  cases.filter(c => effectiveStatus(c) === "escalado").length,
     resueltos:  cases.filter(c => ["desestimado","sar_enviado"].includes(effectiveStatus(c))).length,
+    screeningPendiente: cases.filter(c => c.screening.hit_directo?.estado === "pendiente").length,
   };
 
   return (
@@ -97,12 +119,13 @@ export default function CasosPage() {
       />
 
       {/* Summary cards */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
         {[
           { label: "Total alertas", value: counts.total,     color: "#EDEAE6" },
           { label: "Abiertas",      value: counts.abiertos,  color: "#7AA2FF" },
           { label: "Escaladas",     value: counts.escalados, color: "#EF4444" },
           { label: "Resueltas",     value: counts.resueltos, color: "#22C55E" },
+          { label: "Screening pendiente", value: counts.screeningPendiente, color: "#F59E0B" },
         ].map(s => (
           <div key={s.label} className="bg-[#0E1219] rounded-xl p-3 border border-[#1E2430] text-center">
             <p className="text-2xl font-bold" style={{ color: s.color }}>{s.value}</p>
@@ -168,7 +191,7 @@ export default function CasosPage() {
           <table className="w-full text-sm">
             <thead>
               <tr style={{ backgroundColor: "#12161F", borderBottom: "1px solid #1E2430" }}>
-                {["Caso", "Cuenta / Titular", "Patrón", "Rating KYC", "Score GNN", "Analista", "Vencimiento ROS", "Estado", ""].map(h => (
+                {["Caso", "Cuenta / Titular", "Patrón", "Rating KYC", "Score GNN", "Analista", "Vencimiento ROS", "Screening", "Estado", ""].map(h => (
                   <th key={h} className="px-4 py-3 text-left text-xs font-semibold text-[#5A6478] uppercase tracking-wider whitespace-nowrap">{h}</th>
                 ))}
               </tr>
@@ -219,6 +242,9 @@ export default function CasosPage() {
                       <RosBadge c={c} status={status} />
                     </td>
                     <td className="px-4 py-3">
+                      <ScreeningBadge c={c} />
+                    </td>
+                    <td className="px-4 py-3">
                       <span className="text-xs font-medium px-2 py-0.5 rounded-full" style={{ backgroundColor: sc.bg, color: sc.text }}>
                         {STATUS_LABELS[status]}
                       </span>
@@ -233,7 +259,7 @@ export default function CasosPage() {
                 );
               })}
               {filtered.length === 0 && (
-                <tr><td colSpan={9} className="px-4 py-10 text-center text-[#5A6478] text-sm">Sin resultados</td></tr>
+                <tr><td colSpan={10} className="px-4 py-10 text-center text-[#5A6478] text-sm">Sin resultados</td></tr>
               )}
             </tbody>
           </table>

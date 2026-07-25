@@ -66,6 +66,7 @@ def _load_entity_tables(raw: str):
         _try("titularidades.csv"),
         _try("directores.csv"),
         _try("pep_flags.csv"),
+        _try("sanctions_hits.csv"),
     )
 
 
@@ -266,7 +267,7 @@ def export_entities(acc, txn, data, scores_all, cfg, out_dir, top_n=300):
     Edge types: es_titular | es_director | transaccion
     """
     raw = cfg["data"]["raw_dir"]
-    personas, empresas, titularidades, directores, pep_flags = _load_entity_tables(raw)
+    personas, empresas, titularidades, directores, pep_flags, _sanctions = _load_entity_tables(raw)
 
     node_ids = data.node_ids
     id2score = {nid: float(scores_all[i]) for i, nid in enumerate(node_ids)}
@@ -368,7 +369,7 @@ def export_cases(acc, txn, data, scores_all, cfg, out_dir, n_cases=80):
     rng = np.random.default_rng(seed + 99)
     random.seed(seed + 99)
 
-    personas, empresas, titularidades, directores, pep_flags = _load_entity_tables(raw)
+    personas, empresas, titularidades, directores, pep_flags, sanctions_hits = _load_entity_tables(raw)
 
     node_ids = data.node_ids
     id2idx   = {nid: i for i, nid in enumerate(node_ids)}
@@ -378,6 +379,11 @@ def export_cases(acc, txn, data, scores_all, cfg, out_dir, n_cases=80):
     personas_idx = personas.set_index("account_id") if not personas.empty else pd.DataFrame()
     emp_idx      = empresas.set_index("empresa_id") if not empresas.empty else pd.DataFrame()
     pep_set      = set(pep_flags["account_id"].tolist()) if not pep_flags.empty else set()
+    # account_id → hit de screening (a lo sumo uno por cuenta, ver generate_sanctions_hits)
+    sanctions_idx = (
+        {r["account_id"]: r for r in sanctions_hits.to_dict("records")}
+        if not sanctions_hits.empty else {}
+    )
 
     # transaction graph for neighbor lookups
     G = nx.DiGraph()
@@ -445,6 +451,38 @@ def export_cases(acc, txn, data, scores_all, cfg, out_dir, n_cases=80):
             })
         return result
 
+    def _screening(acc_id, neighbors):
+        """
+        Screening de sanciones — hit directo sobre la cuenta + exposición
+        indirecta (la cuenta transaccionó con alguien que sí está en una
+        lista). Es la capacidad que la landing promete: no solo alertar al
+        que está en la lista, sino a quien está a un salto de distancia.
+        """
+        direct = sanctions_idx.get(acc_id)
+        indirecta = []
+        for n in neighbors:
+            h = sanctions_idx.get(n["account_id"])
+            if h:
+                indirecta.append({
+                    "account_id":          n["account_id"],
+                    "direction":           n["direction"],
+                    "lista":               h["lista"],
+                    "nombre_coincidencia": h["nombre_coincidencia"],
+                    "motivo":              h["motivo"],
+                    "score_match":         round(float(h["score_match"]), 2),
+                    "estado":              h["estado"],
+                })
+        return {
+            "hit_directo": ({
+                "lista":               direct["lista"],
+                "nombre_coincidencia": direct["nombre_coincidencia"],
+                "motivo":              direct["motivo"],
+                "score_match":         round(float(direct["score_match"]), 2),
+                "estado":              direct["estado"],
+            } if direct is not None else None),
+            "exposicion_indirecta": indirecta,
+        }
+
     def _recent_txns(acc_id, top_k=10):
         rows = []
         for src, dst, d in G.in_edges(acc_id, data=True):
@@ -487,6 +525,7 @@ def export_cases(acc, txn, data, scores_all, cfg, out_dir, n_cases=80):
         alert_date = alert_dt.strftime("%Y-%m-%d")
         vencimiento_ros = (alert_dt + timedelta(days=DIAS_PLAZO_ROS)).strftime("%Y-%m-%d")
         score = id2score.get(acc_id, 0)
+        neighbors = _neighbors(acc_id)
 
         cases.append({
             "case_id":      f"CASO-{i+1:05d}",
@@ -503,9 +542,10 @@ def export_cases(acc, txn, data, scores_all, cfg, out_dir, n_cases=80):
             "analista_asignado": ANALISTAS[int(rng.integers(0, len(ANALISTAS)))],
             "dias_plazo_ros":    DIAS_PLAZO_ROS,
             "vencimiento_ros":   vencimiento_ros,
+            "screening":    _screening(acc_id, neighbors),
             "persona":      persona,
             "empresa":      _empresa_info(acc_id),
-            "neighbors":    _neighbors(acc_id),
+            "neighbors":    neighbors,
             "recent_transactions": _recent_txns(acc_id),
         })
 
