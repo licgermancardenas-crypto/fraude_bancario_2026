@@ -5,6 +5,7 @@ import type { Case, CaseStatus, CasePattern } from "@/lib/types";
 import { RESOLVED_STATUSES, daysUntil, rosUrgency } from "@/lib/dates";
 import { kycTier, KYC_TIER_STYLE } from "@/lib/kyc";
 import { SCREENING_STATUS_STYLE, screeningSummary } from "@/lib/screening";
+import { getStoredStatuses } from "@/lib/caseStatus";
 import PageHeader from "@/components/PageHeader";
 
 const STATUS_LABELS: Record<CaseStatus, string> = {
@@ -27,11 +28,6 @@ const PATTERN_LABELS: Record<CasePattern, string> = {
   agregacion_fondos:       "Agregación de fondos",
   transacciones_inusuales: "Transacciones inusuales",
 };
-
-function getStoredStatuses(): Record<string, CaseStatus> {
-  if (typeof window === "undefined") return {};
-  try { return JSON.parse(localStorage.getItem("phantom_case_statuses") || "{}"); } catch { return {}; }
-}
 
 function RosBadge({ c, status }: { c: Case; status: CaseStatus }) {
   if (RESOLVED_STATUSES.includes(status)) {

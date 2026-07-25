@@ -2,7 +2,15 @@
 import { useEffect, useState, useRef } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
-import type { Case, SARDraft } from "@/lib/types";
+import type { Case, SARDraft, SARAuditEvent } from "@/lib/types";
+import { setStoredStatus } from "@/lib/caseStatus";
+
+const AUDIT_ACTION_LABELS: Record<string, string> = {
+  borrador_creado:      "Creó el borrador",
+  enviado_a_revision:   "Envió a revisión",
+  aprobado_y_enviado:   "Aprobó y envió el ROS a la UIF",
+  rechazado:            "Rechazó — devolvió a borrador",
+};
 
 const PATRON_LABELS: Record<string, string> = {
   anillo_lavado:           "Operaciones de lavado de activos mediante anillo de transferencias circulares (layering)",
@@ -24,6 +32,7 @@ function buildSARDraft(c: Case): SARDraft {
     sujeto_obligado:      "Banco Regional del Sur S.A.",
     cuit_sujeto:          "30-66540234-3",
     oficial_cumplimiento: "Lic. María González",
+    analista_caso:        c.analista_asignado,
     reportado_nombre:     empresa?.razon_social || persona?.nombre_completo || c.account_id,
     reportado_cuil:       empresa?.cuit_empresa || persona?.cuil || "",
     reportado_tipo:       empresa ? "Persona Jurídica" : "Persona Física",
@@ -34,6 +43,10 @@ function buildSARDraft(c: Case): SARDraft {
     patron_detectado:     PATRON_LABELS[c.pattern] || c.pattern,
     descripcion:          buildDescripcion(c),
     estado_sar:           "borrador",
+    audit: [{
+      actor: c.analista_asignado, role: "analista", action: "borrador_creado",
+      timestamp: new Date().toISOString(),
+    }],
   };
 }
 
@@ -77,6 +90,8 @@ export default function SARPage() {
 
   const [draft, setDraft]   = useState<SARDraft | null>(null);
   const [saved, setSaved]   = useState(false);
+  const [firma, setFirma]   = useState("");
+  const [comentario, setComentario] = useState("");
   const printRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -87,7 +102,9 @@ export default function SARPage() {
         if (!c) return;
         const stored = getStoredSAR(caseId);
         const base   = buildSARDraft(c);
-        setDraft({ ...base, ...stored });
+        const merged = { ...base, ...stored } as SARDraft;
+        setDraft(merged);
+        setFirma(merged.oficial_cumplimiento);
       });
   }, [caseId]);
 
@@ -103,6 +120,48 @@ export default function SARPage() {
     setTimeout(() => setSaved(false), 2000);
   };
 
+  const pushAudit = (d: SARDraft, event: SARAuditEvent): SARDraft => ({
+    ...d, audit: [...d.audit, event],
+  });
+
+  const handleSendToReview = () => {
+    if (!draft) return;
+    const d = pushAudit(
+      { ...draft, estado_sar: "revision" },
+      { actor: draft.analista_caso, role: "analista", action: "enviado_a_revision", timestamp: new Date().toISOString() },
+    );
+    setDraft(d);
+    saveStoredSAR(caseId, d);
+  };
+
+  // Control de cuatro ojos: quien aprueba no puede ser quien armó el caso.
+  const firmaEsAutoAprobacion = firma.trim().length > 0 && firma.trim() === draft?.analista_caso;
+
+  const handleApprove = () => {
+    if (!draft || !firma.trim() || firmaEsAutoAprobacion) return;
+    const d = pushAudit(
+      { ...draft, estado_sar: "enviado", oficial_cumplimiento: firma.trim() },
+      { actor: firma.trim(), role: "oficial_cumplimiento", action: "aprobado_y_enviado",
+        timestamp: new Date().toISOString(), comentario: comentario.trim() || undefined },
+    );
+    setDraft(d);
+    saveStoredSAR(caseId, d);
+    setStoredStatus(caseId, "sar_enviado");
+    setComentario("");
+  };
+
+  const handleReject = () => {
+    if (!draft || !firma.trim()) return;
+    const d = pushAudit(
+      { ...draft, estado_sar: "borrador" },
+      { actor: firma.trim(), role: "oficial_cumplimiento", action: "rechazado",
+        timestamp: new Date().toISOString(), comentario: comentario.trim() || undefined },
+    );
+    setDraft(d);
+    saveStoredSAR(caseId, d);
+    setComentario("");
+  };
+
   const handlePrint = () => window.print();
 
   if (!draft) return (
@@ -115,6 +174,7 @@ export default function SARPage() {
     enviado:  { bg: "rgba(34,197,94,0.15)",  text: "#22C55E" },
   };
   const ec = estadoColors[draft.estado_sar];
+  const locked = draft.estado_sar === "enviado";
 
   return (
     <div className="space-y-5 max-w-4xl mx-auto print:max-w-none">
@@ -128,15 +188,18 @@ export default function SARPage() {
           <span className="text-[#EDEAE6] font-medium">Borrador SAR</span>
         </div>
         <div className="flex gap-2">
-          <button onClick={handleSave}
-                  className="px-3 min-h-[44px] text-xs font-medium rounded-lg border border-[#1E2430] text-[#5A6478] hover:bg-[#12161F] transition-colors">
-            {saved ? "✓ Guardado" : "Guardar borrador"}
-          </button>
-          <button
-            onClick={() => { if(draft) { const d={...draft,estado_sar:"revision" as const}; setDraft(d); saveStoredSAR(caseId,d); }}}
-            className="px-3 min-h-[44px] text-xs font-medium rounded-lg border border-[#2E6BFF]/40 text-[#7AA2FF] bg-[#2E6BFF]/10 hover:bg-[#2E6BFF]/20 transition-colors">
-            Enviar a revisión
-          </button>
+          {draft.estado_sar !== "enviado" && (
+            <button onClick={handleSave}
+                    className="px-3 min-h-[44px] text-xs font-medium rounded-lg border border-[#1E2430] text-[#5A6478] hover:bg-[#12161F] transition-colors">
+              {saved ? "✓ Guardado" : "Guardar borrador"}
+            </button>
+          )}
+          {draft.estado_sar === "borrador" && (
+            <button onClick={handleSendToReview}
+                    className="px-3 min-h-[44px] text-xs font-medium rounded-lg border border-[#2E6BFF]/40 text-[#7AA2FF] bg-[#2E6BFF]/10 hover:bg-[#2E6BFF]/20 transition-colors">
+              Enviar a revisión
+            </button>
+          )}
           <button onClick={handlePrint}
                   className="px-3 min-h-[44px] text-xs font-medium rounded-lg text-white transition-colors"
                   style={{ backgroundColor: "#2E6BFF" }}>
@@ -144,6 +207,67 @@ export default function SARPage() {
           </button>
         </div>
       </div>
+
+      {/* Control de cuatro ojos — no forma parte del documento impreso */}
+      {draft.estado_sar === "revision" && (
+        <div className="print:hidden rounded-xl border p-4 space-y-3" style={{ backgroundColor: "rgba(46,107,255,0.06)", borderColor: "rgba(46,107,255,0.25)" }}>
+          <div>
+            <h3 className="text-sm font-bold" style={{ color: "#7AA2FF" }}>Aprobación — control de cuatro ojos</h3>
+            <p className="text-xs mt-0.5" style={{ color: "#5A6478" }}>
+              Armado por <strong style={{ color: "#EDEAE6" }}>{draft.analista_caso}</strong>. Un Oficial de Cumplimiento
+              distinto debe firmar antes de que el ROS salga hacia la UIF.
+            </p>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div>
+              <label className="text-xs font-semibold text-[#5A6478] uppercase tracking-wider block mb-1.5">
+                Firma — Oficial de Cumplimiento
+              </label>
+              <input
+                type="text"
+                value={firma}
+                onChange={e => setFirma(e.target.value)}
+                placeholder="Nombre de quien aprueba"
+                className="w-full text-sm text-[#EDEAE6] bg-[#12161F] rounded-lg px-3 py-2 border outline-none focus:ring-2 focus:ring-[#2E6BFF]"
+                style={{ borderColor: firmaEsAutoAprobacion ? "#EF4444" : "#1E2430" }}
+              />
+              {firmaEsAutoAprobacion && (
+                <p className="text-[11px] mt-1" style={{ color: "#EF4444" }}>
+                  Quien arma el caso no puede autoaprobar su propio ROS.
+                </p>
+              )}
+            </div>
+            <div>
+              <label className="text-xs font-semibold text-[#5A6478] uppercase tracking-wider block mb-1.5">
+                Comentario (opcional)
+              </label>
+              <input
+                type="text"
+                value={comentario}
+                onChange={e => setComentario(e.target.value)}
+                placeholder="Observaciones de la revisión…"
+                className="w-full text-sm text-[#EDEAE6] bg-[#12161F] rounded-lg px-3 py-2 border border-[#1E2430] outline-none focus:ring-2 focus:ring-[#2E6BFF]"
+              />
+            </div>
+          </div>
+          <div className="flex gap-2">
+            <button
+              onClick={handleApprove}
+              disabled={!firma.trim() || firmaEsAutoAprobacion}
+              className="px-4 min-h-[44px] text-sm font-medium rounded-lg text-white transition-colors disabled:opacity-40"
+              style={{ backgroundColor: "#22C55E" }}>
+              Aprobar y enviar a UIF
+            </button>
+            <button
+              onClick={handleReject}
+              disabled={!firma.trim()}
+              className="px-4 min-h-[44px] text-sm font-medium rounded-lg border transition-colors disabled:opacity-40"
+              style={{ borderColor: "#EF4444", color: "#EF4444", backgroundColor: "rgba(239,68,68,0.08)" }}>
+              Rechazar — volver a borrador
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* SAR Document */}
       <div ref={printRef} className="bg-[#0E1219] rounded-xl border border-[#1E2430] overflow-hidden print:rounded-none print:border-none">
@@ -171,13 +295,13 @@ export default function SARPage() {
           {/* Section 1: Sujeto obligado */}
           <Section title="1. Sujeto Obligado">
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <Field label="Denominación" value={draft.sujeto_obligado}
+              <Field label="Denominación" value={draft.sujeto_obligado} disabled={locked}
                      onChange={v => update("sujeto_obligado", v)} />
-              <Field label="CUIT" value={draft.cuit_sujeto}
+              <Field label="CUIT" value={draft.cuit_sujeto} disabled={locked}
                      onChange={v => update("cuit_sujeto", v)} />
-              <Field label="Oficial de Cumplimiento" value={draft.oficial_cumplimiento}
+              <Field label="Oficial de Cumplimiento" value={draft.oficial_cumplimiento} disabled={locked}
                      onChange={v => update("oficial_cumplimiento", v)} />
-              <Field label="Fecha de reporte" value={draft.fecha_reporte}
+              <Field label="Fecha de reporte" value={draft.fecha_reporte} disabled={locked}
                      onChange={v => update("fecha_reporte", v)} />
             </div>
           </Section>
@@ -185,11 +309,11 @@ export default function SARPage() {
           {/* Section 2: Sujeto reportado */}
           <Section title="2. Sujeto Reportado">
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <Field label="Nombre / Razón social" value={draft.reportado_nombre}
+              <Field label="Nombre / Razón social" value={draft.reportado_nombre} disabled={locked}
                      onChange={v => update("reportado_nombre", v)} />
-              <Field label="CUIL / CUIT" value={draft.reportado_cuil}
+              <Field label="CUIL / CUIT" value={draft.reportado_cuil} disabled={locked}
                      onChange={v => update("reportado_cuil", v)} />
-              <Field label="Tipo de persona" value={draft.reportado_tipo}
+              <Field label="Tipo de persona" value={draft.reportado_tipo} disabled={locked}
                      onChange={v => update("reportado_tipo", v)} />
               <div>
                 <label className="text-xs font-semibold text-[#5A6478] uppercase tracking-wider block mb-1.5">
@@ -205,11 +329,11 @@ export default function SARPage() {
           {/* Section 3: Operaciones */}
           <Section title="3. Operaciones Sospechosas">
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-              <Field label="Monto total (ARS)" value={String(draft.monto_total)}
+              <Field label="Monto total (ARS)" value={String(draft.monto_total)} disabled={locked}
                      onChange={v => update("monto_total" as any, v)} />
-              <Field label="Fecha desde" value={draft.fecha_desde}
+              <Field label="Fecha desde" value={draft.fecha_desde} disabled={locked}
                      onChange={v => update("fecha_desde", v)} />
-              <Field label="Fecha hasta" value={draft.fecha_hasta}
+              <Field label="Fecha hasta" value={draft.fecha_hasta} disabled={locked}
                      onChange={v => update("fecha_hasta", v)} />
             </div>
             <div className="mt-4">
@@ -228,8 +352,29 @@ export default function SARPage() {
               value={draft.descripcion}
               onChange={e => update("descripcion", e.target.value)}
               rows={10}
-              className="w-full text-sm text-[#EDEAE6] bg-[#12161F] rounded-lg px-3 py-2.5 border border-[#1E2430] outline-none focus:ring-2 focus:ring-[#2E6BFF] leading-relaxed resize-none print:border-none print:bg-[#0E1219]"
+              disabled={locked}
+              className="w-full text-sm text-[#EDEAE6] bg-[#12161F] rounded-lg px-3 py-2.5 border border-[#1E2430] outline-none focus:ring-2 focus:ring-[#2E6BFF] leading-relaxed resize-none print:border-none print:bg-[#0E1219] disabled:opacity-60 disabled:cursor-not-allowed"
             />
+          </Section>
+
+          {/* Section 5: Trazabilidad — cuatro ojos */}
+          <Section title="5. Trazabilidad">
+            <div className="space-y-2">
+              {draft.audit.map((ev, i) => (
+                <div key={i} className="flex items-start justify-between gap-3 text-xs rounded-lg px-3 py-2" style={{ backgroundColor: "#12161F" }}>
+                  <div>
+                    <p className="text-[#EDEAE6] font-medium">
+                      {ev.actor} <span className="font-normal" style={{ color: "#5A6478" }}>({ev.role === "analista" ? "analista" : "oficial de cumplimiento"})</span>
+                    </p>
+                    <p className="mt-0.5" style={{ color: "#5A6478" }}>{AUDIT_ACTION_LABELS[ev.action]}</p>
+                    {ev.comentario && <p className="mt-0.5 italic" style={{ color: "#5A6478" }}>"{ev.comentario}"</p>}
+                  </div>
+                  <span className="font-mono whitespace-nowrap" style={{ color: "#5A6478" }}>
+                    {new Date(ev.timestamp).toLocaleString("es-AR")}
+                  </span>
+                </div>
+              ))}
+            </div>
           </Section>
 
           {/* Footer */}
@@ -264,15 +409,16 @@ function Section({ title, children }: { title: string; children: React.ReactNode
   );
 }
 
-function Field({ label, value, onChange }: { label: string; value: string; onChange: (v: string) => void }) {
+function Field({ label, value, onChange, disabled }: { label: string; value: string; onChange: (v: string) => void; disabled?: boolean }) {
   return (
     <div>
       <label className="text-xs font-semibold text-[#5A6478] uppercase tracking-wider block mb-1.5">{label}</label>
       <input
         type="text"
         value={value}
+        disabled={disabled}
         onChange={e => onChange(e.target.value)}
-        className="w-full text-sm text-[#EDEAE6] bg-[#12161F] rounded-lg px-3 py-2 border border-[#1E2430] outline-none focus:ring-2 focus:ring-[#2E6BFF] print:border-none print:bg-[#0E1219]"
+        className="w-full text-sm text-[#EDEAE6] bg-[#12161F] rounded-lg px-3 py-2 border border-[#1E2430] outline-none focus:ring-2 focus:ring-[#2E6BFF] print:border-none print:bg-[#0E1219] disabled:opacity-60 disabled:cursor-not-allowed"
       />
     </div>
   );

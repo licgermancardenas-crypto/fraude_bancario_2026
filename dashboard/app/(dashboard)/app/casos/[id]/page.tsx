@@ -6,6 +6,7 @@ import type { Case, CaseStatus, CaseNote } from "@/lib/types";
 import { RESOLVED_STATUSES, daysUntil, rosUrgency } from "@/lib/dates";
 import { kycTier, KYC_TIER_STYLE, isBlindSpot } from "@/lib/kyc";
 import { SCREENING_STATUS_STYLE } from "@/lib/screening";
+import { getStoredStatuses, setStoredStatus } from "@/lib/caseStatus";
 import PageHeader from "@/components/PageHeader";
 
 
@@ -30,15 +31,6 @@ const PATTERN_DESC: Record<string, string> = {
   transacciones_inusuales: "El perfil de transacciones de esta cuenta difiere significativamente de su comportamiento histórico esperado.",
 };
 
-function getStoredStatuses(): Record<string, CaseStatus> {
-  if (typeof window === "undefined") return {};
-  try { return JSON.parse(localStorage.getItem("phantom_case_statuses") || "{}"); } catch { return {}; }
-}
-function setStoredStatus(caseId: string, status: CaseStatus) {
-  const all = getStoredStatuses();
-  all[caseId] = status;
-  localStorage.setItem("phantom_case_statuses", JSON.stringify(all));
-}
 function getStoredNotes(caseId: string): CaseNote[] {
   if (typeof window === "undefined") return [];
   try { return JSON.parse(localStorage.getItem(`phantom_notes_${caseId}`) || "[]"); } catch { return []; }

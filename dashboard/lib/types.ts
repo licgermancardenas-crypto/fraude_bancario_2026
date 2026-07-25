@@ -204,12 +204,24 @@ export interface Case {
   recent_transactions: CaseTransaction[];
 }
 
+export type SARAuditAction = "borrador_creado" | "enviado_a_revision" | "aprobado_y_enviado" | "rechazado";
+export type SARAuditRole = "analista" | "oficial_cumplimiento";
+
+export interface SARAuditEvent {
+  actor: string;
+  role: SARAuditRole;
+  action: SARAuditAction;
+  timestamp: string;
+  comentario?: string;
+}
+
 export interface SARDraft {
   case_id: string;
   fecha_reporte: string;
   sujeto_obligado: string;
   cuit_sujeto: string;
   oficial_cumplimiento: string;
+  analista_caso: string;
   reportado_nombre: string;
   reportado_cuil: string;
   reportado_tipo: string;
@@ -220,4 +232,5 @@ export interface SARDraft {
   patron_detectado: string;
   descripcion: string;
   estado_sar: "borrador" | "revision" | "enviado";
+  audit: SARAuditEvent[];
 }

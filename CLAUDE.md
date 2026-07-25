@@ -81,9 +81,9 @@ NEXT_PUBLIC_API_URL (dashboard/.env.local, no versionado; ver dashboard/.env.exa
 README.md es la fuente de verdad del estado del proyecto; actualizar esta sección junto
 con el README cuando cambie algo relevante.
 
-## Realismo del módulo Compliance (en curso)
+## Realismo del módulo Compliance (completo — 4/4)
 Plan de 4 mejoras para que la cola de casos suene a plataforma AML real de un
-banco, no a demo. Progreso:
+banco, no a demo. Las 4 completas:
 1. ✅ **Asignación de analista + plazo regulatorio.** `src/export_dashboard.py`
    (`export_cases`) asigna `analista_asignado` (pool de 5 analistas ficticios,
    determinístico vía `rng`) y calcula `vencimiento_ros` = `alert_date` + 150
@@ -116,7 +116,22 @@ banco, no a demo. Progreso:
    la capacidad que la landing ya promete ("no solo alertás al que está en
    la lista, sino al que está a 1-2 saltos"). Card dedicada en el detalle
    de caso + columna/badge + KPI "Screening pendiente" en `/app/casos`.
-4. ⏳ Cuatro ojos — revisor + aprobador antes de escalar o enviar el SAR.
+4. ✅ **Cuatro ojos — revisor + aprobador antes de enviar el SAR.** Solo
+   frontend, no requirió cambios en el pipeline Python. `SARDraft` (lib/types.ts)
+   suma `analista_caso` (snapshot de `case.analista_asignado`) y `audit:
+   SARAuditEvent[]` (trazabilidad: quién, qué acción, cuándo, comentario
+   opcional). En `/app/casos/[id]/sar`, cuando `estado_sar === "revision"`
+   aparece el panel "Aprobación — control de cuatro ojos": el Oficial de
+   Cumplimiento firma con su nombre y puede Aprobar (→ `enviado`, y
+   además actualiza el estado del caso a `sar_enviado` vía
+   `lib/caseStatus.ts`, que antes nunca se alcanzaba desde la UI) o
+   Rechazar (→ vuelve a `borrador`). Control anti-autoaprobación: el botón
+   Aprobar se deshabilita si la firma coincide con `analista_caso`. Una vez
+   `enviado`, el formulario queda bloqueado (`disabled`) y se agrega una
+   Sección 5 "Trazabilidad" al documento con el historial completo de
+   eventos. De paso se extrajo `getStoredStatuses`/`setStoredStatus`
+   (duplicados en 2 archivos) a `lib/caseStatus.ts` — ahora también los usa
+   la página del SAR.
 
 Si se regenera `cases.json` desde cero, usar `export_cases()` (o `export_all()`
 completo) — **ojo:** `export_all()` hoy rompe en `export_pr_curves` por un
