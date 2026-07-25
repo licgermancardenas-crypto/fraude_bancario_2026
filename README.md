@@ -74,7 +74,7 @@ en `/`, `app/(dashboard)` es la herramienta real bajo `/app/*`.
 | `/app/metodologia` | Documentación técnica del sistema |
 | `/app/casos` | **Cola de alertas** con 80 casos pre-generados, filtros, KPIs, gestión de estado |
 | `/app/entidades` | **Red de entidades** (personas, empresas, PEPs, shell companies) en Cytoscape.js |
-| `/app/casos/[id]/sar` | **Formulario ROS/SAR** pre-completado, narrativa automática, referencia a Ley 25.246 / UIF |
+| `/app/casos/[id]/ros` | **Formulario ROS** (Reporte de Operación Sospechosa) pre-completado, narrativa automática, control de cuatro ojos, referencia a Ley 25.246 / UIF |
 | `/app/en-vivo` | Consola de scoring en vivo contra la API FastAPI (Render) |
 
 Identidad visual (colores, tipografía, isotipo) centralizada en
@@ -191,7 +191,7 @@ fraud-gnn/
 │   │   ├── metodologia/       # documentación técnica
 │   │   ├── casos/             # cola de alertas + gestión de casos
 │   │   ├── casos/[id]/        # detalle de caso con 4 tabs y acciones
-│   │   ├── casos/[id]/sar/    # formulario ROS/SAR (Ley 25.246 / UIF)
+│   │   ├── casos/[id]/ros/    # formulario ROS (Ley 25.246 / UIF)
 │   │   └── entidades/         # red de entidades (Cytoscape.js)
 │   └── public/data/           # JSONs exportados (cuentas, casos, entidades)
 ├── api/                        # FastAPI scoring service (deploy en Render)

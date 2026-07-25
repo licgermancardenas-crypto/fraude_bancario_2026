@@ -13,7 +13,7 @@ const STATUS_LABELS: Record<CaseStatus, string> = {
   en_revision:  "En revisión",
   escalado:     "Escalado",
   desestimado:  "Desestimado",
-  sar_enviado:  "SAR enviado",
+  sar_enviado:  "ROS enviado",
 };
 const STATUS_COLORS: Record<CaseStatus, { bg: string; text: string }> = {
   abierto:     { bg: "rgba(46,107,255,0.15)", text: "#7AA2FF" },

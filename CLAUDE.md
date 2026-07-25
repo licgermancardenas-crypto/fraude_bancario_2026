@@ -67,7 +67,7 @@ existía `components/PhantomMark.tsx`, ahora movido a `brand-kit/react/`):
 [2026-07-24] Las 8 fases del roadmap original (A-H) están completas, más extensiones:
 5 modelos entrenados (mejor: GraphSAGE, PR-AUC 0.977), explicabilidad (GNNExplainer),
 backward tracing de perpetradores, placement scoring, dashboard de 9 páginas + módulo
-Compliance (casos/entidades/SAR), informe PDF institucional, API FastAPI (api/) con
+Compliance (casos/entidades/ROS), informe PDF institucional, API FastAPI (api/) con
 11 endpoints deployada en Render (confirmada viva en https://phantom-rcs9.onrender.com),
 y landing de marketing en `/` (`app/(marketing)/`, réplica fiel de
 `docs/phantom-landing.html`).
@@ -116,11 +116,12 @@ banco, no a demo. Las 4 completas:
    la capacidad que la landing ya promete ("no solo alertás al que está en
    la lista, sino al que está a 1-2 saltos"). Card dedicada en el detalle
    de caso + columna/badge + KPI "Screening pendiente" en `/app/casos`.
-4. ✅ **Cuatro ojos — revisor + aprobador antes de enviar el SAR.** Solo
-   frontend, no requirió cambios en el pipeline Python. `SARDraft` (lib/types.ts)
-   suma `analista_caso` (snapshot de `case.analista_asignado`) y `audit:
+4. ✅ **Cuatro ojos — revisor + aprobador antes de enviar el ROS.** Solo
+   frontend, no requirió cambios en el pipeline Python. `SARDraft` (lib/types.ts
+   — nombre interno, no renombrado; ver nota de terminología abajo) suma
+   `analista_caso` (snapshot de `case.analista_asignado`) y `audit:
    SARAuditEvent[]` (trazabilidad: quién, qué acción, cuándo, comentario
-   opcional). En `/app/casos/[id]/sar`, cuando `estado_sar === "revision"`
+   opcional). En `/app/casos/[id]/ros`, cuando `estado_sar === "revision"`
    aparece el panel "Aprobación — control de cuatro ojos": el Oficial de
    Cumplimiento firma con su nombre y puede Aprobar (→ `enviado`, y
    además actualiza el estado del caso a `sar_enviado` vía
@@ -131,7 +132,22 @@ banco, no a demo. Las 4 completas:
    Sección 5 "Trazabilidad" al documento con el historial completo de
    eventos. De paso se extrajo `getStoredStatuses`/`setStoredStatus`
    (duplicados en 2 archivos) a `lib/caseStatus.ts` — ahora también los usa
-   la página del SAR.
+   la página del ROS.
+
+## Terminología: ROS, no SAR
+El documento regulatorio argentino se llama **ROS** (Reporte de Operación
+Sospechosa, Ley 25.246 / UIF) — "SAR" (Suspicious Activity Report) es el
+término de EEUU/FinCEN, no corresponde acá. [2026-07-25] Se corrigió una
+mezcla real: botones, la ruta (`/app/casos/[id]/sar` → `/app/casos/[id]/ros`)
+y el label de estado ("SAR enviado" → "ROS enviado") decían SAR mientras el
+documento en sí ya decía "Reporte de Operación Sospechosa (ROS)" correctamente.
+**Los identificadores internos de TypeScript quedaron sin renombrar a propósito**
+(`SARDraft`, `SARAuditEvent`, `buildSARDraft`, `estado_sar`, el status literal
+`"sar_enviado"` en `CaseStatus`) — es deuda cosmética conocida, no un olvido:
+no son visibles para el usuario y renombrarlos no traía beneficio para el
+alcance acotado de este fix. Si se vuelve a tocar `lib/types.ts` o
+`casos/[id]/ros/page.tsx` a fondo, considerar renombrarlos a `ROSDraft` etc.
+para que el código interno también diga ROS.
 
 Si se regenera `cases.json` desde cero, usar `export_cases()` (o `export_all()`
 completo) — **ojo:** `export_all()` hoy rompe en `export_pr_curves` por un

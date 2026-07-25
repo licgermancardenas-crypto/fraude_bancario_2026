@@ -185,7 +185,7 @@ export default function SARPage() {
           <span>/</span>
           <Link href={`/app/casos/${caseId}`} className="hover:text-[#EDEAE6]">{caseId}</Link>
           <span>/</span>
-          <span className="text-[#EDEAE6] font-medium">Borrador SAR</span>
+          <span className="text-[#EDEAE6] font-medium">Borrador ROS</span>
         </div>
         <div className="flex gap-2">
           {draft.estado_sar !== "enviado" && (
@@ -269,7 +269,7 @@ export default function SARPage() {
         </div>
       )}
 
-      {/* SAR Document */}
+      {/* ROS Document */}
       <div ref={printRef} className="bg-[#0E1219] rounded-xl border border-[#1E2430] overflow-hidden print:rounded-none print:border-none">
         {/* Document header */}
         <div className="p-6 border-b border-[#1E2430] print:border-[#1E2430]" style={{ backgroundColor: "#0A1226" }}>
@@ -383,7 +383,7 @@ export default function SARPage() {
               <p>Generado por: <span className="font-semibold text-[#5A6478]">Phantom AI — Motor de detección GNN</span></p>
               <p className="mt-0.5">Datos 100% sintéticos — engagement simulado Banco Regional del Sur (BRS)</p>
             </div>
-            <p>Score modelo: <span className="font-mono font-bold text-[#5A6478]">{draft.case_id}</span></p>
+            <p>Caso Nº: <span className="font-mono font-bold text-[#5A6478]">{draft.case_id}</span></p>
           </div>
         </div>
       </div>

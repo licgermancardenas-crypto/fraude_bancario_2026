@@ -15,7 +15,7 @@ const STATUS_LABELS: Record<CaseStatus, string> = {
   en_revision:  "En revisión",
   escalado:     "Escalado",
   desestimado:  "Desestimado",
-  sar_enviado:  "SAR enviado",
+  sar_enviado:  "ROS enviado",
 };
 const STATUS_COLORS: Record<CaseStatus, { bg: string; text: string; border: string }> = {
   abierto:     { bg: "rgba(46,107,255,0.15)", text: "#7AA2FF", border: "rgba(46,107,255,0.3)" },
@@ -205,17 +205,17 @@ export default function CaseDetailPage() {
                         className="px-3 min-h-[44px] text-xs font-medium rounded-lg border border-[#1E2430] text-[#5A6478] bg-[#12161F] hover:bg-[#12161F] transition-colors">
                   Desestimar
                 </button>
-                <Link href={`/app/casos/${caseId}/sar`}
+                <Link href={`/app/casos/${caseId}/ros`}
                       onClick={() => handleStatusChange("escalado")}
                       className="px-3 min-h-[44px] text-xs font-medium rounded-lg bg-[#EF4444] text-white hover:bg-[#DC2626] transition-colors">
-                  Escalar → SAR
+                  Escalar → ROS
                 </Link>
               </>
             )}
             {status === "escalado" && (
-              <Link href={`/app/casos/${caseId}/sar`}
+              <Link href={`/app/casos/${caseId}/ros`}
                     className="px-3 min-h-[44px] text-xs font-medium rounded-lg bg-[#EF4444] text-white hover:bg-[#DC2626] transition-colors">
-                Ver borrador SAR
+                Ver borrador ROS
               </Link>
             )}
           </div>
