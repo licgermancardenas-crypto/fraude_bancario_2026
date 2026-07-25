@@ -1,6 +1,7 @@
 "use client";
 import { useState, useMemo } from "react";
 import type { Account } from "@/lib/types";
+import { kycTier, KYC_TIER_STYLE } from "@/lib/kyc";
 
 interface Props { accounts: Account[] }
 
@@ -133,6 +134,7 @@ export default function AccountsTable({ accounts }: Props) {
               <th className="px-4 py-3 text-left text-[11px] font-bold uppercase tracking-widest w-8" style={{ color: "#5A6478" }}>#</th>
               <Th k="nombre_completo" label="Titular" />
               <Th k="gnn_score"       label="Score GNN" />
+              <Th k="risk_score"      label="Rating KYC" />
               <Th k="is_fraud"        label="Fraude" />
               <Th k="condicion_afip"  label="AFIP" />
               <Th k="balance"         label="Balance" />
@@ -180,6 +182,18 @@ export default function AccountsTable({ accounts }: Props) {
                   </td>
 
                   <td className="px-4 py-3"><ScoreBar score={a.gnn_score} /></td>
+
+                  <td className="px-4 py-3">
+                    {(() => {
+                      const tier = kycTier(a.risk_score);
+                      const s = KYC_TIER_STYLE[tier];
+                      return (
+                        <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full whitespace-nowrap" style={{ backgroundColor: s.bg, color: s.text }}>
+                          {tier}
+                        </span>
+                      );
+                    })()}
+                  </td>
 
                   <td className="px-4 py-3">
                     {isFraud

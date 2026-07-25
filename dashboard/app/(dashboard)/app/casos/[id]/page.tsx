@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useParams } from "next/navigation";
 import type { Case, CaseStatus, CaseNote } from "@/lib/types";
 import { RESOLVED_STATUSES, daysUntil, rosUrgency } from "@/lib/dates";
+import { kycTier, KYC_TIER_STYLE, isBlindSpot } from "@/lib/kyc";
 import PageHeader from "@/components/PageHeader";
 
 
@@ -227,9 +228,9 @@ export default function CaseDetailPage() {
           </div>
         </div>
 
-        {/* Score bar */}
+        {/* Score GNN (dinámico, comportamiento en red) */}
         <div className="mt-4 flex items-center gap-3">
-          <span className="text-xs text-[#5A6478] w-24">Score GNN</span>
+          <span className="text-xs text-[#5A6478] w-36">Score GNN <span className="text-[10px]">(comportamiento)</span></span>
           <div className="flex-1 h-2 rounded-full bg-[#12161F] overflow-hidden">
             <div className="h-full rounded-full transition-all" style={{
               width: `${caseData.gnn_score * 100}%`,
@@ -238,6 +239,33 @@ export default function CaseDetailPage() {
           </div>
           <span className="font-mono text-sm font-bold text-[#EDEAE6]">{caseData.gnn_score.toFixed(4)}</span>
         </div>
+
+        {/* Rating KYC (estático, onboarding) */}
+        <div className="mt-2.5 flex items-center gap-3">
+          <span className="text-xs text-[#5A6478] w-36">Rating KYC <span className="text-[10px]">(onboarding)</span></span>
+          {(() => {
+            const tier = kycTier(caseData.risk_score);
+            const s = KYC_TIER_STYLE[tier];
+            return (
+              <span className="text-xs font-semibold px-2.5 py-1 rounded-full" style={{ backgroundColor: s.bg, color: s.text }}>
+                {tier}
+              </span>
+            );
+          })()}
+          <span className="font-mono text-xs text-[#5A6478]">({caseData.risk_score.toFixed(4)})</span>
+        </div>
+
+        {isBlindSpot(caseData.risk_score, caseData.gnn_score) && (
+          <div className="mt-3 rounded-lg px-3 py-2.5 text-xs leading-relaxed flex gap-2"
+               style={{ backgroundColor: "rgba(124,58,237,0.08)", border: "1px solid rgba(124,58,237,0.25)" }}>
+            <span style={{ color: "#A78BFA" }}>⚠</span>
+            <span style={{ color: "rgba(237,234,230,0.8)" }}>
+              <strong style={{ color: "#C4B5FD" }}>Punto ciego del onboarding —</strong> el rating KYC de esta
+              cuenta no la habría marcado. El score GNN la detecta por su posición en la red de transacciones,
+              no por su perfil declarado.
+            </span>
+          </div>
+        )}
       </div>
 
       {/* Tabs */}

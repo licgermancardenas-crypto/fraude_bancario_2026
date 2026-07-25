@@ -1,6 +1,7 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
 import type { Ring } from "@/lib/types";
+import { kycTier, KYC_TIER_STYLE } from "@/lib/kyc";
 
 interface Props { ring: Ring }
 
@@ -107,7 +108,6 @@ export default function RingGraph({ ring }: Props) {
                 ["Score GNN",   (selected.gnn_score * 100).toFixed(1) + "%"],
                 ["Tipo",        selected.account_type],
                 ["Balance",     "$" + selected.balance.toLocaleString("es-AR", { maximumFractionDigits: 0 })],
-                ["Risk score",  selected.risk_score.toFixed(4)],
                 ["¿Fraude?",    selected.is_fraud ? "Sí" : "No"],
               ].map(([k, v]) => (
                 <div key={k} className="flex justify-between gap-2">
@@ -115,6 +115,20 @@ export default function RingGraph({ ring }: Props) {
                   <dd className={`font-medium ${k === "¿Fraude?" && v === "Sí" ? "text-red-400" : "text-[#EDEAE6]"}`}>{v}</dd>
                 </div>
               ))}
+              <div className="flex justify-between gap-2 items-center">
+                <dt className="text-[#5A6478]">Rating KYC</dt>
+                <dd>
+                  {(() => {
+                    const tier = kycTier(selected.risk_score);
+                    const s = KYC_TIER_STYLE[tier];
+                    return (
+                      <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full" style={{ backgroundColor: s.bg, color: s.text }}>
+                        {tier} ({selected.risk_score.toFixed(2)})
+                      </span>
+                    );
+                  })()}
+                </dd>
+              </div>
             </dl>
           </>
         ) : (

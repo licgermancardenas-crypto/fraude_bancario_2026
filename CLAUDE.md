@@ -91,7 +91,17 @@ banco, no a demo. Progreso:
    campos en `Case` (lib/types.ts), helper compartido `lib/dates.ts`
    (`daysUntil`, `rosUrgency`), badge de vencimiento en `/app/casos` (lista +
    filtro por analista) y en el detalle de caso.
-2. ⏳ Rating de cliente (KYC, estático) separado del score GNN (dinámico).
+2. ✅ **Rating KYC (estático) separado del score GNN (dinámico).** `risk_score`
+   ya existía en el dataset (src/generate.py, Beta(2,8)) pero no se mostraba
+   como concepto propio — se comprobó que fraude/legit tienen medias casi
+   idénticas (0.1999 vs 0.1992), coherente con el Cohen d=0.055 ya reportado
+   en /app/metodologia. `lib/kyc.ts` categoriza en tiers Bajo/Medio/Alto
+   (cortes en percentiles ~33/~78) con paleta propia (grises/violeta,
+   deliberadamente distinta del rojo/ámbar/verde del score GNN para no
+   confundir los dos sistemas). Se muestra en `/app/casos` (lista + detalle),
+   `/app/cuentas` y `/app/anillos` + `RingGraph`. En el detalle de caso hay un
+   callout "Punto ciego del onboarding" cuando KYC no es Alto pero el GNN
+   score es alto (`isBlindSpot()`) — dispara en 64/80 casos actuales.
 3. ⏳ Screening de sanciones/listas (ONU, OFAC, REPET) como sección propia,
    más allá del flag PEP que ya existe.
 4. ⏳ Cuatro ojos — revisor + aprobador antes de escalar o enviar el SAR.

@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import type { Case, CaseStatus, CasePattern } from "@/lib/types";
 import { RESOLVED_STATUSES, daysUntil, rosUrgency } from "@/lib/dates";
+import { kycTier, KYC_TIER_STYLE } from "@/lib/kyc";
 import PageHeader from "@/components/PageHeader";
 
 const STATUS_LABELS: Record<CaseStatus, string> = {
@@ -167,7 +168,7 @@ export default function CasosPage() {
           <table className="w-full text-sm">
             <thead>
               <tr style={{ backgroundColor: "#12161F", borderBottom: "1px solid #1E2430" }}>
-                {["Caso", "Cuenta / Titular", "Patrón", "Score", "Analista", "Vencimiento ROS", "Estado", ""].map(h => (
+                {["Caso", "Cuenta / Titular", "Patrón", "Rating KYC", "Score GNN", "Analista", "Vencimiento ROS", "Estado", ""].map(h => (
                   <th key={h} className="px-4 py-3 text-left text-xs font-semibold text-[#5A6478] uppercase tracking-wider whitespace-nowrap">{h}</th>
                 ))}
               </tr>
@@ -190,6 +191,17 @@ export default function CasosPage() {
                     </td>
                     <td className="px-4 py-3">
                       <span className="text-xs text-[#5A6478]">{PATTERN_LABELS[c.pattern]}</span>
+                    </td>
+                    <td className="px-4 py-3">
+                      {(() => {
+                        const tier = kycTier(c.risk_score);
+                        const s = KYC_TIER_STYLE[tier];
+                        return (
+                          <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full whitespace-nowrap" style={{ backgroundColor: s.bg, color: s.text }}>
+                            {tier}
+                          </span>
+                        );
+                      })()}
                     </td>
                     <td className="px-4 py-3">
                       <div className="flex items-center gap-2">
@@ -221,7 +233,7 @@ export default function CasosPage() {
                 );
               })}
               {filtered.length === 0 && (
-                <tr><td colSpan={8} className="px-4 py-10 text-center text-[#5A6478] text-sm">Sin resultados</td></tr>
+                <tr><td colSpan={9} className="px-4 py-10 text-center text-[#5A6478] text-sm">Sin resultados</td></tr>
               )}
             </tbody>
           </table>

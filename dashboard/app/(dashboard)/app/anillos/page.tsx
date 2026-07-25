@@ -3,6 +3,7 @@ import { useState } from "react";
 import RingGraph from "@/components/RingGraph";
 import PageHeader from "@/components/PageHeader";
 import type { Ring } from "@/lib/types";
+import { kycTier, KYC_TIER_STYLE } from "@/lib/kyc";
 import ringsRaw from "@/public/data/rings.json";
 
 const rings: Ring[] = ringsRaw as Ring[];
@@ -72,7 +73,7 @@ export default function AnillosPage() {
             <table className="w-full text-sm" style={{ backgroundColor: "#0E1219" }}>
               <thead>
                 <tr style={{ backgroundColor: "#12161F", borderBottom: "1px solid #1E2430" }}>
-                  {["Cuenta", "Score GNN", "Tipo", "Balance", "Risk score"].map(h => (
+                  {["Cuenta", "Score GNN", "Tipo", "Balance", "Rating KYC"].map(h => (
                     <th
                       key={h}
                       className="px-4 py-3 text-left text-[11px] font-bold uppercase tracking-widest"
@@ -105,7 +106,17 @@ export default function AnillosPage() {
                     <td className="px-4 py-3 font-mono text-xs" style={{ color: "#EDEAE6" }}>
                       ${n.balance.toLocaleString("es-AR", { maximumFractionDigits: 0 })}
                     </td>
-                    <td className="px-4 py-3 font-mono text-xs" style={{ color: "#5A6478" }}>{n.risk_score.toFixed(4)}</td>
+                    <td className="px-4 py-3">
+                      {(() => {
+                        const tier = kycTier(n.risk_score);
+                        const s = KYC_TIER_STYLE[tier];
+                        return (
+                          <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full whitespace-nowrap" style={{ backgroundColor: s.bg, color: s.text }}>
+                            {tier}
+                          </span>
+                        );
+                      })()}
+                    </td>
                   </tr>
                 ))}
               </tbody>
