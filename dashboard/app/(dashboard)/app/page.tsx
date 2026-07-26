@@ -2,6 +2,7 @@ import KPICard from "@/components/KPICard";
 import PRCurveChart from "@/components/PRCurveChart";
 import ScoreDistChart from "@/components/ScoreDistChart";
 import PageHeader from "@/components/PageHeader";
+import InfoTooltip from "@/components/InfoTooltip";
 import type { KPIs, PRCurve, ScoreDistribution } from "@/lib/types";
 
 import kpisRaw     from "@/public/data/kpis.json";
@@ -31,12 +32,14 @@ const insights = [
     color: "#7AA2FF",
     bg: "rgba(46,107,255,0.15)",
     text: "Lift fraude→fraude de 14.3× sobre el esperado por azar. El lavado no se detecta por monto — se detecta por patrón de red.",
+    tooltip: "Lift: cuántas veces más probable es un evento respecto del azar. 14.3× significa que una cuenta conectada a una cuenta fraudulenta es 14 veces más propensa a ser fraude ella misma.",
   },
   {
     tag: "Score crediticio ciego",
     color: "#F59E0B",
     bg: "rgba(217,119,6,0.15)",
     text: "Cohen d = 0.055 entre cuentas fraude y legítimas. El riesgo crediticio es ortogonal al riesgo AML.",
+    tooltip: "Cohen d mide qué tan distintos son dos grupos. 0.055 es prácticamente cero: el score de riesgo crediticio no distingue cuentas fraudulentas de legítimas — por eso hace falta mirar la red, no el perfil.",
   },
   {
     tag: "Ventana de 72 h",
@@ -81,12 +84,14 @@ export default function OverviewPage() {
           value={kpis.pr_auc_gnn.toFixed(3)}
           sub={`+${delta} sobre XGBoost tabular`}
           color="#2E6BFF"
+          tooltip="Área bajo la curva Precisión-Recall: qué tan bien el modelo distingue fraude de legítimo sin generar falsas alarmas. Cerca de 1.0 es excelente; al azar rondaría ~0.02 (la tasa base de fraude)."
         />
         <KPICard
           label="Recall @ Precisión 90%"
           value={(kpis.recall_at_p90 * 100).toFixed(0) + "%"}
           sub="Con 9/10 alertas correctas"
           color="#A78BFA"
+          tooltip="Exigiendo que 9 de cada 10 alertas sean fraude real (precisión 90%), este es el porcentaje del fraude total que el modelo efectivamente detecta."
         />
         <KPICard
           label="Fraude no detectado"
@@ -158,6 +163,7 @@ export default function OverviewPage() {
                 >
                   {ins.tag}
                 </span>
+                {ins.tooltip && <InfoTooltip text={ins.tooltip} />}
               </div>
               <p className="text-sm leading-relaxed" style={{ color: "#5A6478" }}>{ins.text}</p>
             </div>

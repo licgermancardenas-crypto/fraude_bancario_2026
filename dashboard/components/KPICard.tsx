@@ -1,12 +1,15 @@
+import InfoTooltip from "@/components/InfoTooltip";
+
 interface KPICardProps {
   label: string;
   value: string;
   sub?: string;
   color?: string;
   dim?: boolean;
+  tooltip?: string;
 }
 
-export default function KPICard({ label, value, sub, color = "#EDEAE6", dim }: KPICardProps) {
+export default function KPICard({ label, value, sub, color = "#EDEAE6", dim, tooltip }: KPICardProps) {
   const accent = dim ? "#5A6478" : color;
   return (
     <div
@@ -19,10 +22,11 @@ export default function KPICard({ label, value, sub, color = "#EDEAE6", dim }: K
       <div className="h-1 w-full" style={{ backgroundColor: accent }} />
       <div className="p-5 flex flex-col gap-1.5 flex-1">
         <p
-          className="text-[11px] font-semibold uppercase tracking-widest"
+          className="text-[11px] font-semibold uppercase tracking-widest flex items-center"
           style={{ color: "#5A6478", fontFamily: "'JetBrains Mono', monospace" }}
         >
           {label}
+          {tooltip && <InfoTooltip text={tooltip} />}
         </p>
         <p
           className="text-3xl font-bold leading-none tracking-tight"

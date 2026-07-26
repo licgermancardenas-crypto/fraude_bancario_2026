@@ -491,7 +491,7 @@ export default function OrigenPage() {
           {/* legend */}
           <div className="flex flex-wrap gap-4 px-5 py-3" style={{ backgroundColor: "#12161F", borderBottom: "1px solid #1E2430" }}>
             {[
-              { color: "#F59E0B", label: "Perpetrador conocido (backward tracing)" },
+              { color: "#F59E0B", label: "Perpetrador conocido (rastreo hacia atrás)" },
               { color: "#7AA2FF", label: "Detectado por GNN (mula)" },
               { color: "#EF4444", label: "Nuevo candidato" },
               { color: "#5A6478", label: "Señal baja" },
@@ -585,12 +585,12 @@ export default function OrigenPage() {
           el dinero) pero no la <strong style={{ color: "#7AA2FF" }}>colocación</strong> (el depósito inicial del perpetrador).
           Las cuentas origen tienen baja centralidad de red — hacen pocas transacciones de alto monto — y resultan
           invisibles para un clasificador basado en patrones de conectividad.
-          El backward tracing identifica a <strong style={{ color: "#7AA2FF" }}>ACC0000210</strong> y{" "}
+          El rastreo hacia atrás (backward tracing) identifica a <strong style={{ color: "#7AA2FF" }}>ACC0000210</strong> y{" "}
           <strong style={{ color: "#7AA2FF" }}>ACC0001046</strong> como perpetradores con score GNN ≈ 0%,
           inyectando <strong style={{ color: "#7AA2FF" }}>$66,422</strong> al anillo desde cuentas aparentemente legítimas.
         </p>
         <p className="text-xs mt-3" style={{ color: "#3B82F6" }}>
-          Acción sugerida: combinar el scoring GNN con backward tracing automático sobre el grafo dirigido temporal.
+          Acción sugerida: combinar el scoring GNN con el rastreo hacia atrás (backward tracing) automático sobre el grafo dirigido temporal.
           Todo predecesor directo de un nodo detectado es candidato a revisión de segunda línea.
         </p>
       </div>

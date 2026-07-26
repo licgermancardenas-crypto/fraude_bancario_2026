@@ -148,7 +148,7 @@ export default function EntidadesPage() {
           {[
             { label: "Cuentas", value: stats.cuentas, color: "#7AA2FF" },
             { label: "Empresas", value: stats.empresas, color: "#7C3AED" },
-            { label: "Shells", value: stats.shells, color: "#DC2626" },
+            { label: "Fachadas", value: stats.shells, color: "#DC2626" },
             { label: "PEPs", value: stats.peps, color: "#F59E0B" },
             { label: "Alto riesgo", value: stats.fraud, color: "#EF4444" },
           ].map(s => (
@@ -182,7 +182,7 @@ export default function EntidadesPage() {
             <div className="h-4 w-px bg-[#1E2430] mx-1" />
             <label className="flex items-center gap-1.5 text-xs text-[#5A6478] cursor-pointer">
               <input type="checkbox" checked={showShell} onChange={e => setShowShell(e.target.checked)} className="rounded" />
-              Solo shells
+              Solo fachadas
             </label>
             <label className="flex items-center gap-1.5 text-xs text-[#5A6478] cursor-pointer">
               <input type="checkbox" checked={showPep} onChange={e => setShowPep(e.target.checked)} className="rounded" />
@@ -192,7 +192,7 @@ export default function EntidadesPage() {
             <div className="ml-auto flex items-center gap-3 text-[10px] text-[#5A6478]">
               <span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-full inline-block" style={{background:COLORS.cuenta_fraud}}/>Fraude</span>
               <span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-full inline-block" style={{background:COLORS.cuenta_pep}}/>PEP</span>
-              <span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-sm inline-block" style={{background:COLORS.empresa_shell}}/>Shell</span>
+              <span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-sm inline-block" style={{background:COLORS.empresa_shell}}/>Fachada</span>
               <span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-sm inline-block" style={{background:COLORS.empresa}}/>Empresa</span>
             </div>
           </div>

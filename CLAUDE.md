@@ -149,6 +149,28 @@ alcance acotado de este fix. Si se vuelve a tocar `lib/types.ts` o
 `casos/[id]/ros/page.tsx` a fondo, considerar renombrarlos a `ROSDraft` etc.
 para que el código interno también diga ROS.
 
+## Auditoría de terminología [2026-07-25]
+Se corrieron 7 hallazgos (agente Explore). Los 2 críticos (SAR/ROS, bug de
+label "Score modelo") están arriba. De los 5 medios:
+- ✅ **Tooltips en jerga técnica** — nuevo `components/InfoTooltip.tsx`
+  (ícono "i", hover/focus, CSS puro sin JS) + prop `tooltip?` en
+  `KPICard`. Aplicado en `/app` (home) a PR-AUC, Recall @ Precisión 90%,
+  Lift y Cohen d.
+- ✅ **Jerga sin anclaje en `/app/origen`** — "backward tracing" aparecía
+  suelto en el legend y el insight box aunque el header ya lo explica en
+  criollo ("traza hacia atrás..."). Se agregó el mismo anclaje en español
+  ("rastreo hacia atrás (backward tracing)") en las 3 apariciones sueltas.
+- ✅ **"Shells" vs "Empresa de fachada (shell)"** — `/app/entidades` decía
+  "Shells"/"Solo shells"/"Shell" a secas; ahora dice "Fachadas"/"Solo
+  fachadas"/"Fachada", consistente con el detalle de caso.
+- ⏸️ **STRUCTURING en inglés + AML sin traducir** — están en el copy
+  APROBADO de la landing (`docs/phantom-landing.html`), no se tocaron a
+  propósito (decisión explícita del usuario: no desviarse del HTML de
+  referencia). "AML" también aparece en varias páginas del dashboard
+  (casos, metodología, ros) sin traducir — tampoco se tocó en esta pasada,
+  quedó fuera del alcance acordado. Si se decide resolverlo: "AML" →
+  "ALD" (Anti-Lavado de Dinero) o "PLD/FT" es el equivalente regional.
+
 Si se regenera `cases.json` desde cero, usar `export_cases()` (o `export_all()`
 completo) — **ojo:** `export_all()` hoy rompe en `export_pr_curves` por un
 mismatch de longitudes preexistente (scores_by_model vs y_test, ~22501 vs
