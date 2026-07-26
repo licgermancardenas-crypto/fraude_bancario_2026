@@ -166,10 +166,13 @@ label "Score modelo") están arriba. De los 5 medios:
 - ⏸️ **STRUCTURING en inglés + AML sin traducir** — están en el copy
   APROBADO de la landing (`docs/phantom-landing.html`), no se tocaron a
   propósito (decisión explícita del usuario: no desviarse del HTML de
-  referencia). "AML" también aparece en varias páginas del dashboard
-  (casos, metodología, ros) sin traducir — tampoco se tocó en esta pasada,
-  quedó fuera del alcance acordado. Si se decide resolverlo: "AML" →
-  "ALD" (Anti-Lavado de Dinero) o "PLD/FT" es el equivalente regional.
+  referencia).
+- ✅ **"AML" → "ALD" en el dashboard** (2026-07-25, pasada aparte). Las 5
+  apariciones fuera de la landing: `casos/page.tsx` (subtítulo "Gestión de
+  casos ALD"), `casos/[id]/page.tsx` (autor de nota hardcodeado "Analista
+  ALD"), `metodologia/page.tsx` (x2), `page.tsx` home (insight Cohen d).
+  La landing sigue diciendo "AML" (copy aprobado, sin tocar) — es la
+  única inconsistencia remanente a propósito entre landing y dashboard.
 
 Si se regenera `cases.json` desde cero, usar `export_cases()` (o `export_all()`
 completo) — **ojo:** `export_all()` hoy rompe en `export_pr_curves` por un

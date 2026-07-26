@@ -111,7 +111,7 @@ export default function CasosPage() {
     <div className="space-y-6">
       <PageHeader
         title="Cola de Alertas"
-        subtitle="Gestión de casos AML generados por el motor Phantom AI"
+        subtitle="Gestión de casos ALD generados por el motor Phantom AI"
       />
 
       {/* Summary cards */}

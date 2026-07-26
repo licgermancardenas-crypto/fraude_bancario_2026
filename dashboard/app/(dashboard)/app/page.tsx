@@ -38,7 +38,7 @@ const insights = [
     tag: "Score crediticio ciego",
     color: "#F59E0B",
     bg: "rgba(217,119,6,0.15)",
-    text: "Cohen d = 0.055 entre cuentas fraude y legítimas. El riesgo crediticio es ortogonal al riesgo AML.",
+    text: "Cohen d = 0.055 entre cuentas fraude y legítimas. El riesgo crediticio es ortogonal al riesgo ALD.",
     tooltip: "Cohen d mide qué tan distintos son dos grupos. 0.055 es prácticamente cero: el score de riesgo crediticio no distingue cuentas fraudulentas de legítimas — por eso hace falta mirar la red, no el perfil.",
   },
   {

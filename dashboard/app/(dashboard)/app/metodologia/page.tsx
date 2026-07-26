@@ -76,7 +76,7 @@ export default function MetodologiaPage() {
       <div className="rounded-xl p-6 space-y-3" style={card}>
         <h2 className="text-sm font-semibold" style={{ color: "#7AA2FF" }}>¿Qué problema resuelve?</h2>
         <p className="text-sm leading-relaxed" style={{ color: "#5A6478" }}>
-          Las reglas tradicionales de AML detectan transacciones individuales sospechosas por monto o frecuencia.
+          Las reglas tradicionales de ALD detectan transacciones individuales sospechosas por monto o frecuencia.
           Los esquemas de <em>pitufeo</em> y <em>anillos cíclicos</em> dividen grandes sumas en transacciones
           pequeñas que parecen normales individualmente — pero forman un patrón de red detectable.
         </p>
@@ -179,7 +179,7 @@ export default function MetodologiaPage() {
           <strong style={{ color: "#7AA2FF" }}>Delta temporal: -0.025 vs inductivo. </strong>
           <span style={{ color: "rgba(237,234,230,0.75)" }}>
             El modelo aprende patrones estructurales estables que persisten en el tiempo —
-            condición necesaria para un sistema AML en producción.
+            condición necesaria para un sistema ALD en producción.
           </span>
         </div>
       </div>

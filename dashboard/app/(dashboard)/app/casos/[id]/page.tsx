@@ -135,7 +135,7 @@ export default function CaseDetailPage() {
   const handleAddNote = () => {
     if (!noteText.trim()) return;
     const note: CaseNote = {
-      author: "Analista AML",
+      author: "Analista ALD",
       text: noteText.trim(),
       timestamp: new Date().toISOString(),
     };
