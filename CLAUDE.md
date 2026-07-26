@@ -163,16 +163,24 @@ label "Score modelo") están arriba. De los 5 medios:
 - ✅ **"Shells" vs "Empresa de fachada (shell)"** — `/app/entidades` decía
   "Shells"/"Solo shells"/"Shell" a secas; ahora dice "Fachadas"/"Solo
   fachadas"/"Fachada", consistente con el detalle de caso.
-- ⏸️ **STRUCTURING en inglés + AML sin traducir** — están en el copy
-  APROBADO de la landing (`docs/phantom-landing.html`), no se tocaron a
-  propósito (decisión explícita del usuario: no desviarse del HTML de
-  referencia).
 - ✅ **"AML" → "ALD" en el dashboard** (2026-07-25, pasada aparte). Las 5
   apariciones fuera de la landing: `casos/page.tsx` (subtítulo "Gestión de
   casos ALD"), `casos/[id]/page.tsx` (autor de nota hardcodeado "Analista
   ALD"), `metodologia/page.tsx` (x2), `page.tsx` home (insight Cohen d).
-  La landing sigue diciendo "AML" (copy aprobado, sin tocar) — es la
-  única inconsistencia remanente a propósito entre landing y dashboard.
+  La landing sigue diciendo "AML" — es la única inconsistencia
+  remanente a propósito entre landing y dashboard (decisión explícita
+  del usuario, no vale la pena tocar el copy aprobado por una sigla).
+- ✅ **STRUCTURING → ESTRUCTURACIÓN en la landing** (2026-07-25, tercera
+  pasada — el usuario pidió tocar esto después de todo, revirtiendo la
+  decisión inicial de no desviarse del HTML de referencia). Cambiado en
+  `docs/phantom-landing.html` Y en `app/(marketing)/page.tsx` a la vez
+  para que el HTML de referencia y la landing en vivo no queden
+  desincronizados. Coincide con "Estructuración" que ya se usa en
+  `casos/page.tsx` (PATTERN_LABELS) para el mismo concepto. Los títulos
+  de pilar en inglés ("Graph Neural Network", "Backward Tracing") NO se
+  tocaron — son nombres técnicos/de producto, consistentes con "GNN" sin
+  traducir en todo el resto del proyecto; solo el tag de categoría (la
+  única palabra suelta en mayúsculas) estaba realmente fuera de lugar.
 
 Si se regenera `cases.json` desde cero, usar `export_cases()` (o `export_all()`
 completo) — **ojo:** `export_all()` hoy rompe en `export_pr_curves` por un

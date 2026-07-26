@@ -43,7 +43,7 @@ const PILLARS = [
   },
   {
     title: "Detección de pitufeo",
-    tag: "STRUCTURING",
+    tag: "ESTRUCTURACIÓN",
     desc: "Features AML explícitas — clustering de montos bajo el umbral, fan-in temporal, velocidad de consolidación — capturan la firma del pitufeo que la topología de red sola no distingue.",
     icon: (
       <svg viewBox="0 0 24 24" fill="none" stroke="#7AA2FF" strokeWidth={1.5}>
