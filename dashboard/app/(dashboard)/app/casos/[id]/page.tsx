@@ -7,6 +7,7 @@ import { RESOLVED_STATUSES, daysUntil, rosUrgency } from "@/lib/dates";
 import { kycTier, KYC_TIER_STYLE, isBlindSpot } from "@/lib/kyc";
 import { SCREENING_STATUS_STYLE } from "@/lib/screening";
 import { getStoredStatuses, setStoredStatus } from "@/lib/caseStatus";
+import { buildDetectionInsight } from "@/lib/insight";
 import PageHeader from "@/components/PageHeader";
 
 
@@ -24,13 +25,6 @@ const STATUS_COLORS: Record<CaseStatus, { bg: string; text: string; border: stri
   desestimado: { bg: "rgba(90,100,120,0.15)", text: "#8A93A6", border: "#1E2430" },
   sar_enviado: { bg: "rgba(34,197,94,0.15)",  text: "#22C55E", border: "rgba(34,197,94,0.3)" },
 };
-const PATTERN_DESC: Record<string, string> = {
-  anillo_lavado:           "El modelo detectó un ciclo de transferencias entre múltiples cuentas consistente con un anillo de lavado de activos (layering).",
-  estructuracion:          "Se detectaron múltiples transacciones de bajo monto desde esta cuenta, patrón consistente con estructuración (pitufeo) para evadir controles.",
-  agregacion_fondos:       "Esta cuenta recibe fondos de múltiples fuentes con alta frecuencia, patrón consistente con agregación de fondos ilegales (placement).",
-  transacciones_inusuales: "El perfil de transacciones de esta cuenta difiere significativamente de su comportamiento histórico esperado.",
-};
-
 function getStoredNotes(caseId: string): CaseNote[] {
   if (typeof window === "undefined") return [];
   try { return JSON.parse(localStorage.getItem(`phantom_notes_${caseId}`) || "[]"); } catch { return []; }
@@ -278,15 +272,25 @@ export default function CaseDetailPage() {
       {/* Tab content */}
       {activeTab === "resumen" && (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-          {/* Pattern */}
-          <div className="bg-[#0E1219] rounded-xl border border-[#1E2430] p-4 space-y-3">
-            <h3 className="text-sm font-bold text-[#EDEAE6]">Patrón detectado</h3>
-            <div className="flex items-center gap-2">
-              <span className="text-xs font-semibold px-2.5 py-1 rounded-full" style={{background:"rgba(239,68,68,0.15)",color:"#EF4444"}}>
-                {caseData.pattern.replace(/_/g, " ").replace(/\b\w/g, c => c.toUpperCase())}
-              </span>
+          {/* ¿Por qué se marcó este caso? */}
+          <div className="lg:col-span-2 bg-[#0E1219] rounded-xl border border-[#1E2430] p-4 space-y-3">
+            <div>
+              <h3 className="text-sm font-bold text-[#EDEAE6]">¿Por qué se marcó este caso?</h3>
+              <p className="text-xs mt-0.5" style={{ color: "#5A6478" }}>
+                Razones concretas de esta cuenta — no una descripción genérica del patrón.
+              </p>
             </div>
-            <p className="text-sm text-[#5A6478] leading-relaxed">{PATTERN_DESC[caseData.pattern]}</p>
+            <div className="space-y-2.5">
+              {buildDetectionInsight(caseData).map((r, i) => (
+                <div key={i} className="flex gap-3 rounded-lg px-3 py-2.5" style={{ backgroundColor: "#12161F" }}>
+                  <span className="w-1.5 h-1.5 rounded-full flex-shrink-0 mt-1.5" style={{ backgroundColor: r.color }} />
+                  <div>
+                    <p className="text-sm font-semibold" style={{ color: "#EDEAE6" }}>{r.title}</p>
+                    <p className="text-xs mt-0.5 leading-relaxed" style={{ color: "#5A6478" }}>{r.detail}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
           </div>
 
           {/* Screening de sanciones */}

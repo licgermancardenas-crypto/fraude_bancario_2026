@@ -182,6 +182,26 @@ label "Score modelo") están arriba. De los 5 medios:
   traducir en todo el resto del proyecto; solo el tag de categoría (la
   única palabra suelta en mayúsculas) estaba realmente fuera de lugar.
 
+## Insight de detección por caso [2026-07-26]
+Nuevo `lib/insight.ts::buildDetectionInsight(c: Case): DetectionReason[]` —
+responde "¿por qué el sistema marcó este caso?" con razones concretas de
+ESA cuenta (no texto genérico por tipo de patrón). Se decidió explícitamente
+NO usar GNNExplainer real por caso (existe `explanations.json` con
+`top_neighbors`/`top_features` reales, pero solo cubre 5 cuentas hardcodeadas
+de `src/explain.py::select_targets(top_k=5)` — cero overlap con los 80
+casos, y extenderlo a los 80 hubiera requerido tocar el pipeline Python).
+En cambio, las razones se arman 100% con datos ya calculados por caso:
+score GNN, patrón, vecinos de alto riesgo (cita cuentas y scores
+específicos), punto ciego KYC (`isBlindSpot`), screening de sanciones
+(`screeningSummary`), PEP, empresa fachada, volumen transaccional. Se
+mueve `PATTERN_DESC` desde `casos/[id]/page.tsx` a `lib/insight.ts` (fuente
+única). La card "¿Por qué se marcó este caso?" reemplaza a la vieja card
+"Patrón detectado" en la pestaña Resumen del detalle de caso — el patrón
+pasa a ser una razón más de la lista, no su propia card separada.
+Si más adelante se quiere la capa de explicabilidad real del modelo:
+extender `src/explain.py` para correr sobre las 80 cuentas de los casos
+(hoy es puramente ilustrativo para las figuras del informe).
+
 Si se regenera `cases.json` desde cero, usar `export_cases()` (o `export_all()`
 completo) — **ojo:** `export_all()` hoy rompe en `export_pr_curves` por un
 mismatch de longitudes preexistente (scores_by_model vs y_test, ~22501 vs
