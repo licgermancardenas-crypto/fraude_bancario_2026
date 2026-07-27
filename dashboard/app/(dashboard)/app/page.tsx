@@ -3,16 +3,23 @@ import PRCurveChart from "@/components/PRCurveChart";
 import ScoreDistChart from "@/components/ScoreDistChart";
 import PageHeader from "@/components/PageHeader";
 import InfoTooltip from "@/components/InfoTooltip";
-import type { KPIs, PRCurve, ScoreDistribution } from "@/lib/types";
+import SystemPulseCard from "@/components/SystemPulseCard";
+import PatternDonut from "@/components/PatternDonut";
+import AlertsAreaChart from "@/components/AlertsAreaChart";
+import { casesByPattern, casesByMonth } from "@/lib/caseAggregates";
+import { isBlindSpot } from "@/lib/kyc";
+import type { KPIs, PRCurve, ScoreDistribution, Case } from "@/lib/types";
 
 import kpisRaw     from "@/public/data/kpis.json";
 import curvesRaw   from "@/public/data/pr_curves.json";
 import distRaw     from "@/public/data/score_distribution.json";
 import temporalRaw from "@/public/data/temporal_eval.json";
+import casesRaw     from "@/public/data/cases.json";
 
 const kpis:   KPIs              = kpisRaw as KPIs;
 const curves: PRCurve[]         = curvesRaw as PRCurve[];
 const dist:   ScoreDistribution = distRaw as ScoreDistribution;
+const cases:  Case[]            = casesRaw as unknown as Case[];
 
 type TemporalEval = { conditions: Record<string, { pr_auc: number }> };
 const temporal = temporalRaw as TemporalEval;
@@ -53,7 +60,8 @@ export default function OverviewPage() {
   const sageCurve   = curves.find(c => c.model === "GraphSAGE");
   const xgbCurve    = curves.find(c => c.model === "XGBoost");
   const logregCurve = curves.find(c => c.model === "Logistic Regression");
-  const delta       = ((sageCurve?.pr_auc ?? 1) - (xgbCurve?.pr_auc ?? 0)).toFixed(3);
+  const deltaNum    = (sageCurve?.pr_auc ?? 1) - (xgbCurve?.pr_auc ?? 0);
+  const delta       = deltaNum.toFixed(3);
 
   const sageMissedPct   = Math.round((1 - kpis.recall_at_p90) * 100);
   const xgbMissedPct    = Math.round((1 - recallAtPrecision(xgbCurve, 0.9)) * 100);
@@ -62,6 +70,12 @@ export default function OverviewPage() {
   const transductivePrAuc = temporal.conditions.random_transductive?.pr_auc;
   const inductivePrAuc    = temporal.conditions.random_inductive?.pr_auc;
 
+  const patternCounts   = casesByPattern(cases);
+  const monthlyCounts   = casesByMonth(cases);
+  const casosAbiertos   = cases.filter(c => c.status === "abierto").length;
+  const pctBlindSpot    = cases.length ? cases.filter(c => isBlindSpot(c.risk_score, c.gnn_score)).length / cases.length : 0;
+  const pctScreeningOk  = cases.length ? 1 - cases.filter(c => c.screening.hit_directo?.estado === "pendiente").length / cases.length : 0;
+
   return (
     <div className="space-y-6">
       <PageHeader
@@ -69,6 +83,41 @@ export default function OverviewPage() {
         title="Detección de Redes de Lavado mediante GNNs"
         description="GraphSAGE sobre grafo transaccional sintético — prueba de concepto end-to-end · Germán Cárdenas · 2026"
       />
+
+      {/* Pulso del sistema + Casos por patrón */}
+      <div className="grid grid-cols-1 lg:grid-cols-5 gap-4">
+        <div className="lg:col-span-3">
+          <SystemPulseCard
+            casosAbiertos={casosAbiertos}
+            totalCasos={cases.length}
+            sparkline={monthlyCounts}
+            recallAtP90={kpis.recall_at_p90}
+            prAucGnn={kpis.pr_auc_gnn}
+            prAucDelta={deltaNum}
+            pctBlindSpot={pctBlindSpot}
+            pctScreeningOk={pctScreeningOk}
+          />
+        </div>
+        <div
+          className="lg:col-span-2 rounded-xl p-5"
+          style={{ backgroundColor: "#0E1219", border: "1px solid #1E2430" }}
+        >
+          <p className="text-[11px] font-bold uppercase tracking-widest mb-1" style={{ color: "#5A6478", fontFamily: "'JetBrains Mono', monospace" }}>
+            Cola de alertas
+          </p>
+          <h2 className="text-sm font-semibold mb-4" style={{ color: "#EDEAE6", fontFamily: "'Space Grotesk', sans-serif" }}>Casos por patrón</h2>
+          <PatternDonut data={patternCounts} />
+        </div>
+      </div>
+
+      {/* Evolución de alertas */}
+      <div className="rounded-xl p-5" style={{ backgroundColor: "#0E1219", border: "1px solid #1E2430" }}>
+        <p className="text-[11px] font-bold uppercase tracking-widest mb-1" style={{ color: "#5A6478", fontFamily: "'JetBrains Mono', monospace" }}>
+          Serie temporal
+        </p>
+        <h2 className="text-sm font-semibold mb-4" style={{ color: "#EDEAE6", fontFamily: "'Space Grotesk', sans-serif" }}>Alertas generadas por mes</h2>
+        <AlertsAreaChart data={monthlyCounts} />
+      </div>
 
       {/* KPIs */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">

@@ -6,6 +6,7 @@ import { RESOLVED_STATUSES, daysUntil, rosUrgency } from "@/lib/dates";
 import { kycTier, KYC_TIER_STYLE } from "@/lib/kyc";
 import { SCREENING_STATUS_STYLE, screeningSummary } from "@/lib/screening";
 import { getStoredStatuses } from "@/lib/caseStatus";
+import { PATTERN_LABELS } from "@/lib/patterns";
 import PageHeader from "@/components/PageHeader";
 
 const STATUS_LABELS: Record<CaseStatus, string> = {
@@ -21,12 +22,6 @@ const STATUS_COLORS: Record<CaseStatus, { bg: string; text: string }> = {
   escalado:    { bg: "rgba(239,68,68,0.15)",  text: "#EF4444" },
   desestimado: { bg: "rgba(90,100,120,0.15)", text: "#8A93A6" },
   sar_enviado: { bg: "rgba(34,197,94,0.15)",  text: "#22C55E" },
-};
-const PATTERN_LABELS: Record<CasePattern, string> = {
-  anillo_lavado:           "Anillo de lavado",
-  estructuracion:          "Estructuración",
-  agregacion_fondos:       "Agregación de fondos",
-  transacciones_inusuales: "Transacciones inusuales",
 };
 
 function RosBadge({ c, status }: { c: Case; status: CaseStatus }) {
