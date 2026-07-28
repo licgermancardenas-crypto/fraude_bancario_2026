@@ -67,7 +67,7 @@ en `/`, `app/(dashboard)` es la herramienta real bajo `/app/*`.
 | Ruta | Contenido |
 |---|---|
 | `/` | **Landing de marketing** — Phantom AI, financial crime intelligence (`app/(marketing)/page.tsx`) |
-| `/app` | KPIs globales, curvas PR comparativas, distribución de scores GNN |
+| `/app` | Overview tipo "producto": pulso del sistema (casos, sparkline, Recall@P90, KPIs de compliance), casos por patrón (donut), alertas por mes (área), cohortes de riesgo KYC vs. score GNN (scatter, punto ciego del onboarding), casos por provincia (mapa de Argentina), KPIs globales, curvas PR comparativas, distribución de scores GNN |
 | `/app/anillos` | Explorador de anillos cíclicos (Cytoscape.js interactivo) |
 | `/app/origen` | Grafo dirigido del anillo + tabla de perpetradores identificados |
 | `/app/cuentas` | Ranking de riesgo top 200, filtrable y ordenable |

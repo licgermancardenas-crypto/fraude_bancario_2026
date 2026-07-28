@@ -211,6 +211,33 @@ regenera la capa de entidades, correr `generate_entities()` (agrega
 `sanctions_hits.csv`; reproduce empresas/titularidades/directores/pep_flags
 idénticos porque el seed y el orden de generación no cambiaron).
 
+## Rediseño widget-dashboard del overview [2026-07-27]
+`/app` pasó de 4 KPI cards + 2 charts a un overview tipo "producto":
+`SystemPulseCard` (casos abiertos + sparkline + `ProgressRing` Recall@P90 +
+`ProgressBar` de PR-AUC/punto ciego onboarding/screening), `PatternDonut`
+(casos por patrón), `AlertsAreaChart` (alertas por mes), `RiskCohortScatter`
+(KYC estático vs. score GNN dinámico sobre las 300 cuentas de
+`entities.json` — **no** sobre `cases.json`, porque ahí `gnn_score` es
+prácticamente constante en 1 para las 80 alertas y el scatter salía sin
+varianza en Y) y `GeoMapProvincias` (casos por provincia sobre un mapa de
+Argentina). Todo calculado client-side desde JSONs ya exportados, sin tocar
+el pipeline Python. `PATTERN_LABELS`/`PATTERN_COLORS` viven en
+`lib/patterns.ts` (antes duplicado en `casos/page.tsx`).
+
+**`dashboard/public/data/geo_provincias.json`** (24 provincias, paths SVG
+pre-proyectados, ~98 KB) se generó una única vez con un script Python
+offline (geopandas/shapely) a partir de `provincias_poly.geojson` del
+proyecto AgroNova (`C:\Users\corra\AgroNova_plataforma\data\geojson\`,
+polígonos IGN de 111 MB, dato geográfico público/no sensible) — se recortó
+al bbox continental+Tierra del Fuego (la geometría de Tierra del Fuego
+incluye el reclamo antártico, que llega al polo y arruina el bounding box
+si no se recorta), se simplificó a ~7.5k vértices y se proyectó a un
+`viewBox` fijo 400×560 (equirectangular con corrección de latitud,
+suficiente para un widget ilustrativo, no para análisis GIS real). El script
+no forma parte del repo (vivió en el scratchpad de la sesión) — si hace
+falta regenerar el asset con otro recorte/tolerancia, rehacer el mismo
+pipeline apuntando al geojson de AgroNova.
+
 ## Pendientes
 - Setear NEXT_PUBLIC_API_URL=https://phantom-rcs9.onrender.com en las env vars del
   proyecto Vercel del dashboard (Settings → Environment Variables) para que

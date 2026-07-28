@@ -29,6 +29,22 @@ export interface MonthCount {
   count: number;
 }
 
+export function casesByProvincia(cases: Case[]): Record<string, number> {
+  const counts: Record<string, number> = {};
+  for (const c of cases) {
+    const p = c.persona?.provincia;
+    if (!p) continue;
+    counts[p] = (counts[p] ?? 0) + 1;
+  }
+  return counts;
+}
+
+/** Compara nombres de provincia ignorando acentos/mayúsculas — normaliza
+ *  encoding entre persona.provincia (cases.json) y el asset geográfico. */
+export function normalizeProvincia(s: string): string {
+  return s.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase().trim();
+}
+
 export function casesByMonth(cases: Case[]): MonthCount[] {
   const counts = new Map<string, number>();
   for (const c of cases) {

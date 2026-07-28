@@ -6,20 +6,24 @@ import InfoTooltip from "@/components/InfoTooltip";
 import SystemPulseCard from "@/components/SystemPulseCard";
 import PatternDonut from "@/components/PatternDonut";
 import AlertsAreaChart from "@/components/AlertsAreaChart";
-import { casesByPattern, casesByMonth } from "@/lib/caseAggregates";
+import RiskCohortScatter from "@/components/RiskCohortScatter";
+import GeoMapProvincias from "@/components/GeoMapProvincias";
+import { casesByPattern, casesByMonth, casesByProvincia } from "@/lib/caseAggregates";
 import { isBlindSpot } from "@/lib/kyc";
-import type { KPIs, PRCurve, ScoreDistribution, Case } from "@/lib/types";
+import type { KPIs, PRCurve, ScoreDistribution, Case, EntityGraph } from "@/lib/types";
 
 import kpisRaw     from "@/public/data/kpis.json";
 import curvesRaw   from "@/public/data/pr_curves.json";
 import distRaw     from "@/public/data/score_distribution.json";
 import temporalRaw from "@/public/data/temporal_eval.json";
 import casesRaw     from "@/public/data/cases.json";
+import entitiesRaw  from "@/public/data/entities.json";
 
-const kpis:   KPIs              = kpisRaw as KPIs;
-const curves: PRCurve[]         = curvesRaw as PRCurve[];
-const dist:   ScoreDistribution = distRaw as ScoreDistribution;
-const cases:  Case[]            = casesRaw as unknown as Case[];
+const kpis:     KPIs              = kpisRaw as KPIs;
+const curves:   PRCurve[]         = curvesRaw as PRCurve[];
+const dist:     ScoreDistribution = distRaw as ScoreDistribution;
+const cases:    Case[]            = casesRaw as unknown as Case[];
+const entities: EntityGraph       = entitiesRaw as unknown as EntityGraph;
 
 type TemporalEval = { conditions: Record<string, { pr_auc: number }> };
 const temporal = temporalRaw as TemporalEval;
@@ -70,8 +74,10 @@ export default function OverviewPage() {
   const transductivePrAuc = temporal.conditions.random_transductive?.pr_auc;
   const inductivePrAuc    = temporal.conditions.random_inductive?.pr_auc;
 
-  const patternCounts   = casesByPattern(cases);
-  const monthlyCounts   = casesByMonth(cases);
+  const patternCounts    = casesByPattern(cases);
+  const monthlyCounts    = casesByMonth(cases);
+  const provinciaCounts  = casesByProvincia(cases);
+  const cuentaNodes      = entities.nodes.filter(n => n.type === "cuenta");
   const casosAbiertos   = cases.filter(c => c.status === "abierto").length;
   const pctBlindSpot    = cases.length ? cases.filter(c => isBlindSpot(c.risk_score, c.gnn_score)).length / cases.length : 0;
   const pctScreeningOk  = cases.length ? 1 - cases.filter(c => c.screening.hit_directo?.estado === "pendiente").length / cases.length : 0;
@@ -117,6 +123,27 @@ export default function OverviewPage() {
         </p>
         <h2 className="text-sm font-semibold mb-4" style={{ color: "#EDEAE6", fontFamily: "'Space Grotesk', sans-serif" }}>Alertas generadas por mes</h2>
         <AlertsAreaChart data={monthlyCounts} />
+      </div>
+
+      {/* Cohortes de riesgo + Geografía */}
+      <div className="grid grid-cols-1 lg:grid-cols-5 gap-4">
+        <div className="lg:col-span-3 rounded-xl p-5" style={{ backgroundColor: "#0E1219", border: "1px solid #1E2430" }}>
+          <p className="text-[11px] font-bold uppercase tracking-widest mb-1" style={{ color: "#5A6478", fontFamily: "'JetBrains Mono', monospace" }}>
+            Cohortes de riesgo
+          </p>
+          <h2 className="text-sm font-semibold mb-1" style={{ color: "#EDEAE6", fontFamily: "'Space Grotesk', sans-serif" }}>KYC (estático) vs. Score GNN (dinámico)</h2>
+          <p className="text-xs mb-4" style={{ color: "#5A6478" }}>
+            300 cuentas de la red de entidades. El cuadrante sombreado es el punto ciego del onboarding: rating KYC bajo/medio, pero score GNN alto.
+          </p>
+          <RiskCohortScatter accounts={cuentaNodes} />
+        </div>
+        <div className="lg:col-span-2 rounded-xl p-5" style={{ backgroundColor: "#0E1219", border: "1px solid #1E2430" }}>
+          <p className="text-[11px] font-bold uppercase tracking-widest mb-1" style={{ color: "#5A6478", fontFamily: "'JetBrains Mono', monospace" }}>
+            Geografía
+          </p>
+          <h2 className="text-sm font-semibold mb-4" style={{ color: "#EDEAE6", fontFamily: "'Space Grotesk', sans-serif" }}>Casos por provincia</h2>
+          <GeoMapProvincias counts={provinciaCounts} />
+        </div>
       </div>
 
       {/* KPIs */}
