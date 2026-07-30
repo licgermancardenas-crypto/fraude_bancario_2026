@@ -293,6 +293,46 @@ export default function CaseDetailPage() {
             </div>
           </div>
 
+          {/* Motor de reglas AML (determinista, corre junto al GNN) */}
+          <div className="bg-[#0E1219] rounded-xl border border-[#1E2430] p-4 space-y-3">
+            <div className="flex items-center justify-between">
+              <h3 className="text-sm font-bold text-[#EDEAE6]">Reglas AML disparadas</h3>
+              {(() => {
+                const rs = caseData.rule_score ?? 0;
+                const col = rs >= 80 ? "#EF4444" : rs >= 40 ? "#F59E0B" : "#8B93A7";
+                return (
+                  <span className="text-[11px] font-mono font-bold" style={{ color: col }}>
+                    riesgo reglas {rs}/100
+                  </span>
+                );
+              })()}
+            </div>
+            {(caseData.rules_fired ?? []).length === 0 ? (
+              <p className="text-xs leading-relaxed" style={{ color: "#5A6478" }}>
+                Ningún escenario determinista disparó sobre esta cuenta. La alerta proviene
+                del modelo de grafos, que detecta estructura de red no capturable por reglas.
+              </p>
+            ) : (
+              <div className="space-y-2">
+                {caseData.rules_fired.map((r) => {
+                  const col = r.severidad === "alta" ? "#EF4444"
+                            : r.severidad === "media" ? "#F59E0B" : "#8B93A7";
+                  return (
+                    <div key={r.id} className="rounded-lg px-3 py-2" style={{ backgroundColor: "#12161F" }}>
+                      <div className="flex items-center gap-2">
+                        <span className="text-[10px] font-mono px-1.5 py-0.5 rounded" style={{ backgroundColor: `${col}22`, color: col }}>{r.id}</span>
+                        <span className="text-sm font-semibold" style={{ color: "#EDEAE6" }}>{r.nombre}</span>
+                        <span className="text-[10px] uppercase ml-auto" style={{ color: col }}>{r.severidad}</span>
+                      </div>
+                      <p className="text-[11px] mt-1 leading-relaxed" style={{ color: "#5A6478" }}>{r.descripcion}</p>
+                      <p className="text-[10px] mt-1 font-mono" style={{ color: "#8B93A7" }}>{r.cita}</p>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+
           {/* Screening de sanciones */}
           <div className="bg-[#0E1219] rounded-xl border border-[#1E2430] p-4 space-y-3">
             <div className="flex items-center justify-between">

@@ -28,6 +28,7 @@ from sklearn.metrics import precision_recall_curve, average_precision_score
 from src.features import build_node_features, get_feature_matrix
 from src.models.graphsage import GraphSAGE
 from src.evaluate import recall_at_precision
+from src import rules_engine
 
 # Ordered so the dashboard lists baselines before the GNNs.
 MODEL_SCORE_FILES = {
@@ -385,6 +386,23 @@ def export_cases(acc, txn, data, scores_all, cfg, out_dir, n_cases=80):
         if not sanctions_hits.empty else {}
     )
 
+    # ── rules engine: deterministic AML scenarios evaluated alongside the GNN ──
+    feats = build_node_features(acc, txn)
+    rules_by_acc = rules_engine.evaluate(feats, cfg)
+
+    def _rules(acc_id, screening):
+        """Fired rules for an account: transactional (R01-R07) + R08 (screening)."""
+        ids = list(rules_by_acc.get(acc_id, {}).get("rules_fired", []))
+        if screening.get("hit_directo") or screening.get("exposicion_indirecta"):
+            ids.append("R08")  # sanctions/watchlist exposure
+        rules_fired = [
+            {k: rules_engine.RULES_BY_ID[rid][k]
+             for k in ("id", "nombre", "cita", "severidad", "descripcion")}
+            for rid in ids
+        ]
+        return {"rules_fired": rules_fired,
+                "rule_score": rules_engine.score_from_ids(ids, cfg)}
+
     # transaction graph for neighbor lookups
     G = nx.DiGraph()
     for _, row in txn.iterrows():
@@ -537,6 +555,8 @@ def export_cases(acc, txn, data, scores_all, cfg, out_dir, n_cases=80):
         vencimiento_ros = (alert_dt + timedelta(days=DIAS_PLAZO_ROS)).strftime("%Y-%m-%d")
         score = id2score.get(acc_id, 0)
         neighbors = _neighbors(acc_id)
+        screening = _screening(acc_id, neighbors)
+        rules = _rules(acc_id, screening)
 
         cases.append({
             "case_id":      f"CASO-{i+1:05d}",
@@ -553,7 +573,9 @@ def export_cases(acc, txn, data, scores_all, cfg, out_dir, n_cases=80):
             "analista_asignado": ANALISTAS[int(rng.integers(0, len(ANALISTAS)))],
             "dias_plazo_ros":    DIAS_PLAZO_ROS,
             "vencimiento_ros":   vencimiento_ros,
-            "screening":    _screening(acc_id, neighbors),
+            "screening":    screening,
+            "rule_score":   rules["rule_score"],
+            "rules_fired":  rules["rules_fired"],
             "persona":      persona,
             "empresa":      _empresa_info(acc_id),
             "neighbors":    neighbors,
@@ -561,6 +583,10 @@ def export_cases(acc, txn, data, scores_all, cfg, out_dir, n_cases=80):
         })
 
     _save(cases, f"{out_dir}/cases.json")
+    _save(rules_engine.catalogue(), f"{out_dir}/rules_catalog.json")
+
+    n_with_rules = sum(1 for c in cases if c["rules_fired"])
+    print(f"  reglas AML: {n_with_rules}/{len(cases)} casos con >=1 regla disparada")
 
 
 # ── master ────────────────────────────────────────────────────────────────────

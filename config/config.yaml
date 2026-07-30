@@ -77,3 +77,27 @@ dashboard:
   top_rings: 10
   top_accounts: 200
   max_json_mb: 2
+
+# Motor de reglas AML determinista (corre en paralelo al GNN).
+# Umbrales calibrados sobre la distribución legítima del dataset sintético
+# (legítimo P95: monto ~3.3K, avg_sent ~800, degree ~9).
+rules:
+  high_amount: 15000        # R02: transferencia individual atípica (legit P95 ~3.3K)
+  conduit_symmetry: 0.15    # R01: |entrada-salida|/total por debajo de esto = conducto
+  conduit_retention: 1.0    # R01: saldo/entradas por debajo de esto = no retiene
+  conduit_min_flow: 5000    # R01: flujo mínimo para considerar la cuenta activa
+  rapid_out_ratio: 0.50     # R03: fracción de entradas reenviadas en <24h
+  rapid_symmetry: 0.25      # R03: además debe pasar el dinero (baja simetría)
+  dormant_days: 1095        # R04: antigüedad mínima (3 años) para "durmiente"
+  dormant_active_days: 10   # R04: días activos máximos
+  dormant_min_amount: 12000 # R04: monto de la ráfaga de reactivación
+  fanin_degree: 12          # R05: grado de entrada mínimo
+  fanin_min_flow: 10000     # R05: flujo recibido mínimo (evita legítimas activas)
+  fanout_degree: 12         # R06: grado de salida mínimo
+  fanout_avg_max: 4000      # R06: monto promedio máximo por chunk
+  fanout_min_total: 15000   # R06: total distribuido mínimo (chunks chicos que suman alto)
+  agg_volume: 50000         # R07: volumen agregado (entrada+salida) atípico (legit P95 ~8K)
+  severity_points:          # aporte al rule_score (0-100) por severidad
+    alta: 40
+    media: 25
+    baja: 15

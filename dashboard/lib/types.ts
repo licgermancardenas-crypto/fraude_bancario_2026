@@ -191,6 +191,16 @@ export interface Screening {
   exposicion_indirecta: IndirectScreeningHit[];
 }
 
+export type RuleSeverity = "alta" | "media" | "baja";
+
+export interface RuleHit {
+  id: string;
+  nombre: string;
+  cita: string;
+  severidad: RuleSeverity;
+  descripcion: string;
+}
+
 export interface Case {
   case_id: string;
   account_id: string;
@@ -207,6 +217,8 @@ export interface Case {
   dias_plazo_ros: number;
   vencimiento_ros: string;
   screening: Screening;
+  rule_score: number;
+  rules_fired: RuleHit[];
   persona: Persona;
   empresa: Empresa | null;
   neighbors: CaseNeighbor[];
