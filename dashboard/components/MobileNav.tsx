@@ -20,7 +20,7 @@ function TabLink({ href, label, Icon, active, onClick }: NavItem & { active: boo
       href={href}
       onClick={onClick}
       className="flex-1 flex flex-col items-center gap-1 py-2.5"
-      style={{ color: active ? "#2563EB" : "#94A3B8" }}
+      style={{ color: active ? "#7AA2FF" : "#5A6478" }}
     >
       <Icon />
       <span className="text-[10px] font-medium leading-none">{label}</span>
@@ -35,7 +35,7 @@ export default function MobileNav() {
   const overflowing = navItemsFlat.length > MAX_VISIBLE;
   const visible  = overflowing ? navItemsFlat.slice(0, MAX_VISIBLE - 1) : navItemsFlat;
   const overflow = overflowing ? navItemsFlat.slice(MAX_VISIBLE - 1) : [];
-  const isActive = (href: string) => (href === "/" ? pathname === "/" : pathname.startsWith(href));
+  const isActive = (href: string) => (href === "/app" ? pathname === "/app" : pathname.startsWith(href));
   const overflowActive = overflow.some(item => isActive(item.href));
 
   return (
@@ -43,7 +43,7 @@ export default function MobileNav() {
       {showMore && (
         <div
           className="sm:hidden fixed inset-0 z-40"
-          style={{ backgroundColor: "rgba(15,23,42,0.35)" }}
+          style={{ backgroundColor: "rgba(7,9,15,0.6)" }}
           onClick={() => setShowMore(false)}
         />
       )}
@@ -51,7 +51,7 @@ export default function MobileNav() {
       {showMore && (
         <div
           className="sm:hidden fixed bottom-16 left-3 right-3 z-50 rounded-xl overflow-hidden"
-          style={{ backgroundColor: "#FFFFFF", border: "1px solid #E2E8F0", boxShadow: "0 -4px 16px rgba(0,0,0,0.12)" }}
+          style={{ backgroundColor: "#12161F", border: "1px solid #1E2430", boxShadow: "0 -4px 16px rgba(0,0,0,0.4)" }}
         >
           {overflow.map(({ href, label, Icon }) => (
             <Link
@@ -60,8 +60,8 @@ export default function MobileNav() {
               onClick={() => setShowMore(false)}
               className="flex items-center gap-3 px-4 py-3 text-sm font-medium"
               style={{
-                color: isActive(href) ? "#2563EB" : "#0F172A",
-                borderBottom: "1px solid #F1F5F9",
+                color: isActive(href) ? "#7AA2FF" : "#EDEAE6",
+                borderBottom: "1px solid #1E2430",
               }}
             >
               <Icon />
@@ -74,9 +74,9 @@ export default function MobileNav() {
       <nav
         className="sm:hidden fixed bottom-0 inset-x-0 z-50 flex"
         style={{
-          backgroundColor: "#FFFFFF",
-          borderTop: "1px solid #E2E8F0",
-          boxShadow: "0 -2px 8px rgba(0,0,0,0.06)",
+          backgroundColor: "#0E1219",
+          borderTop: "1px solid #1E2430",
+          boxShadow: "0 -2px 8px rgba(0,0,0,0.3)",
           paddingBottom: "env(safe-area-inset-bottom)",
         }}
       >
@@ -87,7 +87,7 @@ export default function MobileNav() {
           <button
             onClick={() => setShowMore(s => !s)}
             className="flex-1 flex flex-col items-center gap-1 py-2.5"
-            style={{ color: showMore || overflowActive ? "#2563EB" : "#94A3B8" }}
+            style={{ color: showMore || overflowActive ? "#7AA2FF" : "#5A6478" }}
           >
             <MoreIcon />
             <span className="text-[10px] font-medium leading-none">Más</span>

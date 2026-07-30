@@ -55,6 +55,13 @@ export function EntitiesIcon() {
     </svg>
   );
 }
+export function ZapIcon() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round">
+      <path d="M13 2L4 14h6l-1 8 9-12h-6l1-8z" />
+    </svg>
+  );
+}
 
 export type NavItem = { href: string; label: string; Icon: () => React.ReactElement };
 
@@ -62,23 +69,24 @@ export const navGroups: { label: string; items: NavItem[] }[] = [
   {
     label: "Sistema",
     items: [
-      { href: "/",        label: "Inicio",  Icon: HomeIcon },
-      { href: "/anillos", label: "Anillos", Icon: GraphIcon },
-      { href: "/origen",  label: "Origen",  Icon: TargetIcon },
+      { href: "/app",         label: "Inicio",  Icon: HomeIcon },
+      { href: "/app/anillos", label: "Anillos", Icon: GraphIcon },
+      { href: "/app/origen",  label: "Origen",  Icon: TargetIcon },
     ],
   },
   {
     label: "Compliance",
     items: [
-      { href: "/casos",      label: "Casos",      Icon: CasesIcon },
-      { href: "/entidades",  label: "Entidades",  Icon: EntitiesIcon },
+      { href: "/app/casos",      label: "Casos",      Icon: CasesIcon },
+      { href: "/app/entidades",  label: "Entidades",  Icon: EntitiesIcon },
     ],
   },
   {
     label: "Análisis",
     items: [
-      { href: "/cuentas",     label: "Cuentas",     Icon: TableIcon },
-      { href: "/metodologia", label: "Metodología", Icon: BookIcon },
+      { href: "/app/cuentas",     label: "Cuentas",     Icon: TableIcon },
+      { href: "/app/metodologia", label: "Metodología", Icon: BookIcon },
+      { href: "/app/en-vivo",     label: "API en Vivo", Icon: ZapIcon },
     ],
   },
 ];

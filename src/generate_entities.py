@@ -217,6 +217,90 @@ def generate_pep_flags(
     return pd.DataFrame(rows)
 
 
+# Listas de sanciones/riesgo contra las que se hace el screening. Entradas
+# 100% ficticias — ninguna corresponde a una persona, organización o
+# designación real de la ONU, OFAC o el REPET argentino.
+WATCHLISTS = {
+    "ONU": {
+        "desc": "Lista consolidada del Comité de Sanciones del Consejo de Seguridad",
+        "entries": [
+            ("Yusuf Al-Mansuri",        "Financiamiento del terrorismo — Res. CSNU 1988"),
+            ("Grupo Sahel Trading Co.", "Financiamiento del terrorismo — Res. CSNU 1267"),
+            ("Dmitri Volkanov",         "Proliferación de armas — Res. CSNU 1718"),
+        ],
+    },
+    "OFAC": {
+        "desc": "Specially Designated Nationals List (US Treasury, ficticia)",
+        "entries": [
+            ("Ricardo Espinoza Duarte", "Narcotráfico — Kingpin Act (ficticio)"),
+            ("Consorcio Andino Corp.",  "Narcotráfico — Kingpin Act (ficticio)"),
+            ("Elena Petrova Kozlov",    "Evasión de sanciones (ficticio)"),
+            ("Trading Estrella del Sur S.A.", "Comercio con entidad sancionada (ficticio)"),
+        ],
+    },
+    "REPET": {
+        "desc": "Registro Público de Personas y Entidades vinculadas a actos de Terrorismo y su Financiamiento (Argentina, ficticio)",
+        "entries": [
+            ("Fundación Horizonte Libre", "Financiamiento del terrorismo (ficticio)"),
+            ("Marcelo Aguirre Beltrán",   "Vínculo con organización designada (ficticio)"),
+            ("Cooperativa Nueva Alianza Ltda.", "Financiamiento del terrorismo (ficticio)"),
+        ],
+    },
+}
+_ALL_ENTRIES = [(lst, name, motivo) for lst, d in WATCHLISTS.items() for name, motivo in d["entries"]]
+
+
+def generate_sanctions_hits(
+    personas: pd.DataFrame,
+    accounts: pd.DataFrame,
+    pep_flags: pd.DataFrame,
+    rng: np.random.Generator,
+    base_rate: float = 0.006,
+) -> pd.DataFrame:
+    """
+    Screening de listas de sanciones — matching difuso simulado (score de
+    similitud, no coincidencia exacta: así funciona un screening real).
+    Fraude y PEP elevan la probabilidad de un hit (igual que en la vida real,
+    donde ambos son factores de riesgo correlacionados); la mayoría de los
+    hits son falsos positivos que un analista descarta tras revisar — el
+    ~90% de alertas por sistemas de reglas que ya se menciona en la landing.
+    """
+    fraud_ids = set(accounts.loc[accounts["is_fraud"] == 1, "account_id"])
+    pep_ids   = set(pep_flags["account_id"]) if not pep_flags.empty else set()
+
+    rows = []
+    for _, persona in personas.iterrows():
+        acc_id   = persona["account_id"]
+        is_fraud = acc_id in fraud_ids
+        is_pep   = acc_id in pep_ids
+        prob = base_rate * (5 if is_fraud else 1) * (2 if is_pep else 1)
+        if rng.random() >= prob:
+            continue
+
+        lst, matched_name, motivo = _ALL_ENTRIES[rng.integers(0, len(_ALL_ENTRIES))]
+        score = round(float(rng.uniform(0.72, 0.99)), 2)
+
+        # Fraude confirmado + score alto de coincidencia → más probable que el
+        # analista lo confirme. El resto son mayormente falsos positivos
+        # (nombre común, coincidencia parcial) que se descartan en revisión.
+        if is_fraud and score >= 0.85 and rng.random() < 0.6:
+            status = "confirmado"
+        elif rng.random() < 0.7:
+            status = "descartado"
+        else:
+            status = "pendiente"
+
+        rows.append({
+            "account_id":   acc_id,
+            "lista":        lst,
+            "nombre_coincidencia": matched_name,
+            "motivo":       motivo,
+            "score_match":  score,
+            "estado":       status,
+        })
+    return pd.DataFrame(rows)
+
+
 def generate_entities(config_path="config/config.yaml"):
     cfg = load_config(config_path)
     seed    = cfg["project"]["seed"]
@@ -236,25 +320,30 @@ def generate_entities(config_path="config/config.yaml"):
     n_empresas = max(50, n_accounts // 15)
     print(f"[generate_entities] accounts={n_accounts}  empresas={n_empresas}")
 
-    empresas      = generate_empresas(n_empresas, fraud_ids, rng)
-    titularidades = generate_titularidades(accounts, empresas, rng)
-    directores    = generate_directores(personas, empresas, titularidades, rng)
-    pep_flags     = generate_pep_flags(personas, accounts, rng)
+    empresas       = generate_empresas(n_empresas, fraud_ids, rng)
+    titularidades  = generate_titularidades(accounts, empresas, rng)
+    directores     = generate_directores(personas, empresas, titularidades, rng)
+    pep_flags      = generate_pep_flags(personas, accounts, rng)
+    sanctions_hits = generate_sanctions_hits(personas, accounts, pep_flags, rng)
 
     empresas.to_csv(raw_dir / "empresas.csv", index=False)
     titularidades.to_csv(raw_dir / "titularidades.csv", index=False)
     directores.to_csv(raw_dir / "directores.csv", index=False)
     pep_flags.to_csv(raw_dir / "pep_flags.csv", index=False)
+    sanctions_hits.to_csv(raw_dir / "sanctions_hits.csv", index=False)
 
     n_shell = empresas["is_shell"].sum()
     n_pep   = len(pep_flags)
     n_emp_owned = (titularidades["titular_type"] == "empresa").sum()
+    n_hits  = len(sanctions_hits)
+    n_confirmed = (sanctions_hits["estado"] == "confirmado").sum() if n_hits else 0
 
     print(f"  empresas={len(empresas)}  shell={n_shell}  PEPs={n_pep}")
     print(f"  cuentas con titular empresa={n_emp_owned}")
     print(f"  directores={len(directores)}")
-    print(f"  → data/raw/empresas.csv, titularidades.csv, directores.csv, pep_flags.csv")
-    return empresas, titularidades, directores, pep_flags
+    print(f"  screening: hits={n_hits}  confirmados={n_confirmed}")
+    print(f"  -> data/raw/empresas.csv, titularidades.csv, directores.csv, pep_flags.csv, sanctions_hits.csv")
+    return empresas, titularidades, directores, pep_flags, sanctions_hits
 
 
 if __name__ == "__main__":

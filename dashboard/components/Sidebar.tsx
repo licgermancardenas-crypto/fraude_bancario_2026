@@ -2,6 +2,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { navGroups } from "@/lib/nav";
+import { PhantomMark } from "@/brand-kit/react/PhantomMark";
 
 export default function Sidebar() {
   const pathname = usePathname();
@@ -10,8 +11,8 @@ export default function Sidebar() {
     <aside
       className="hidden sm:flex w-56 flex-shrink-0 flex-col"
       style={{
-        backgroundColor: "#FFFFFF",
-        borderRight: "1px solid #E2E8F0",
+        backgroundColor: "#0E1219",
+        borderRight: "1px solid #1E2430",
         minHeight: "100vh",
         position: "sticky",
         top: 0,
@@ -21,19 +22,17 @@ export default function Sidebar() {
       }}
     >
       {/* Logo */}
-      <div className="p-5" style={{ borderBottom: "1px solid #E2E8F0" }}>
+      <div className="p-5" style={{ borderBottom: "1px solid #1E2430" }}>
         <div className="flex items-center gap-3">
-          <div
-            className="flex items-center justify-center w-9 h-9 rounded-xl flex-shrink-0"
-            style={{ background: "linear-gradient(135deg, #0A1F44, #1E3A8A)" }}
-          >
-            <span className="text-[11px] font-black text-white tracking-tight">PH</span>
-          </div>
+          <PhantomMark size={30} />
           <div>
-            <p className="text-sm font-bold leading-tight" style={{ color: "#0F172A" }}>
+            <p
+              className="text-sm font-semibold leading-tight"
+              style={{ color: "#EDEAE6", fontFamily: "'Space Grotesk', sans-serif" }}
+            >
               Phantom AI
             </p>
-            <p className="text-[10px] mt-0.5" style={{ color: "#94A3B8" }}>
+            <p className="text-[10px] mt-0.5" style={{ color: "#5A6478" }}>
               GNN · Detección de Fraude
             </p>
           </div>
@@ -46,31 +45,32 @@ export default function Sidebar() {
           <div key={group.label}>
             <p
               className="px-3 mb-1.5 text-[10px] font-bold uppercase tracking-widest"
-              style={{ color: "#CBD5E1" }}
+              style={{ color: "#5A6478" }}
             >
               {group.label}
             </p>
             <div className="space-y-0.5">
               {group.items.map(({ href, label, Icon }) => {
-                const active = href === "/" ? pathname === "/" : pathname.startsWith(href);
+                const active = href === "/app" ? pathname === "/app" : pathname.startsWith(href);
                 return (
                   <Link
                     key={href}
                     href={href}
                     className="flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-all duration-150"
                     style={{
-                      backgroundColor: active ? "#EFF6FF" : "transparent",
-                      color: active ? "#2563EB" : "#64748B",
+                      backgroundColor: active ? "rgba(46,107,255,0.12)" : "transparent",
+                      color: active ? "#7AA2FF" : "#5A6478",
+                      fontWeight: active ? 700 : 500,
                     }}
                   >
-                    <span style={{ color: active ? "#2563EB" : "#94A3B8" }}>
+                    <span style={{ color: active ? "#7AA2FF" : "#5A6478" }}>
                       <Icon />
                     </span>
                     {label}
                     {active && (
                       <span
                         className="ml-auto w-1.5 h-1.5 rounded-full flex-shrink-0"
-                        style={{ backgroundColor: "#2563EB" }}
+                        style={{ backgroundColor: "#2E6BFF" }}
                       />
                     )}
                   </Link>
@@ -82,14 +82,24 @@ export default function Sidebar() {
       </nav>
 
       {/* Footer */}
-      <div className="p-4" style={{ borderTop: "1px solid #E2E8F0" }}>
-        <p className="text-xs font-semibold" style={{ color: "#0F172A" }}>
+      <div className="p-4" style={{ borderTop: "1px solid #1E2430" }}>
+        <Link
+          href="/"
+          className="flex items-center gap-2 text-xs font-medium mb-3 transition-colors"
+          style={{ color: "#5A6478" }}
+        >
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+            <path d="M19 12H5m0 0l6 6m-6-6l6-6" />
+          </svg>
+          Volver al sitio
+        </Link>
+        <p className="text-xs font-semibold" style={{ color: "#EDEAE6" }}>
           Germán Cárdenas
         </p>
-        <p className="text-[10px] mt-0.5" style={{ color: "#94A3B8" }}>
+        <p className="text-[10px] mt-0.5" style={{ color: "#5A6478" }}>
           Data & Analytics · 2026
         </p>
-        <p className="text-[9px] mt-2 leading-relaxed" style={{ color: "#CBD5E1" }}>
+        <p className="text-[9px] mt-2 leading-relaxed" style={{ color: "#5A6478" }}>
           Datos 100% sintéticos —<br />engagement simulado para BRS
         </p>
       </div>

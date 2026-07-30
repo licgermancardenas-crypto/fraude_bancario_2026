@@ -1,0 +1,6 @@
+html { scroll-behavior: smooth; }
+::selection { background: var(--pulse); color: #fff; }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { transition: none !important; animation: none !important; }
+}
