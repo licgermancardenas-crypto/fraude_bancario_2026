@@ -8,6 +8,11 @@ const PATRON_LABELS: Record<string, string> = {
   anillo_lavado:           "Operaciones de lavado de activos mediante anillo de transferencias circulares (layering)",
   estructuracion:          "Estructuración de operaciones (pitufeo) para evadir controles de operaciones en efectivo",
   agregacion_fondos:       "Agregación de fondos de múltiples fuentes de origen dudoso (placement/layering)",
+  cuenta_paso:             "Utilización de cuenta de paso (flow-through) como conducto para transferir fondos sin retención, ocultando la trazabilidad del flujo",
+  shell_layering:          "Estratificación (layering) mediante sociedades pantalla que otorgan apariencia comercial a fondos de origen dudoso",
+  cuenta_durmiente:        "Reactivación abrupta de cuenta durmiente con movimientos de alto monto inconsistentes con el historial transaccional del cliente",
+  red_mulas:               "Operatoria a través de una red de cuentas mula reclutadas, con reparto de fondos en montos bajo umbral y posterior concentración",
+  round_tripping:          "Operatoria de ida y vuelta (round-tripping / U-turn): los fondos salen y regresan a la cuenta de origen simulando ingresos legítimos (integración)",
   transacciones_inusuales: "Operaciones que no guardan relación con el perfil transaccional habitual del cliente",
 };
 

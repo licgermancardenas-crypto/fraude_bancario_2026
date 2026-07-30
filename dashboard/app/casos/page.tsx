@@ -22,6 +22,11 @@ const PATTERN_LABELS: Record<CasePattern, string> = {
   anillo_lavado:           "Anillo de lavado",
   estructuracion:          "Estructuración",
   agregacion_fondos:       "Agregación de fondos",
+  cuenta_paso:             "Cuenta de paso",
+  shell_layering:          "Sociedad pantalla",
+  cuenta_durmiente:        "Cuenta durmiente reactivada",
+  red_mulas:               "Red de mulas",
+  round_tripping:          "Round-tripping (U-turn)",
   transacciones_inusuales: "Transacciones inusuales",
 };
 

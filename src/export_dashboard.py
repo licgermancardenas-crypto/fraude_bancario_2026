@@ -393,7 +393,18 @@ def export_cases(acc, txn, data, scores_all, cfg, out_dir, n_cases=80):
         sorted_by_score[:n_cases]
     ))[:n_cases]
 
+    # ground-truth typology from the generator (accounts.csv), when present
+    typ_map = (
+        acc.set_index("account_id")["fraud_typology"].fillna("").to_dict()
+        if "fraud_typology" in acc.columns else {}
+    )
+
     def _pattern(acc_id):
+        # prefer the labelled typology emitted by the generator
+        label = typ_map.get(acc_id) or ""
+        if label:
+            return label
+        # fallback heuristic for high-scored accounts without a ground-truth label
         nbrs = list(G.predecessors(acc_id)) + list(G.successors(acc_id))
         nbr_fraud = sum(1 for n in nbrs if n in fraud_ids)
         if nbr_fraud >= 3:

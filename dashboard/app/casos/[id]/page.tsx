@@ -24,6 +24,11 @@ const PATTERN_DESC: Record<string, string> = {
   anillo_lavado:           "El modelo detectó un ciclo de transferencias entre múltiples cuentas consistente con un anillo de lavado de activos (layering).",
   estructuracion:          "Se detectaron múltiples transacciones de bajo monto desde esta cuenta, patrón consistente con estructuración (pitufeo) para evadir controles.",
   agregacion_fondos:       "Esta cuenta recibe fondos de múltiples fuentes con alta frecuencia, patrón consistente con agregación de fondos ilegales (placement).",
+  cuenta_paso:             "La cuenta recibe y transfiere fondos por montos casi idénticos en cuestión de horas, manteniendo un saldo cercano a cero: comportamiento de cuenta de paso (conducto).",
+  shell_layering:          "Los fondos atraviesan cuentas de empresas (posibles sociedades pantalla) que fragmentan y redistribuyen el dinero simulando pagos comerciales (layering).",
+  cuenta_durmiente:        "Una cuenta sin actividad durante un período prolongado registra de golpe ingresos y egresos de alto monto concentrados en pocos días (reactivación de cuenta durmiente).",
+  red_mulas:               "Un nodo reparte fondos en montos pequeños a numerosas cuentas recién abiertas que reenvían el dinero a un punto de retiro: patrón de red de mulas reclutadas.",
+  round_tripping:          "El dinero sale de la cuenta, circula por intermediarios y regresa al origen con apariencia de ingreso legítimo (round-tripping / integración).",
   transacciones_inusuales: "El perfil de transacciones de esta cuenta difiere significativamente de su comportamiento histórico esperado.",
 };
 

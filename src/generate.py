@@ -2,13 +2,21 @@
 Generate synthetic bank fraud graph dataset.
 
 Produces two CSVs in data/raw/:
-  accounts.csv   — nodes  (one row per account)
+  accounts.csv   — nodes  (one row per account, with fraud_typology label)
   transactions.csv — edges (one row per transaction)
 
-Fraud patterns embedded:
-  - Cyclic laundering rings: A→B→C→…→A (4-7 hops), money exits via fan-out
-  - Structuring (pitufeo): one source splitting large sums into many small transfers
-  - Fan-in aggregation: many mule accounts funneling into one collector
+Fraud typologies embedded (GAFI/FATF-aligned):
+  - anillo_lavado    Cyclic laundering rings A→B→…→A (4-7 hops) + exit fan-out
+  - estructuracion   Structuring (pitufeo): one source splitting into many small transfers
+  - agregacion_fondos Fan-in: many mules funnelling into one collector
+  - cuenta_paso      Flow-through: money in and out within hours, ~0 retention
+  - shell_layering   Layering through shell-company (business) conduits
+  - cuenta_durmiente Dormant account suddenly reactivated with large bursts
+  - red_mulas        Mule-recruitment network: fan-out to many fresh disposable accounts
+  - round_tripping   U-turn / round-tripping: money leaves and returns (integration)
+
+Each fraud account is labelled with exactly one typology in the
+`fraud_typology` column; legitimate accounts carry "".
 
 Scale factor controls graph size (transaction count assumes the default
 365-day window; see time_window_days below):
@@ -48,11 +56,23 @@ BASE_ACCOUNTS     = 150_000   # scale=0.01 → ~1 500 accounts
 BASE_TRANSACTIONS = 800_000   # scale=0.01 → ~8 000 transactions
 BASE_RINGS        = 200       # scale=0.01 → ~2 rings
 BASE_STRUCT_NETS  = 100       # scale=0.01 → ~1 structuring net
+BASE_FLOWTHROUGH  = 120       # flow-through chains
+BASE_SHELL        = 80        # shell-company layering schemes
+BASE_DORMANT      = 80        # dormant-account reactivations
+BASE_MULENET      = 60        # mule-recruitment networks
+BASE_ROUNDTRIP    = 60        # round-tripping / U-turn schemes
 FRAUD_EDGE_NOISE  = 0.005
+BASE_TS           = 1_700_000_000
 
 
 def _account_id(i: int) -> str:
     return f"ACC{i:07d}"
+
+
+def _pick(ids: list[str], k: int, claimed: set[str]) -> list[str]:
+    """Sample k account ids not already claimed by another typology."""
+    pool = [a for a in ids if a not in claimed]
+    return random.sample(pool, min(k, len(pool)))
 
 
 def generate_accounts(n: int, rng: np.random.Generator) -> pd.DataFrame:
@@ -73,6 +93,7 @@ def generate_accounts(n: int, rng: np.random.Generator) -> pd.DataFrame:
         "account_type":    account_type,
         "opened_days_ago": opened_days_ago,
         "is_fraud":        0,
+        "fraud_typology":  "",
     })
     return df
 
@@ -81,7 +102,7 @@ def generate_legitimate_txns(
     accounts: pd.DataFrame,
     n_txns: int,
     rng: np.random.Generator,
-    base_ts: int = 1_700_000_000,
+    base_ts: int = BASE_TS,
     time_window_days: int = 365,
 ) -> list[dict]:
     """Generate random legitimate transactions between accounts."""
@@ -108,20 +129,20 @@ def generate_legitimate_txns(
 
 def embed_laundering_rings(
     accounts: pd.DataFrame,
-    txns: list[dict],
     n_rings: int,
     rng: np.random.Generator,
-    base_ts: int = 1_700_000_000,
+    claimed: set[str],
     txn_offset: int = 0,
+    base_ts: int = BASE_TS,
     time_window_days: int = 365,
-) -> tuple[set[str], list[dict]]:
+) -> tuple[dict[str, str], list[dict]]:
     """
     Embed cyclic money-laundering rings (4-7 hops).
     Each ring: money enters from outside → cycles N times → exits in small chunks.
-    Returns set of fraud account IDs and new transaction records.
+    Returns {account_id: typology} and new transaction records.
     """
     ids = accounts["account_id"].tolist()
-    fraud_accounts: set[str] = set()
+    typ: dict[str, str] = {}
     new_txns: list[dict] = []
     txn_counter = txn_offset
 
@@ -131,11 +152,15 @@ def embed_laundering_rings(
 
     for r in range(n_rings):
         ring_len = int(rng.integers(4, 8))      # 4-7 nodes
-        ring_nodes = random.sample(ids, ring_len)
-        fraud_accounts.update(ring_nodes)
+        ring_nodes = _pick(ids, ring_len, claimed)
+        if len(ring_nodes) < 4:
+            continue
+        claimed.update(ring_nodes)
+        for a in ring_nodes:
+            typ[a] = "anillo_lavado"
 
         # entry transaction (outside → ring[0])
-        entry_src = random.choice([a for a in ids if a not in fraud_accounts])
+        entry_src = _pick(ids, 1, claimed)[0]
         entry_amount = round(float(rng.uniform(5_000, 50_000)), 2)
         entry_ts = int(base_ts + rng.integers(0, entry_window_days * 24 * 3600))
 
@@ -187,43 +212,47 @@ def embed_laundering_rings(
             })
             txn_counter += 1
 
-    return fraud_accounts, new_txns
+    return typ, new_txns
 
 
 def embed_structuring(
     accounts: pd.DataFrame,
-    txns: list[dict],
     n_nets: int,
     rng: np.random.Generator,
-    base_ts: int = 1_700_000_000,
+    claimed: set[str],
     txn_offset: int = 0,
+    base_ts: int = BASE_TS,
     time_window_days: int = 365,
-) -> tuple[set[str], list[dict]]:
+) -> tuple[dict[str, str], list[dict]]:
     """
     Embed structuring (pitufeo) patterns: one source fans out into many small
     transfers to avoid detection thresholds, then a collector aggregates them.
+    Source + mules are labelled `estructuracion`; the collector `agregacion_fondos`.
     """
     ids = accounts["account_id"].tolist()
-    fraud_accounts: set[str] = set()
+    typ: dict[str, str] = {}
     new_txns: list[dict] = []
     txn_counter = txn_offset
 
-    # Leave a tail buffer so fan-out (48h) + fan-in (120h) always land inside
-    # the window.
     entry_window_days = max(1, time_window_days - 40)
 
     for _ in range(n_nets):
         n_mules = int(rng.integers(5, 15))
-        source = random.choice(ids)
-        collector = random.choice([a for a in ids if a != source])
-        mules = random.sample([a for a in ids if a not in (source, collector)], n_mules)
-        fraud_accounts.update([source, collector] + mules)
+        picked = _pick(ids, n_mules + 2, claimed)
+        if len(picked) < 4:
+            continue
+        source, collector, *mules = picked
+        claimed.update(picked)
+        typ[source] = "estructuracion"
+        typ[collector] = "agregacion_fondos"
+        for m in mules:
+            typ[m] = "estructuracion"
 
         total = round(float(rng.uniform(10_000, 100_000)), 2)
         base = int(base_ts + rng.integers(0, entry_window_days * 24 * 3600))
 
         # source → mules (structured, below $10k each)
-        per_mule = total / n_mules
+        per_mule = total / len(mules)
         for mule in mules:
             amount = round(per_mule * rng.uniform(0.7, 0.99), 2)
             ts = int(base + rng.integers(0, 48 * 3600))
@@ -253,7 +282,303 @@ def embed_structuring(
             })
             txn_counter += 1
 
-    return fraud_accounts, new_txns
+    return typ, new_txns
+
+
+def embed_flowthrough(
+    accounts: pd.DataFrame,
+    n_chains: int,
+    rng: np.random.Generator,
+    claimed: set[str],
+    txn_offset: int = 0,
+    base_ts: int = BASE_TS,
+    time_window_days: int = 365,
+) -> tuple[dict[str, str], list[dict]]:
+    """
+    Flow-through / pass-through accounts (cuentas de paso): money enters and is
+    forwarded within hours, leaving a near-zero balance. The account is a pure
+    conduit — its signature is amount_out ≈ amount_in and sub-day retention.
+    """
+    ids = accounts["account_id"].tolist()
+    typ: dict[str, str] = {}
+    new_txns: list[dict] = []
+    txn_counter = txn_offset
+    entry_window_days = max(1, time_window_days - 10)
+
+    for _ in range(n_chains):
+        chain_len = int(rng.integers(2, 5))        # 2-4 pass-through hops
+        chain = _pick(ids, chain_len, claimed)
+        if len(chain) < 2:
+            continue
+        claimed.update(chain)
+        for a in chain:
+            typ[a] = "cuenta_paso"
+
+        source = _pick(ids, 1, claimed)[0]
+        dest   = _pick(ids, 1, claimed)[0]
+        amount = round(float(rng.uniform(20_000, 80_000)), 2)
+        ts = int(base_ts + rng.integers(0, entry_window_days * 24 * 3600))
+
+        # source → chain[0] → chain[1] → ... → dest, each hop within a few hours
+        path = [source] + chain + [dest]
+        current = amount
+        for i in range(len(path) - 1):
+            ts = int(ts + rng.integers(600, 12 * 3600))  # sub-day forwarding
+            current = round(current * rng.uniform(0.97, 0.995), 2)  # tiny fee retained
+            new_txns.append({
+                "transaction_id": f"TXN{txn_counter:09d}",
+                "src": path[i],
+                "dst": path[i + 1],
+                "amount": current,
+                "timestamp": ts,
+                "transaction_type": "transfer",
+                "is_fraud": 1,
+            })
+            txn_counter += 1
+
+    return typ, new_txns
+
+
+def embed_shell_layering(
+    accounts: pd.DataFrame,
+    n_schemes: int,
+    rng: np.random.Generator,
+    claimed: set[str],
+    txn_offset: int = 0,
+    base_ts: int = BASE_TS,
+    time_window_days: int = 365,
+) -> tuple[dict[str, str], list[dict]]:
+    """
+    Layering through shell-company conduits: dirty money enters a business
+    account (the shell), is broken up and passed through 1-2 further business
+    conduits, then dispersed to several recipients — giving the flow a
+    commercial appearance. Shell conduits are business accounts and are
+    returned so the entity layer can attach shell companies to them.
+    """
+    ids = accounts["account_id"].tolist()
+    business_ids = accounts.loc[accounts["account_type"] == "business", "account_id"].tolist()
+    typ: dict[str, str] = {}
+    new_txns: list[dict] = []
+    txn_counter = txn_offset
+    entry_window_days = max(1, time_window_days - 30)
+
+    for _ in range(n_schemes):
+        n_conduits = int(rng.integers(1, 3))        # 1-2 shell conduits
+        conduits = [c for c in _pick(business_ids, n_conduits + 2, claimed)][:n_conduits]
+        if not conduits:
+            continue
+        claimed.update(conduits)
+        for c in conduits:
+            typ[c] = "shell_layering"
+
+        source = _pick(ids, 1, claimed)[0]
+        amount = round(float(rng.uniform(40_000, 250_000)), 2)
+        ts = int(base_ts + rng.integers(0, entry_window_days * 24 * 3600))
+
+        # source → shell conduits (chain), booked as "payment" for commercial cover
+        current = amount
+        prev = source
+        for c in conduits:
+            ts = int(ts + rng.integers(3600, 96 * 3600))
+            current = round(current * rng.uniform(0.9, 0.99), 2)
+            new_txns.append({
+                "transaction_id": f"TXN{txn_counter:09d}",
+                "src": prev, "dst": c, "amount": current,
+                "timestamp": ts, "transaction_type": "payment", "is_fraud": 1,
+            })
+            txn_counter += 1
+            prev = c
+
+        # final shell disperses to 3-6 recipients (invoiced-looking payments)
+        n_out = int(rng.integers(3, 7))
+        recipients = _pick(ids, n_out, claimed)
+        for rcp in recipients:
+            chunk = round(current / len(recipients) * rng.uniform(0.7, 1.2), 2)
+            out_ts = int(ts + rng.integers(3600, 72 * 3600))
+            new_txns.append({
+                "transaction_id": f"TXN{txn_counter:09d}",
+                "src": prev, "dst": rcp, "amount": chunk,
+                "timestamp": out_ts, "transaction_type": "payment", "is_fraud": 1,
+            })
+            txn_counter += 1
+
+    return typ, new_txns
+
+
+def embed_dormant_reactivation(
+    accounts: pd.DataFrame,
+    n_accounts: int,
+    rng: np.random.Generator,
+    claimed: set[str],
+    txn_offset: int = 0,
+    base_ts: int = BASE_TS,
+    time_window_days: int = 365,
+) -> tuple[dict[str, str], list[dict]]:
+    """
+    Dormant account reactivation: an old account with little history suddenly
+    receives and moves a large sum in a tight burst late in the window. The
+    account's `opened_days_ago` is forced high (long-standing but idle) and the
+    burst is concentrated in the final weeks — a classic sleeper-mule signature.
+
+    Also returns the reactivated ids via the typology map so the caller can
+    bump their opened_days_ago.
+    """
+    ids = accounts["account_id"].tolist()
+    typ: dict[str, str] = {}
+    new_txns: list[dict] = []
+    txn_counter = txn_offset
+
+    # burst lands in the last ~30 days of the window
+    burst_start = max(1, time_window_days - 30)
+
+    for _ in range(n_accounts):
+        acc = _pick(ids, 1, claimed)
+        if not acc:
+            continue
+        acc = acc[0]
+        claimed.add(acc)
+        typ[acc] = "cuenta_durmiente"
+
+        n_in = int(rng.integers(2, 5))
+        funders = _pick(ids, n_in, claimed)
+        base = int(base_ts + rng.integers(burst_start, time_window_days) * 24 * 3600)
+
+        # sudden inflows
+        total_in = 0.0
+        for f in funders:
+            amt = round(float(rng.uniform(15_000, 60_000)), 2)
+            total_in += amt
+            ts = int(base + rng.integers(0, 5 * 24 * 3600))
+            new_txns.append({
+                "transaction_id": f"TXN{txn_counter:09d}",
+                "src": f, "dst": acc, "amount": amt,
+                "timestamp": ts, "transaction_type": "transfer", "is_fraud": 1,
+            })
+            txn_counter += 1
+
+        # rapid outflow to a few targets, draining the account
+        n_out = int(rng.integers(2, 5))
+        targets = _pick(ids, n_out, claimed)
+        for t in targets:
+            amt = round(total_in / len(targets) * rng.uniform(0.8, 1.0), 2)
+            ts = int(base + rng.integers(5 * 24 * 3600, 12 * 24 * 3600))
+            new_txns.append({
+                "transaction_id": f"TXN{txn_counter:09d}",
+                "src": acc, "dst": t, "amount": amt,
+                "timestamp": ts, "transaction_type": "transfer", "is_fraud": 1,
+            })
+            txn_counter += 1
+
+    return typ, new_txns
+
+
+def embed_mule_network(
+    accounts: pd.DataFrame,
+    n_networks: int,
+    rng: np.random.Generator,
+    claimed: set[str],
+    txn_offset: int = 0,
+    base_ts: int = BASE_TS,
+    time_window_days: int = 365,
+) -> tuple[dict[str, str], list[dict]]:
+    """
+    Mule-recruitment network: a recruiter fans out modest sums to many freshly
+    opened disposable accounts, which forward the funds to a cash-out point.
+    Distinct tree topology (high out-degree from the recruiter) vs. the ring's
+    cycle. Recruited mules get a low opened_days_ago (fresh accounts).
+    """
+    ids = accounts["account_id"].tolist()
+    typ: dict[str, str] = {}
+    new_txns: list[dict] = []
+    txn_counter = txn_offset
+    entry_window_days = max(1, time_window_days - 20)
+
+    for _ in range(n_networks):
+        n_mules = int(rng.integers(10, 30))
+        picked = _pick(ids, n_mules + 2, claimed)
+        if len(picked) < 5:
+            continue
+        recruiter, cashout, *mules = picked
+        claimed.update(picked)
+        typ[recruiter] = "red_mulas"
+        typ[cashout] = "red_mulas"
+        for m in mules:
+            typ[m] = "red_mulas"
+
+        base = int(base_ts + rng.integers(0, entry_window_days * 24 * 3600))
+
+        for mule in mules:
+            amt = round(float(rng.uniform(3_000, 9_500)), 2)   # small, below threshold
+            ts_in = int(base + rng.integers(0, 72 * 3600))
+            new_txns.append({
+                "transaction_id": f"TXN{txn_counter:09d}",
+                "src": recruiter, "dst": mule, "amount": amt,
+                "timestamp": ts_in, "transaction_type": "transfer", "is_fraud": 1,
+            })
+            txn_counter += 1
+            # mule forwards most of it to the cash-out point
+            ts_out = int(ts_in + rng.integers(3600, 72 * 3600))
+            new_txns.append({
+                "transaction_id": f"TXN{txn_counter:09d}",
+                "src": mule, "dst": cashout,
+                "amount": round(amt * rng.uniform(0.85, 0.97), 2),
+                "timestamp": ts_out, "transaction_type": "transfer", "is_fraud": 1,
+            })
+            txn_counter += 1
+
+    return typ, new_txns
+
+
+def embed_roundtripping(
+    accounts: pd.DataFrame,
+    n_schemes: int,
+    rng: np.random.Generator,
+    claimed: set[str],
+    txn_offset: int = 0,
+    base_ts: int = BASE_TS,
+    time_window_days: int = 365,
+) -> tuple[dict[str, str], list[dict]]:
+    """
+    Round-tripping / U-turn (integration): money leaves an origin account,
+    passes through a couple of intermediary ("external / offshore") accounts and
+    returns to the origin (or a closely linked account) with a legitimate cover
+    such as a loan repayment or investment return — the classic integration move
+    that gives laundered funds a clean provenance.
+    """
+    ids = accounts["account_id"].tolist()
+    typ: dict[str, str] = {}
+    new_txns: list[dict] = []
+    txn_counter = txn_offset
+    entry_window_days = max(1, time_window_days - 30)
+
+    for _ in range(n_schemes):
+        n_hops = int(rng.integers(2, 4))
+        nodes = _pick(ids, n_hops + 2, claimed)
+        if len(nodes) < 3:
+            continue
+        origin, *intermediaries = nodes
+        return_to = origin  # U-turn: funds come back to the origin
+        claimed.update(nodes)
+        for a in nodes:
+            typ[a] = "round_tripping"
+
+        amount = round(float(rng.uniform(50_000, 200_000)), 2)
+        ts = int(base_ts + rng.integers(0, entry_window_days * 24 * 3600))
+
+        path = [origin] + intermediaries + [return_to]
+        current = amount
+        for i in range(len(path) - 1):
+            ts = int(ts + rng.integers(24 * 3600, 120 * 3600))
+            current = round(current * rng.uniform(0.95, 1.02), 2)  # ± "returns/fees"
+            ttype = "payment" if i == len(path) - 2 else "transfer"
+            new_txns.append({
+                "transaction_id": f"TXN{txn_counter:09d}",
+                "src": path[i], "dst": path[i + 1], "amount": current,
+                "timestamp": ts, "transaction_type": ttype, "is_fraud": 1,
+            })
+            txn_counter += 1
+
+    return typ, new_txns
 
 
 # ── main ─────────────────────────────────────────────────────────────────────
@@ -264,14 +589,21 @@ def generate(scale: float, output_dir: str, seed: int = 42, time_window_days: in
     Path(output_dir).mkdir(parents=True, exist_ok=True)
 
     duration_factor = time_window_days / 365
-    n_accounts = max(100, int(BASE_ACCOUNTS * scale))
-    n_txns     = max(200, int(BASE_TRANSACTIONS * scale * duration_factor))
-    n_rings    = max(1,   int(BASE_RINGS * scale))
-    n_structs  = max(1,   int(BASE_STRUCT_NETS * scale))
+    n_accounts   = max(100, int(BASE_ACCOUNTS * scale))
+    n_txns       = max(200, int(BASE_TRANSACTIONS * scale * duration_factor))
+    n_rings      = max(1,   int(BASE_RINGS * scale))
+    n_structs    = max(1,   int(BASE_STRUCT_NETS * scale))
+    n_flow       = max(1,   int(BASE_FLOWTHROUGH * scale))
+    n_shell      = max(1,   int(BASE_SHELL * scale))
+    n_dormant    = max(1,   int(BASE_DORMANT * scale))
+    n_mulenet    = max(1,   int(BASE_MULENET * scale))
+    n_roundtrip  = max(1,   int(BASE_ROUNDTRIP * scale))
 
     print(f"[generate] scale={scale}  accounts={n_accounts}  transactions={n_txns}  "
-          f"rings={n_rings}  structuring_nets={n_structs}  "
           f"time_window_days={time_window_days}")
+    print(f"[generate] typologies: rings={n_rings} structuring={n_structs} "
+          f"flowthrough={n_flow} shell={n_shell} dormant={n_dormant} "
+          f"mule_net={n_mulenet} roundtrip={n_roundtrip}")
 
     # 1. Accounts
     accounts = generate_accounts(n_accounts, rng)
@@ -280,26 +612,49 @@ def generate(scale: float, output_dir: str, seed: int = 42, time_window_days: in
     legit_txns = generate_legitimate_txns(accounts, n_txns, rng, time_window_days=time_window_days)
     txn_offset = len(legit_txns)
 
-    # 3. Fraud patterns
-    fraud_accs: set[str] = set()
+    # 3. Fraud typologies — each claims disjoint accounts and appends its txns
+    claimed: set[str] = set()
+    typology: dict[str, str] = {}
+    fraud_txns: list[dict] = []
 
-    ring_accs, ring_txns = embed_laundering_rings(
-        accounts, legit_txns, n_rings, rng, txn_offset=txn_offset, time_window_days=time_window_days
-    )
-    fraud_accs.update(ring_accs)
-    txn_offset += len(ring_txns)
+    scenarios = [
+        embed_laundering_rings,
+        embed_structuring,
+        embed_flowthrough,
+        embed_shell_layering,
+        embed_dormant_reactivation,
+        embed_mule_network,
+        embed_roundtripping,
+    ]
+    counts = [n_rings, n_structs, n_flow, n_shell, n_dormant, n_mulenet, n_roundtrip]
 
-    struct_accs, struct_txns = embed_structuring(
-        accounts, legit_txns, n_structs, rng, txn_offset=txn_offset, time_window_days=time_window_days
-    )
-    fraud_accs.update(struct_accs)
-    txn_offset += len(struct_txns)
+    for fn, n in zip(scenarios, counts):
+        typ, txns = fn(
+            accounts, n, rng, claimed,
+            txn_offset=txn_offset, time_window_days=time_window_days,
+        )
+        typology.update(typ)
+        fraud_txns.extend(txns)
+        txn_offset += len(txns)
 
-    # 4. Label fraud accounts
+    # 4. Label fraud accounts + typology
+    fraud_accs = set(typology)
     accounts.loc[accounts["account_id"].isin(fraud_accs), "is_fraud"] = 1
+    accounts["fraud_typology"] = accounts["account_id"].map(typology).fillna("")
+
+    # 4b. Behavioural touch-ups tied to typology
+    #     dormant accounts look long-standing; recruited mules look brand-new
+    dormant_ids = [a for a, t in typology.items() if t == "cuenta_durmiente"]
+    mule_ids    = [a for a, t in typology.items() if t == "red_mulas"]
+    if dormant_ids:
+        mask = accounts["account_id"].isin(dormant_ids)
+        accounts.loc[mask, "opened_days_ago"] = rng.integers(365 * 3, 365 * 10, size=mask.sum())
+    if mule_ids:
+        mask = accounts["account_id"].isin(mule_ids)
+        accounts.loc[mask, "opened_days_ago"] = rng.integers(5, 90, size=mask.sum())
 
     # 5. Assemble transactions
-    all_txns = legit_txns + ring_txns + struct_txns
+    all_txns = legit_txns + fraud_txns
     txns_df = pd.DataFrame(all_txns).sort_values("timestamp").reset_index(drop=True)
 
     # 6. Save
@@ -309,14 +664,18 @@ def generate(scale: float, output_dir: str, seed: int = 42, time_window_days: in
     txns_df.to_csv(txn_path, index=False)
 
     # 7. Summary
-    n_fraud_acc  = accounts["is_fraud"].sum()
-    n_fraud_txn  = txns_df["is_fraud"].sum()
+    n_fraud_acc  = int(accounts["is_fraud"].sum())
+    n_fraud_txn  = int(txns_df["is_fraud"].sum())
     pct_acc  = 100 * n_fraud_acc / len(accounts)
     pct_txn  = 100 * n_fraud_txn / len(txns_df)
 
     print(f"\n{'='*55}")
     print(f"  accounts.csv    : {len(accounts):>7,} rows  —  fraud nodes : {n_fraud_acc:>5,} ({pct_acc:.1f}%)")
     print(f"  transactions.csv: {len(txns_df):>7,} rows  —  fraud edges : {n_fraud_txn:>5,} ({pct_txn:.1f}%)")
+    print(f"{'-'*55}")
+    print("  fraud accounts by typology:")
+    for t, c in accounts.loc[accounts.is_fraud == 1, "fraud_typology"].value_counts().items():
+        print(f"    {t:<20} {c:>5,}")
     print(f"{'='*55}")
     print(f"  Output: {output_dir}/")
 

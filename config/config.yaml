@@ -4,8 +4,8 @@ project:
   client: "Banco Regional del Sur (BRS)"
 
 data:
-  scale_factor: 1.0
-  time_window_days: 730  # 2 years, same daily transaction density
+  scale_factor: 0.5
+  time_window_days: 365  # 1 year — ~400K txns at scale 0.5 (matches published deliverables)
   raw_dir: data/raw
   processed_dir: data/processed
   workers: 4

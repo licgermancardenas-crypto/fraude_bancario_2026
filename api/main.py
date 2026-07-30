@@ -63,7 +63,7 @@ def root():
     return {
         "service": "Phantom AI — Fraud Detection API",
         "version": "1.0.0",
-        "model": "GraphSAGE (SAGEConv 18→64→64)",
+        "model": "GraphSAGE (SAGEConv 27→64→64)",
         "dataset": "Sintético BRS — 75K cuentas · 400K transacciones",
         "docs": "/docs",
         "endpoints": [
@@ -185,7 +185,7 @@ def score_accounts(body: ScoreRequest):
     found   = sum(1 for r in results if r["found"])
 
     return {
-        "model": "GraphSAGE (SAGEConv 18→64→64)",
+        "model": "GraphSAGE (SAGEConv 27→64→64)",
         "model_version": body.model_version,
         "scored_at": datetime.now(timezone.utc).isoformat(),
         "requested": len(body.account_ids),
@@ -202,7 +202,11 @@ def list_cases(
     limit: Annotated[int, Query(ge=1, le=80)] = 20,
     offset: Annotated[int, Query(ge=0)] = 0,
     status: Literal["abierto", "en_revision", "escalado", "desestimado"] | None = None,
-    pattern: Literal["anillo_lavado", "estructuracion", "agregacion_fondos"] | None = None,
+    pattern: Literal[
+        "anillo_lavado", "estructuracion", "agregacion_fondos",
+        "cuenta_paso", "shell_layering", "cuenta_durmiente",
+        "red_mulas", "round_tripping", "transacciones_inusuales",
+    ] | None = None,
     min_score: Annotated[float, Query(ge=0.0, le=1.0)] = 0.0,
     is_pep: bool | None = None,
 ):
@@ -323,62 +327,65 @@ def model_performance():
     return {
         "dataset": {
             "n_accounts": 75_000,
-            "n_fraud": 1_147,
-            "pct_fraud": 1.53,
+            "n_fraud": 2_140,
+            "pct_fraud": 2.85,
             "scale_factor": 0.5,
+            "typologies": 8,
+            "features": 27,
         },
         "models": [
             {
                 "model": "Logistic Regression",
                 "type": "tabular_linear",
-                "pr_auc": 0.675,
-                "roc_auc": 0.986,
-                "recall_at_p90": 0.0,
-                "f1_optimal": 0.680,
-                "pct_fraud_missed": 27.6,
-                "daily_alerts_brs": 30,
+                "pr_auc": 0.844,
+                "roc_auc": 0.990,
+                "recall_at_p90": 0.399,
+                "f1_optimal": 0.824,
+                "pct_fraud_missed": 17.1,
+                "daily_alerts_brs": 27,
             },
             {
                 "model": "XGBoost",
                 "type": "tabular_nonlinear",
-                "pr_auc": 0.927,
+                "pr_auc": 0.968,
                 "roc_auc": 0.998,
-                "recall_at_p90": 0.804,
-                "f1_optimal": 0.858,
-                "pct_fraud_missed": 20.2,
-                "daily_alerts_brs": 23,
+                "recall_at_p90": 0.913,
+                "f1_optimal": 0.915,
+                "pct_fraud_missed": 12.5,
+                "daily_alerts_brs": 24,
             },
             {
                 "model": "GAT",
                 "type": "graph_attention",
-                "pr_auc": 0.973,
+                "pr_auc": 0.976,
                 "roc_auc": 0.999,
-                "recall_at_p90": 0.933,
-                "f1_optimal": 0.938,
-                "pct_fraud_missed": 8.0,
-                "daily_alerts_brs": 25,
+                "recall_at_p90": 0.941,
+                "f1_optimal": 0.924,
+                "pct_fraud_missed": 7.5,
+                "daily_alerts_brs": 27,
             },
             {
                 "model": "GraphSAGE",
                 "type": "graph_inductive",
-                "pr_auc": 0.977,
-                "roc_auc": 0.9995,
-                "recall_at_p90": 0.951,
-                "f1_optimal": 0.950,
-                "pct_fraud_missed": 6.7,
-                "daily_alerts_brs": 25,
+                "pr_auc": 0.991,
+                "roc_auc": 0.9998,
+                "recall_at_p90": 0.991,
+                "f1_optimal": 0.957,
+                "pct_fraud_missed": 1.9,
+                "daily_alerts_brs": 28,
                 "recommended": True,
             },
         ],
         "pr_curves": store.pr_curves,
         "temporal_eval": store.temporal_eval,
         "homophily": {
-            "lift_fraud_fraud": 14.3,
-            "cohen_d_credit_score": 0.055,
+            "lift_fraud_fraud": 7.0,
+            "cohen_d_credit_score": -0.013,
             "interpretation": (
-                "Fraud accounts are 14.3× more likely to be connected to other fraud "
-                "accounts than chance. Credit score has near-zero discriminative power "
-                "(Cohen d=0.055): AML is a network problem, not a profile problem."
+                "Fraud accounts' neighbours are 7.0× more likely to be fraudulent than "
+                "a legitimate account's neighbours. Credit score has essentially no "
+                "discriminative power (Cohen d≈-0.01): AML is a network and behaviour "
+                "problem, not a credit-profile problem."
             ),
         },
     }

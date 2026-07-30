@@ -11,7 +11,7 @@
 
 Engagement simulado para *Banco Regional del Sur (BRS)*: prueba de concepto end-to-end de detección de redes de lavado de activos usando **Graph Neural Networks** sobre un grafo transaccional sintético de 75.000 cuentas y ~400.000 transacciones.
 
-El sistema detecta estructuras que los controles basados en reglas no pueden ver: **anillos cíclicos de lavado** (4–7 saltos), **pitufeo / estructuración**, y **perpetradores de origen** que inyectaron el dinero sin ser detectados por el modelo principal.
+El sistema detecta **8 tipologías de lavado** alineadas con GAFI que los controles basados en reglas no pueden ver: **anillos cíclicos** (4–7 saltos), **estructuración / pitufeo**, **agregación de fondos**, **cuentas de paso** (flow-through), **sociedades pantalla**, **cuentas durmientes reactivadas**, **redes de mulas** y **round-tripping** (integración) — además de rastrear a los **perpetradores de origen** que inyectaron el dinero sin ser detectados por el modelo principal.
 
 ---
 
@@ -19,18 +19,18 @@ El sistema detecta estructuras que los controles basados en reglas no pueden ver
 
 | Modelo | PR-AUC ↑ | ROC-AUC | Recall @ P90 | Fraude no detectado |
 |---|---|---|---|---|
-| Logistic Regression | 0.675 | 0.986 | 0% | 27.6% |
-| XGBoost | 0.927 | 0.998 | 80% | 20.2% |
-| GAT | 0.973 | 0.999 | 93% | 8.0% |
-| **GraphSAGE** | **0.977** | **0.9995** | **95%** | **6.7%** |
+| Logistic Regression | 0.844 | 0.990 | 40% | 17.1% |
+| XGBoost | 0.968 | 0.998 | 91% | 12.5% |
+| GAT | 0.976 | 0.999 | 94% | 7.5% |
+| **GraphSAGE** | **0.991** | **0.9998** | **99%** | **1.9%** |
 
-> **PR-AUC** (Área bajo la curva Precisión-Recall) es la métrica principal para fraude: mide qué tan bien detecta casos raros sin generar falsas alarmas. Un clasificador aleatorio obtendría ~0.015 (la tasa base de fraude). **Por encima de 0.95 es excelente.**
+> **PR-AUC** (Área bajo la curva Precisión-Recall) es la métrica principal para fraude: mide qué tan bien detecta casos raros sin generar falsas alarmas. Un clasificador aleatorio obtendría ~0.029 (la tasa base de fraude). **Por encima de 0.95 es excelente.**
 >
-> **Recall @ P90:** con la exigencia de que 9 de cada 10 alertas sean fraude real, GraphSAGE detecta el **95%** del fraude total.
+> **Recall @ P90:** con la exigencia de que 9 de cada 10 alertas sean fraude real, GraphSAGE detecta el **99%** del fraude total.
 
-**Hallazgo clave — homofilia 14.3×:** los vecinos de cuentas fraudulentas son 14.3× más propensos a ser también fraudulentos. Las cuentas mula son crediticiamente normales (Cohen d = 0.055) pero se delatan por sus conexiones. Esta es la justificación cuantitativa de por qué los GNN superan a los modelos tabulares.
+**Hallazgo clave — homofilia 7.0× + señal conductual:** los vecinos de cuentas fraudulentas son 7.0× más propensos a ser también fraudulentos que los de una cuenta legítima. Las cuentas mula son crediticiamente normales (Cohen d ≈ -0.01, sin poder discriminante) pero se delatan por sus **conexiones** y por su **comportamiento** (velocidad, retención near-cero, ráfagas, reactivación). Esta combinación —estructura + features de comportamiento— es la justificación cuantitativa de por qué los GNN superan a los modelos tabulares y a los embeddings puramente topológicos.
 
-**Rastreo de perpetradores:** el backward tracing sobre el grafo dirigido identificó 2 cuentas de origen no detectadas por el GNN (score ≈ 0%) que inyectaron $66K al esquema. La propagación inversa de riesgo las rankea en los puestos #1 y #9 sin etiquetas adicionales.
+**Rastreo de perpetradores:** el backward tracing sobre el grafo dirigido identificó 392 cuentas de origen que alimentaron a 2.073 mulas detectadas, de las cuales 300 eran prácticamente invisibles para el modelo principal (score GNN < 0.3). El principal inyector oculto —con score ≈ 2%— colocó $239K en el esquema; en conjunto el rastreo remonta ~$78,8M en fondos movidos. La propagación inversa de riesgo prioriza a estos perpetradores sin necesidad de etiquetas adicionales.
 
 ---
 
@@ -40,10 +40,12 @@ El sistema detecta estructuras que los controles basados en reglas no pueden ver
 
 | Módulo | Modelo | Arquitectura | PR-AUC |
 |---|---|---|---|
-| `src/train_baseline.py` | Logistic Regression + XGBoost | Tabular (18 features) | 0.675 / 0.927 |
-| `src/train_node2vec.py` | Node2Vec + XGBoost | Random walks 64-dim | baseline de embeddings |
-| `src/train_gat.py` | GAT — Graph Attention Network | GATConv(18→64, 4 heads) × 2 | 0.973 |
-| `src/train.py` | **GraphSAGE** | SAGEConv(18→64→64) × 2 | **0.977** |
+| `src/train_baseline.py` | Logistic Regression + XGBoost | Tabular (27 features) | 0.844 / 0.968 |
+| `src/train_node2vec.py` | Node2Vec + XGBoost | Random walks 64-dim | 0.06 — ablación (ver nota) |
+| `src/train_gat.py` | GAT — Graph Attention Network | GATConv(27→64, 4 heads) × 2 | 0.976 |
+| `src/train.py` | **GraphSAGE** | SAGEConv(27→64→64) × 2 | **0.991** |
+
+> **Nota sobre Node2Vec:** actúa como **ablación deliberada** — aprende embeddings a partir de la topología pura (random walks), sin features de nodo. Sobre las tipologías conductuales (cuentas de paso, durmientes, round-tripping), que no forman comunidades densas, colapsa a PR-AUC ≈ 0.06. Esto cuantifica *por qué* hacen falta GNNs que combinen estructura **y** comportamiento: la señal no es puramente topológica.
 
 ### Explicabilidad y trazabilidad
 
@@ -128,7 +130,7 @@ Datos sintéticos (gen-fraud-graph)
 fraud-gnn/
 ├── src/
 │   ├── generate.py            # grafo sintético: 75K nodos, ~400K aristas, escenarios AML
-│   ├── features.py            # 18 features por nodo (grado, montos, conectividad, perfil)
+│   ├── features.py            # 27 features por nodo (grado, montos, conectividad, perfil, comportamiento temporal)
 │   ├── build_graph.py         # PyG Data object + splits estratificados (seed=42)
 │   ├── train_baseline.py      # LogReg + XGBoost tabulares
 │   ├── train.py               # GraphSAGE con early stopping
@@ -146,8 +148,8 @@ fraud-gnn/
 │   ├── enrich_personas.py     # identidades sintéticas argentinas (DNI, CUIL, AFIP)
 │   ├── generate_report.py     # informe PDF institucional
 │   └── models/
-│       ├── graphsage.py       # SAGEConv(18→64→64) + Linear(64→2)
-│       ├── gat.py             # GATConv(18→64→64, 4 heads) + Linear(64→2)
+│       ├── graphsage.py       # SAGEConv(27→64→64) + Linear(64→2)
+│       ├── gat.py             # GATConv(27→64→64, 4 heads) + Linear(64→2)
 │       └── baseline.py        # LogReg + XGBoost tabulares
 ├── dashboard/                 # Next.js 14 (deploy en Vercel)
 │   ├── app/
@@ -210,10 +212,23 @@ cd dashboard && npm install && npm run dev
 
 ## Contexto AML
 
-El sistema implementa detección de las dos tipologías más comunes según GAFI:
+El sistema implementa detección de **8 tipologías** alineadas con las fases GAFI de colocación, estratificación e integración:
 
-- **Anillos cíclicos (layering):** el dinero circula por 4–7 cuentas intermedias en ventanas de 72 h, fragmentando el flujo bajo los umbrales de reporte y diluyendo la trazabilidad.
-- **Estructuración / pitufeo (structuring):** sumas grandes se dividen en transferencias deliberadamente por debajo de los límites regulatorios, distribuidas en múltiples cuentas.
+**Estratificación (layering)**
+- **Anillos cíclicos:** el dinero circula por 4–7 cuentas intermedias en ventanas de 72 h, fragmentando el flujo bajo los umbrales de reporte y diluyendo la trazabilidad.
+- **Cuentas de paso (flow-through):** conductos que reciben y reenvían fondos en horas, con saldo residual near-cero (entrada ≈ salida).
+- **Sociedades pantalla (shell layering):** los fondos atraviesan cuentas de empresas fantasma que les dan apariencia comercial.
+
+**Colocación (placement)**
+- **Estructuración / pitufeo (structuring):** sumas grandes se dividen en transferencias deliberadamente por debajo de los límites regulatorios.
+- **Agregación de fondos (fan-in):** múltiples mulas concentran fondos en un colector.
+- **Redes de mulas:** un reclutador reparte montos bajo umbral a decenas de cuentas recién abiertas que reenvían a un punto de retiro.
+- **Cuentas durmientes reactivadas:** cuentas inactivas por largos períodos que de golpe mueven sumas altas en ráfagas concentradas.
+
+**Integración**
+- **Round-tripping / U-turn:** los fondos salen y regresan a la cuenta de origen simulando ingresos legítimos (préstamos, retornos de inversión).
+
+Las tipologías conductuales (cuentas de paso, durmientes, round-tripping) se detectan combinando estructura de grafo con **features de comportamiento** —velocidad, retención, dormancia, ráfagas— que replican las señales de los sistemas de monitoreo transaccional reales.
 
 El módulo de Compliance incluye formularios de ROS pre-completados bajo **Ley 25.246** y **Resolución UIF N° 30/2017** (Argentina).
 

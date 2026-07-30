@@ -136,7 +136,16 @@ export interface EntityGraph {
 }
 
 export type CaseStatus = "abierto" | "en_revision" | "escalado" | "desestimado" | "sar_enviado";
-export type CasePattern = "anillo_lavado" | "estructuracion" | "agregacion_fondos" | "transacciones_inusuales";
+export type CasePattern =
+  | "anillo_lavado"
+  | "estructuracion"
+  | "agregacion_fondos"
+  | "cuenta_paso"
+  | "shell_layering"
+  | "cuenta_durmiente"
+  | "red_mulas"
+  | "round_tripping"
+  | "transacciones_inusuales";
 
 export interface CaseTransaction {
   src: string;
