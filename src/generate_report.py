@@ -265,9 +265,9 @@ def executive_summary():
       <div class="kpi-sub">Regresión · XGBoost · GAT · GraphSAGE</div>
     </div>
     <div class="kpi-card">
-      <div class="kpi-val">14.3×</div>
+      <div class="kpi-val">7.0×</div>
       <div class="kpi-lbl">Señal de red fraude-fraude</div>
-      <div class="kpi-sub">Los vecinos de cuentas fraudulentas son 14× más sospechosos</div>
+      <div class="kpi-sub">Los vecinos de cuentas fraudulentas son 7× más sospechosos</div>
     </div>
   </div>
 
@@ -332,12 +332,12 @@ def context_section():
 
   <h3>Por qué el lavado estructurado es un problema de red</h3>
   <p>En un esquema de lavado en anillo, el dinero entra por una cuenta, circula por 4-7 cuentas intermediarias en rápida sucesión, y sale fragmentado en múltiples destinos. Ninguna cuenta individual del anillo tiene comportamiento "raro" en sus métricas propias: montos normales, historial crediticio sin manchas, antigüedad razonable.</p>
-  <p>La señal de fraude <em>emerge</em> del patrón de conexiones: los vecinos de una cuenta fraudulenta tienden fuertemente a ser fraudulentos. Medido en los datos de este estudio: <strong>lift fraude-fraude = 14.3×</strong> sobre el nivel esperado por azar. Esta señal es, por definición, invisible para modelos que analizan cuentas de forma individual.</p>
+  <p>La señal de fraude <em>emerge</em> del patrón de conexiones: los vecinos de una cuenta fraudulenta tienden fuertemente a ser fraudulentos. Medido en los datos de este estudio: <strong>lift fraude-fraude = 7.0×</strong> sobre el nivel esperado por azar. Esta señal es, por definición, invisible para modelos que analizan cuentas de forma individual.</p>
 
   <div class="plain-lang no-break">
-    <div class="plain-lang-tag">En palabras simples — homofilia (14.3×)</div>
+    <div class="plain-lang-tag">En palabras simples — homofilia (7.0×)</div>
     <div class="plain-lang-body">
-      "Lift de 14.3×" significa esto: si tomamos una cuenta al azar del banco, la probabilidad de que sea fraudulenta es del 1.5%. Pero si tomamos una cuenta que <em>está conectada a una cuenta ya sospechosa</em>, esa probabilidad sube a más del 21%. Las cuentas fraudulentas se conectan entre sí mucho más de lo que cabría esperar por casualidad. <strong>El modelo usa exactamente esta señal para detectar redes enteras, no casos aislados.</strong>
+      "Lift de 7.0×" significa esto: si tomamos una cuenta al azar del banco, la probabilidad de que sea fraudulenta es del 2.9%. Pero si tomamos una cuenta que <em>está conectada a una cuenta ya sospechosa</em>, esa probabilidad sube a cerca del 19%. Las cuentas fraudulentas se conectan entre sí mucho más de lo que cabría esperar por casualidad. <strong>El modelo usa exactamente esta señal para detectar redes enteras, no casos aislados.</strong>
     </div>
   </div>
 
@@ -535,9 +535,9 @@ def insights_section():
         ("El risk score crediticio es ciego al lavado (Cohen d = 0.055)",
          "Las distribuciones del score crediticio son prácticamente idénticas entre cuentas fraudulentas y legítimas. Las cuentas mula son crediticiamente 'normales' — el problema es de red, no de perfil.",
          "<strong>Desconectar el score crediticio</strong> de las reglas AML. Construir un score específico de red que capture comportamiento relacional."),
-        ("Homofilia fraude-fraude: lift de 14.3×",
-         "Los vecinos de nodos fraudulentos son 14.3× más propensos a ser fraudulentos que el azar. Esto es la justificación cuantitativa para usar GNNs sobre baselines tabulares.",
-         "Usar este lift como argumento interno: 'cada transacción con una cuenta de riesgo aumenta 14× la probabilidad de que el origen también sea riesgo'."),
+        ("Homofilia fraude-fraude: lift de 7.0×",
+         "Los vecinos de nodos fraudulentos son 7.0× más propensos a ser fraudulentos que el azar. Esto es la justificación cuantitativa para usar GNNs sobre baselines tabulares.",
+         "Usar este lift como argumento interno: 'cada transacción con una cuenta de riesgo aumenta 7× la probabilidad de que el origen también sea riesgo'."),
         ("El grafo forma una sola componente conexa",
          "Todos los 1 500 nodos están interconectados (1 componente débilmente conexa, 17 fuertemente conexas). Ninguna cuenta está aislada — la señal de fraude se propaga a múltiples saltos.",
          "Al escalar a datos reales de BRS, verificar si el grafo se fragmenta. Cuentas en componentes aisladas tendrán menor confianza de predicción."),
@@ -852,9 +852,9 @@ def glossary_section():
          "Todos los modelos obtuvieron ROC-AUC > 0.98 — incluso el modelo simple. Esto ilustra por qué ROC-AUC sola puede ser engañosa en datos desbalanceados."),
         ("Homofilia",
          "Tendencia de los nodos similares a conectarse entre sí. En redes de fraude: las cuentas fraudulentas tienden a transaccionar con otras cuentas fraudulentas mucho más de lo esperado por azar.",
-         "En este estudio: lift de 14.3×, es decir, la probabilidad de que el vecino de una cuenta sospechosa sea también sospechosa es 14 veces mayor que el promedio."),
-        ("Lift (homofilia 14.3×)",
-         "Medida de cuánto más probable es algo comparado con lo que ocurriría por azar. Lift=14.3× significa que si una cuenta está conectada a una cuenta fraudulenta, es 14.3 veces más probable que también sea fraudulenta, en comparación con una cuenta tomada al azar.",
+         "En este estudio: lift de 7.0×, es decir, la probabilidad de que el vecino de una cuenta sospechosa sea también sospechosa es 7 veces mayor que el promedio."),
+        ("Lift (homofilia 7.0×)",
+         "Medida de cuánto más probable es algo comparado con lo que ocurriría por azar. Lift=7.0× significa que si una cuenta está conectada a una cuenta fraudulenta, es 7.0 veces más probable que también sea fraudulenta, en comparación con una cuenta tomada al azar.",
          "Es la justificación matemática de por qué usar grafos supera a los modelos que analizan cuentas de forma individual."),
         ("Cohen d",
          "Medida estadística del tamaño del efecto entre dos grupos. Un valor cercano a 0 significa que los dos grupos son prácticamente idénticos; cerca de 1 significa diferencias grandes.",
