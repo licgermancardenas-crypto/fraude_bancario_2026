@@ -556,32 +556,32 @@ def insights_section():
         ("El GNN mejora 3 puntos de PR-AUC sobre XGBoost",
          "GraphSAGE logra PR-AUC=0.978 vs XGBoost=0.950 vs LogReg=0.728, usando exactamente el mismo test set. El único diferencial es el acceso a la estructura del grafo.",
          "Presentar la curva PR comparativa al directorio como argumento central: el área entre las curvas representa el 'fraude adicional detectado' por la inteligencia de grafos."),
-        ("La topología sola (ablation) logra PR-AUC=0.036",
-         "Un GraphSAGE entrenado con features constantes (solo estructura del grafo) alcanza PR-AUC=0.036. Los features tabulares y la estructura son complementarios, no sustitutos.",
+        ("La topología sola (ablation) logra PR-AUC=0.029",
+         "Un GraphSAGE entrenado con features constantes (solo estructura del grafo) alcanza PR-AUC=0.029. Los features tabulares y la estructura son complementarios, no sustitutos.",
          "En la fase piloto, priorizar la <strong>disponibilidad del grafo de transacciones</strong> sobre la calidad de los features de cuenta. El pipeline mínimo viable es: transacciones → GNN topológico → score de red."),
         ("Los nodos periféricos de anillos son los más difíciles de detectar",
-         "El nodo fraude con score más bajo (0.243) tiene degree bajo (in=3, out=4) y pocos vecinos fraude directos (2/7). Los nodos de entrada/salida del anillo tienen menos señal de vecindario.",
+         "El nodo fraude con score más bajo (0.118) tiene degree moderado (in=5, out=8) pero pocos vecinos fraude directos (2/13). Los nodos de entrada/salida del anillo tienen menos señal de vecindario.",
          "Para nodos con score intermedio (0.3-0.7), aplicar segunda revisión manual que considere el contexto completo del anillo, no solo el nodo individual."),
         ("Regresión Logística: límite de la linealidad en grafos",
-         "LogReg logra ROC-AUC=0.926 (alta separabilidad global) pero PR-AUC=0.555 y Recall@P90=0. La frontera de decisión lineal no puede separar fraude de legítimo en el punto operativo.",
+         "LogReg logra ROC-AUC=0.976 (alta separabilidad global) pero PR-AUC=0.728 y Recall@P90=18%. La frontera de decisión lineal separa mal fraude de legítimo en el punto operativo de alta precisión.",
          "Al presentar a BRS, usar la progresión LogReg→XGBoost→GNN como narrativa de 'capas de inteligencia': no-linealidad → red → ventaja acumulada."),
         ("El modelo detecta fraude por señales de red, no de monto",
          "GNNExplainer revela que los features más determinantes para clasificar una cuenta como fraude son txn_count, unique_senders y risk_score — todos indicadores de conectividad y comportamiento relacional, no de monto absoluto. Las features de monto (total_sent, avg_sent) tienen importancia secundaria.",
          "Priorizar la construcción de features de red (grado, ratio in/out, contrapartes únicas en ventanas de 72h) en el pipeline de datos de BRS antes de reentrenar con datos reales."),
-        ("El 13% de los vecinos influyentes son también de alto riesgo",
-         "Para los 5 nodos fraude explicados, el 13% (3/23) de sus vecinos más influyentes según GNNExplainer tienen a su vez score GNN > 0.5. La mayoría de los vecinos influyentes son cuentas legítimas — el modelo detecta fraude por patrones estructurales, no por contagio directo.",
+        ("El 16% de los vecinos influyentes son también de alto riesgo",
+         "Para los 5 nodos fraude explicados, el 16% (4/25) de sus vecinos más influyentes según GNNExplainer tienen a su vez score GNN > 0.5. La mayoría de los vecinos influyentes son cuentas legítimas — el modelo detecta fraude por patrones estructurales, no por contagio directo.",
          "Implementar 'investigación en cascada': cuando un analista confirma fraude en una cuenta, el sistema genera alertas de nivel 2 para sus vecinos influyentes según GNNExplainer, independientemente de si esos vecinos tienen score alto propio."),
-        ("PR-AUC=1.0 refleja evaluación transductiva, no inductiva",
-         "En evaluación estándar (transductiva), el GNN ve durante el entrenamiento todas las aristas incluyendo las que conectan nodos de test con nodos fraude de train. Al aislar el test set (inductivo, simula cuentas nuevas), el PR-AUC cae de 1.000 a 0.835. Un nodo fraude pasa de score=0.997 a score=0.007: su única señal era la conexión directa a 2 nodos fraude de train.",
+        ("El PR-AUC transductivo (0.978) baja a 0.899 en evaluación inductiva",
+         "En evaluación estándar (transductiva), el GNN ve durante el entrenamiento todas las aristas, incluyendo las que conectan nodos de test con nodos fraude de train. Al aislar el test set (inductivo, simula cuentas nuevas sin aristas al conjunto de entrenamiento), el PR-AUC baja de 0.978 a 0.899: parte de la señal de una cuenta fraude provenía de sus conexiones directas a nodos fraude ya vistos en entrenamiento.",
          "En el piloto con datos reales de BRS, evaluar en ventana temporal: entrenar con transacciones hasta el mes M, evaluar en M+1. Ningún nodo de test tendrá aristas en el grafo de train — la estimación de rendimiento operativo será honesta."),
         ("El GNN detecta mulas pero no el perpetrador de origen",
-         "Rastreando hacia atrás desde los nodos detectados en el grafo dirigido de transacciones, se identificaron 3 cuentas raíz (in-degree=0 en el subgrafo de fraude): ACC0001330 (detectada, 13 mulas alimentadas), ACC0000210 y ACC0001046 (no detectadas, score GNN ≈ 0%, is_fraud=False en el dataset). Estas dos cuentas inyectaron $66.422 al anillo desde cuentas aparentemente legítimas. El GNN detecta la estratificación (placement→layering); el backward tracing detecta la colocación (placement).",
+         "Rastreando hacia atrás desde los nodos detectados en el grafo dirigido de transacciones, se identificaron 392 cuentas raíz (in-degree=0 en el subgrafo de fraude) que alimentaron a 2.075 mulas detectadas y remontan ~$78,8M en fondos movidos. El principal inyector oculto (ACC0055086) colocó $239.209 con score GNN ≈ 2% e is_fraud=False en el dataset. El GNN detecta la estratificación (placement→layering); el backward tracing detecta la colocación (placement).",
          "Combinar el scoring GNN con una segunda pasada de backward tracing: dado cualquier nodo detectado como fraude, agregar a la cola de investigación todos sus predecesores directos en el grafo dirigido temporal que no sean ellos mismos detectados. Priorizar por monto inyectado."),
-        ("Evaluación temporal: PR-AUC=0.810 es el número operativo real",
-         "Re-entrenando GraphSAGE con solo el 70% del período histórico (transacciones hasta 2024-07-25, 5.636 de 8.050 aristas) y evaluando en el test set con el grafo completo, el PR-AUC es 0.810. La secuencia completa: transductivo=1.000 → inductivo=0.835 → temporal=0.810. El delta temporal vs inductivo es solo -0.025, confirmando que el modelo aprende patrones estructurales estables, no conexiones específicas del período de entrenamiento.",
+         ("Evaluación temporal: PR-AUC=0.971 bajo split honesto por tiempo",
+         "Re-entrenando GraphSAGE con solo el 70% del período histórico (transacciones hasta 2024-07-27, 380.910 de 544.157 aristas) y evaluando en el test set con el grafo completo, el PR-AUC es 0.971. La secuencia completa: transductivo=0.978 → inductivo=0.899 → temporal=0.971. Bajo evaluación temporal el modelo mantiene un rendimiento alto (0.971), señal de que aprende patrones estructurales estables y no conexiones específicas del período de entrenamiento.",
          "Adoptar split temporal mensual para el piloto BRS: entrenar hasta mes M, validar en M+1, evaluar en M+2. Re-entrenar trimestralmente con los nuevos casos etiquetados por compliance. Reportar siempre PR-AUC temporal a dirección, no el transductivo."),
         ("Propagación inversa de riesgo valida y amplía el backward tracing",
-         "Aplicando la fórmula placement(u) = Σ gnn[v]×amount(u→v) + 0.3×Σ gnn[w]×amount(v→w)×amount(u→v)/total_out(v) sobre todos los nodos, ACC0000210 (perpetrador no detectado por GNN) rankea #1 con score_norm=1.0 y ACC0001046 rankea #9. Los rangos 2-8 están ocupados por mulas con GNN=100%, coherente porque se transfieren entre sí. El método opera exclusivamente sobre scores GNN existentes y el grafo dirigido — sin etiquetas adicionales.",
+         "Aplicando la fórmula placement(u) = Σ gnn[v]×amount(u→v) + 0.3×Σ gnn[w]×amount(v→w)×amount(u→v)/total_out(v) sobre todos los nodos, los perpetradores no detectados por el GNN (score ≈ 0–2%) copan los rangos #2–#4: ACC0055086 (score_norm=0.993, $239.209), ACC0000399 (0.933) y ACC0069437 (0.892). El rango #1 es una mula ya detectada por el GNN. El método opera exclusivamente sobre scores GNN existentes y el grafo dirigido — sin etiquetas adicionales.",
          "Integrar el placement score en el sistema de alertas como capa de segunda línea: cualquier cuenta con placement_score_norm > 0.3 y gnn_score < 0.5 entra automáticamente a la cola de investigación de colocación, complementando la cola primaria de mulas del GNN."),
     ]
 
@@ -704,7 +704,7 @@ def annex_section(results, cfg, figures_dir):
       <tr><td>Learning rate</td><td>{gnn_cfg['lr']}</td><td>Adam; convergencia estable observada</td></tr>
       <tr><td>Weight decay</td><td>{gnn_cfg['weight_decay']}</td><td>L2 regularización sobre parámetros</td></tr>
       <tr><td>Class weight fraude</td><td>51.45×</td><td>n_legítimo / n_fraude en train set</td></tr>
-      <tr><td>Early stopping</td><td>paciencia={gnn_cfg['patience']}</td><td>Monitorea val PR-AUC; detuvo en época 78</td></tr>
+      <tr><td>Early stopping</td><td>paciencia={gnn_cfg['patience']}</td><td>Monitorea val PR-AUC; mejor época 150</td></tr>
       <tr><td>Aggregator</td><td>mean</td><td>Default SAGEConv; robusto en grafos heterofílicos</td></tr>
       <tr><td>Dirección grafo</td><td>ToUndirected</td><td>Cada arista dirigida → 2 aristas; información fluye en ambas direcciones alrededor de los anillos</td></tr>
     </tbody>
@@ -712,7 +712,7 @@ def annex_section(results, cfg, figures_dir):
 
   <figure>
     {b64img(f"{figures_dir}/10_training_curves.png")}
-    <figcaption>Fig. 4 — Curvas de entrenamiento. Izquierda: loss CrossEntropy (train). Derecha: PR-AUC en validación. El modelo detuvo por early stopping en época 78 con val PR-AUC = 0.9167.</figcaption>
+    <figcaption>Fig. 4 — Curvas de entrenamiento. Izquierda: loss CrossEntropy (train). Derecha: PR-AUC en validación. El modelo alcanzó su mejor val PR-AUC = 0.9915 en la época 150.</figcaption>
   </figure>
 
   <h3>Ablation: features tabulares vs. solo topología</h3>
@@ -724,7 +724,7 @@ def annex_section(results, cfg, figures_dir):
       <tr><td>XGBoost (features tabulares)</td><td>{xgb_r['pr_auc']:.4f}</td><td>Solo features individuales, sin estructura</td></tr>
     </tbody>
   </table>
-  <p>El ablation demuestra que <strong>ambas fuentes de información son necesarias</strong>: la topología sola (PR-AUC=0.036) no captura la señal, pero combinada con features tabulares el modelo supera al mejor baseline no-grafo.</p>
+  <p>El ablation demuestra que <strong>ambas fuentes de información son necesarias</strong>: la topología sola (PR-AUC=0.029) no captura la señal, pero combinada con features tabulares el modelo supera al mejor baseline no-grafo.</p>
 
   <figure>
     {b64img(f"{figures_dir}/14_ablation.png")}
@@ -763,9 +763,9 @@ def annex_section(results, cfg, figures_dir):
   <table>
     <thead><tr><th>Cuenta</th><th>Score GNN</th><th>Etiqueta real</th><th>Mulas alimentadas</th><th>Monto inyectado</th><th>Primera txn</th></tr></thead>
     <tbody>
-      <tr><td>ACC0001330</td><td>1.000</td><td class="td-best">Fraude (detectado)</td><td>13</td><td>$14.502</td><td>2024-05-27</td></tr>
-      <tr><td>ACC0000210</td><td>0.000</td><td style="color:#B91C1C;font-weight:700;">No fraude (no detectado)</td><td>1</td><td>$48.411</td><td>2024-04-14</td></tr>
-      <tr><td>ACC0001046</td><td>0.000</td><td style="color:#B91C1C;font-weight:700;">No fraude (no detectado)</td><td>1</td><td>$18.011</td><td>2023-12-14 ← primera</td></tr>
+      <tr><td>ACC0055086</td><td>0.023</td><td style="color:#B91C1C;font-weight:700;">No fraude (no detectado)</td><td>1</td><td>$239.209</td><td>2024-05-25</td></tr>
+      <tr><td>ACC0031909</td><td>0.023</td><td style="color:#B91C1C;font-weight:700;">No fraude (no detectado)</td><td>1</td><td>$223.889</td><td>2024-05-09</td></tr>
+      <tr><td>ACC0000399</td><td>0.002</td><td style="color:#B91C1C;font-weight:700;">No fraude (no detectado)</td><td>1</td><td>$221.182</td><td>2024-09-02</td></tr>
     </tbody>
   </table>
 
@@ -777,7 +777,7 @@ def annex_section(results, cfg, figures_dir):
   <div class="callout no-break">
     <div class="callout-tag">Hallazgo crítico</div>
     <div class="callout-body">
-      ACC0001046 inició la cadena en diciembre 2023 (primera transacción del anillo) con score GNN ≈ 0%. ACC0000210 inyectó $48.411 en una sola transacción con score GNN ≈ 0%. Ambas cuentas tienen <strong>baja centralidad de red</strong>: pocas transacciones totales, grado bajo — el perfil típico de una cuenta que inyecta fondos una vez y desaparece. Este patrón es invisible para un clasificador de nodos basado en conectividad. El backward tracing sobre el grafo dirigido es el mecanismo que cierra esta brecha.
+      Los mayores inyectores de fondos son sistemáticamente invisibles para el GNN: ACC0055086 colocó $239.209 y ACC0000399 $221.182, ambos con score GNN ≈ 0–2% e is_fraud=False en el dataset. Estas cuentas tienen <strong>baja centralidad de red</strong>: alimentan una sola mula y desaparecen — el perfil típico de una cuenta que inyecta fondos una vez. Este patrón es invisible para un clasificador de nodos basado en conectividad. El backward tracing sobre el grafo dirigido es el mecanismo que cierra esta brecha, remontando ~$78,8M a 392 perpetradores de origen.
     </div>
   </div>
 
@@ -793,22 +793,22 @@ placement(u) = Σ_{{u→v}}      gnn[v] × amount(u→v)                        
   <table>
     <thead><tr><th>Rank</th><th>Cuenta</th><th>Score norm.</th><th>Score GNN</th><th>Enviado a fraude</th><th>Estado</th></tr></thead>
     <tbody>
-      <tr><td>1</td><td><strong>ACC0000210</strong></td><td class="td-best">1.000</td><td>0.000</td><td>$48.411</td><td style="color:#D97706;font-weight:700;">Perpetrador conocido</td></tr>
-      <tr><td>2</td><td>ACC0001309</td><td>0.966</td><td>1.000</td><td>—</td><td>Detectado por GNN (mula)</td></tr>
-      <tr><td>3</td><td>ACC0000228</td><td>0.913</td><td>1.000</td><td>—</td><td>Detectado por GNN (mula)</td></tr>
-      <tr><td>9</td><td><strong>ACC0001046</strong></td><td>0.365</td><td>0.000</td><td>$18.011</td><td style="color:#D97706;font-weight:700;">Perpetrador conocido</td></tr>
+      <tr><td>1</td><td>ACC0023462</td><td class="td-best">1.000</td><td>1.000</td><td>$257.659</td><td>Detectado por GNN (mula)</td></tr>
+      <tr><td>2</td><td><strong>ACC0055086</strong></td><td>0.993</td><td>0.023</td><td>$239.209</td><td style="color:#D97706;font-weight:700;">Perpetrador conocido</td></tr>
+      <tr><td>3</td><td><strong>ACC0000399</strong></td><td>0.933</td><td>0.002</td><td>$224.384</td><td style="color:#D97706;font-weight:700;">Perpetrador conocido</td></tr>
+      <tr><td>4</td><td><strong>ACC0069437</strong></td><td>0.892</td><td>0.194</td><td>$214.820</td><td style="color:#D97706;font-weight:700;">Perpetrador conocido</td></tr>
     </tbody>
   </table>
 
   <figure>
     {b64img(f"{figures_dir}/23_placement_scores.png")}
-    <figcaption>Fig. 11 — Ranking de colocación: top 20 candidatos por placement score normalizado. Naranja: perpetradores conocidos (backward tracing); azul: mulas detectadas por GNN; rojo: nuevos candidatos. Los dos perpetradores no detectados por el GNN aparecen en rank #1 y #9, validando el método sin supervisión adicional.</figcaption>
+    <figcaption>Fig. 11 — Ranking de colocación: top 20 candidatos por placement score normalizado. Naranja: perpetradores conocidos (backward tracing); azul: mulas detectadas por GNN; rojo: nuevos candidatos. Los perpetradores no detectados por el GNN (score ≈ 0–2%) copan los rangos #2–#4, validando el método sin supervisión adicional.</figcaption>
   </figure>
 
   <div class="callout no-break">
     <div class="callout-tag">Validación del método</div>
     <div class="callout-body">
-      ACC0000210 (perpetrador no detectado por GNN, score GNN ≈ 0%) rankea <strong>#1</strong> en placement score (score_norm=1.0). ACC0001046 rankea <strong>#9</strong>. Los rangos intermedios están ocupados por mulas con GNN=100% — coherente porque también transfieren entre sí. La propagación inversa no requiere etiquetas adicionales: opera exclusivamente sobre los scores GNN existentes y el grafo de transacciones.
+      El top candidato (ACC0023462, score_norm=1.0) ya es detectado por el GNN. Pero los rangos <strong>#2–#4</strong> son perpetradores invisibles al GNN (score ≈ 0–2%): ACC0055086 ($239.209), ACC0000399 ($224.384) y ACC0069437 ($214.820). La propagación inversa los sube al tope del ranking sin requerir etiquetas adicionales: opera exclusivamente sobre los scores GNN existentes y el grafo de transacciones.
     </div>
   </div>
 
