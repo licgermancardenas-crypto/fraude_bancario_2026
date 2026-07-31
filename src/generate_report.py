@@ -250,12 +250,12 @@ def executive_summary():
 
   <div class="kpi-row no-break">
     <div class="kpi-card">
-      <div class="kpi-val">0.977</div>
+      <div class="kpi-val">0.978</div>
       <div class="kpi-lbl">Precisión global — GraphSAGE</div>
       <div class="kpi-sub">Escala 0–1. Por encima de 0.95 es sobresaliente.</div>
     </div>
     <div class="kpi-card">
-      <div class="kpi-val">95%</div>
+      <div class="kpi-val">97%</div>
       <div class="kpi-lbl">Detección con 9 de 10 alertas correctas</div>
       <div class="kpi-sub">vs. 80% modelo tradicional / 0% regresión simple</div>
     </div>
@@ -297,7 +297,7 @@ def executive_summary():
   <h3>Resultados principales</h3>
   <ul>
     <li>El <strong>historial crediticio es ciego al lavado de dinero</strong>: las cuentas que mueven dinero sucio tienen exactamente el mismo puntaje crediticio que las cuentas normales. El problema no está en el perfil de la persona, está en con quién se conecta.</li>
-    <li>GraphSAGE supera a todos los modelos comparados con una puntuación de <strong>0.977 sobre 1.0</strong> y detecta el 95% del fraude cuando se le exige que 9 de cada 10 alertas sean reales.</li>
+    <li>GraphSAGE supera a todos los modelos comparados con una puntuación de <strong>0.978 sobre 1.0</strong> y detecta el 97% del fraude cuando se le exige que 9 de cada 10 alertas sean reales.</li>
     <li>El modelo se basa en <strong>señales de conectividad</strong> (cuántas transferencias hace una cuenta, cuántos remitentes únicos recibe, su puntuación de riesgo), no en los montos absolutos.</li>
     <li>El rastreo hacia atrás identificó <strong>2 perpetradores que el modelo de IA no vio directamente</strong> pero que habían inyectado $66.000 al esquema desde cuentas aparentemente legítimas.</li>
   </ul>
@@ -483,7 +483,7 @@ def results_section(results, figures_dir):
     <div class="plain-lang-tag">En palabras simples — ¿qué significan estas métricas?</div>
     <div class="plain-lang-body">
       <strong>PR-AUC (Área bajo la curva Precisión-Recall):</strong> mide qué tan bien detecta el fraude sin generar falsas alarmas. Va de 0 a 1. Un modelo que acierte en todo sería 1.0. Un modelo que adivine al azar obtendría ~0.015 (la tasa base de fraude). Por encima de 0.90 es excelente para fraude bancario.<br/><br/>
-      <strong>Recall @ Precisión 90%:</strong> imaginen que le pedimos al sistema: "solo dame alertas donde estés 90% seguro de que es fraude real". ¿De todo el fraude existente, cuánto detecta bajo esa exigencia? El 95% significa que detecta casi todo, con muy pocas falsas alarmas.<br/><br/>
+      <strong>Recall @ Precisión 90%:</strong> imaginen que le pedimos al sistema: "solo dame alertas donde estés 90% seguro de que es fraude real". ¿De todo el fraude existente, cuánto detecta bajo esa exigencia? El 97% significa que detecta casi todo, con muy pocas falsas alarmas.<br/><br/>
       <strong>Alertas/día en BRS:</strong> estimación de cuántas notificaciones generaría el modelo cada día si se aplicara sobre las 500.000 cuentas del banco. Mejor valor en verde.
     </div>
   </div>
@@ -553,8 +553,8 @@ def insights_section():
         ("Pico de actividad fraudulenta: 20:00h y jueves",
          "Las transacciones de fraude se concentran fuera del horario bancario. Si el equipo de compliance opera de 9-18h, los anillos iniciados a las 20:00 completan 2-3 saltos antes de la apertura del día siguiente.",
          "Configurar alertas automáticas de alta prioridad para transacciones >$5.000 en horario nocturno, combinadas con el score de red del modelo."),
-        ("El GNN mejora 5 puntos de PR-AUC sobre XGBoost",
-         "GraphSAGE logra PR-AUC=0.977 vs XGBoost=0.927 vs LogReg=0.675, usando exactamente el mismo test set. El único diferencial es el acceso a la estructura del grafo.",
+        ("El GNN mejora 3 puntos de PR-AUC sobre XGBoost",
+         "GraphSAGE logra PR-AUC=0.978 vs XGBoost=0.950 vs LogReg=0.728, usando exactamente el mismo test set. El único diferencial es el acceso a la estructura del grafo.",
          "Presentar la curva PR comparativa al directorio como argumento central: el área entre las curvas representa el 'fraude adicional detectado' por la inteligencia de grafos."),
         ("La topología sola (ablation) logra PR-AUC=0.036",
          "Un GraphSAGE entrenado con features constantes (solo estructura del grafo) alcanza PR-AUC=0.036. Los features tabulares y la estructura son complementarios, no sustitutos.",
@@ -837,7 +837,7 @@ def glossary_section():
          "En este proyecto: analiza la red de transacciones bancarias donde las cuentas son los nodos y las transferencias son las conexiones."),
         ("GraphSAGE",
          "Un tipo específico de GNN que aprende a resumir la información de los vecinos de cada nodo (<em>SAGEConv = Sample and AGgregation</em>). Su ventaja clave es que puede aplicarse a cuentas nuevas que nunca vio durante el entrenamiento.",
-         "Resultado: PR-AUC=0.977 sobre 75.000 cuentas sintéticas."),
+         "Resultado: PR-AUC=0.978 sobre 75.000 cuentas sintéticas."),
         ("GAT — Graph Attention Network",
          "Otro tipo de GNN que aprende a <strong>ponderar</strong> la importancia de cada conexión: no todos los vecinos influyen igual para detectar fraude.",
          "En este proyecto: obtuvo PR-AUC=0.973, muy cercano a GraphSAGE."),
@@ -845,8 +845,8 @@ def glossary_section():
          "Métrica principal para evaluar modelos de detección de fraude. Mide el equilibrio entre <em>precisión</em> (¿cuántas alertas son fraude real?) y <em>recall</em> (¿cuánto fraude detectamos del total?). Va de 0 a 1; un modelo aleatorio obtendría ~0.015 (la tasa de fraude). Por encima de 0.90 es excelente.",
          "Por qué no usamos 'exactitud': si un modelo dijera siempre 'no es fraude', acertaría el 98.5% del tiempo pero no detectaría nada."),
         ("Recall @ Precisión 90% (Recall@P90)",
-         "Responde a la pregunta: si le exigimos al sistema que 9 de cada 10 alertas sean fraude real, ¿qué porcentaje del fraude total detecta? Un valor de 95% significa que el modelo no pierde casi nada bajo condiciones de alta exigencia.",
-         "GraphSAGE: 95%. XGBoost: 80%. Regresión Logística: 0%."),
+         "Responde a la pregunta: si le exigimos al sistema que 9 de cada 10 alertas sean fraude real, ¿qué porcentaje del fraude total detecta? Un valor de 97% significa que el modelo no pierde casi nada bajo condiciones de alta exigencia.",
+         "GraphSAGE: 97%. XGBoost: 88%. Regresión Logística: 18%."),
         ("ROC-AUC",
          "Métrica complementaria a PR-AUC. Mide la capacidad general de separación entre clases legítimas y fraudulentas. Útil para comparación entre modelos, pero menos informativa que PR-AUC cuando el fraude es muy raro.",
          "Todos los modelos obtuvieron ROC-AUC > 0.98 — incluso el modelo simple. Esto ilustra por qué ROC-AUC sola puede ser engañosa en datos desbalanceados."),
@@ -879,7 +879,7 @@ def glossary_section():
          "En este proyecto: el entrenamiento se detuvo automáticamente en la época óptima según el rendimiento en el conjunto de validación."),
         ("XGBoost",
          "Algoritmo de aprendizaje automático basado en árboles de decisión encadenados. Muy efectivo para datos tabulares (filas y columnas). No analiza la estructura del grafo, pero sirve como comparativo sólido.",
-         "PR-AUC=0.927 vs. 0.977 de GraphSAGE — la diferencia representa el fraude adicional que se detecta por usar la información de las conexiones."),
+         "PR-AUC=0.950 vs. 0.978 de GraphSAGE — la diferencia representa el fraude adicional que se detecta por usar la información de las conexiones."),
         ("AML — Anti-Money Laundering",
          "Prevención de Lavado de Activos. Marco regulatorio y de procesos para detectar, reportar y prevenir el uso del sistema financiero para lavar dinero proveniente de actividades ilegales.",
          "En Argentina, el marco regulatorio es la Ley 25.246 y la UIF (Unidad de Información Financiera) supervisa el cumplimiento."),
