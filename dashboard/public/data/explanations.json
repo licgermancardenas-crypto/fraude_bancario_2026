@@ -5,55 +5,55 @@
     "gnn_score": 1.0,
     "top_neighbors": [
       {
-        "node_id": "ACC0061928",
-        "importance": 0.382,
-        "gnn_score": 0.0022
+        "node_id": "ACC0007268",
+        "importance": 0.3847,
+        "gnn_score": 0.0005
       },
       {
-        "node_id": "ACC0014232",
-        "importance": 0.3819,
-        "gnn_score": 0.9999
-      },
-      {
-        "node_id": "ACC0072289",
-        "importance": 0.3818,
-        "gnn_score": 0.0
-      },
-      {
-        "node_id": "ACC0062887",
-        "importance": 0.3817,
-        "gnn_score": 0.0
-      },
-      {
-        "node_id": "ACC0018623",
-        "importance": 0.3816,
+        "node_id": "ACC0072714",
+        "importance": 0.3839,
         "gnn_score": 1.0
+      },
+      {
+        "node_id": "ACC0062695",
+        "importance": 0.3839,
+        "gnn_score": 0.0
+      },
+      {
+        "node_id": "ACC0059116",
+        "importance": 0.3836,
+        "gnn_score": 0.0
+      },
+      {
+        "node_id": "ACC0005428",
+        "importance": 0.3832,
+        "gnn_score": 0.0
       }
     ],
     "top_features": [
       {
-        "feature": "balance_retention",
-        "importance": 0.0019
-      },
-      {
-        "feature": "balance",
-        "importance": 0.0019
-      },
-      {
-        "feature": "type_personal",
-        "importance": 0.0019
+        "feature": "max_sent",
+        "importance": 0.0023
       },
       {
         "feature": "rapid_out_ratio",
-        "importance": 0.0019
+        "importance": 0.0023
       },
       {
-        "feature": "max_received",
-        "importance": 0.0019
+        "feature": "type_merchant",
+        "importance": 0.0023
       },
       {
-        "feature": "activity_span_days",
-        "importance": 0.0019
+        "feature": "degree_in",
+        "importance": 0.0023
+      },
+      {
+        "feature": "unique_senders",
+        "importance": 0.0023
+      },
+      {
+        "feature": "balance_retention",
+        "importance": 0.0023
       }
     ]
   },
@@ -63,158 +63,34 @@
     "gnn_score": 1.0,
     "top_neighbors": [
       {
-        "node_id": "ACC0063366",
-        "importance": 0.3731,
-        "gnn_score": 0.0001
+        "node_id": "ACC0042309",
+        "importance": 0.379,
+        "gnn_score": 1.0
       },
       {
-        "node_id": "ACC0031510",
-        "importance": 0.3729,
+        "node_id": "ACC0012778",
+        "importance": 0.3783,
+        "gnn_score": 0.0007
+      },
+      {
+        "node_id": "ACC0008637",
+        "importance": 0.3778,
+        "gnn_score": 0.0024
+      },
+      {
+        "node_id": "ACC0039225",
+        "importance": 0.3777,
         "gnn_score": 0.0
       },
       {
-        "node_id": "ACC0008252",
-        "importance": 0.3722,
-        "gnn_score": 0.0
-      },
-      {
-        "node_id": "ACC0026792",
-        "importance": 0.3722,
-        "gnn_score": 0.0
-      },
-      {
-        "node_id": "ACC0004522",
-        "importance": 0.3721,
-        "gnn_score": 0.0011
+        "node_id": "ACC0034107",
+        "importance": 0.3776,
+        "gnn_score": 0.0638
       }
     ],
     "top_features": [
       {
-        "feature": "recency_ratio",
-        "importance": 0.0004
-      },
-      {
-        "feature": "degree_ratio",
-        "importance": 0.0004
-      },
-      {
-        "feature": "avg_received",
-        "importance": 0.0004
-      },
-      {
-        "feature": "degree_out",
-        "importance": 0.0004
-      },
-      {
-        "feature": "type_merchant",
-        "importance": 0.0004
-      },
-      {
-        "feature": "balance",
-        "importance": 0.0004
-      }
-    ]
-  },
-  {
-    "node_id": "ACC0073901",
-    "node_idx": 73901,
-    "gnn_score": 1.0,
-    "top_neighbors": [
-      {
-        "node_id": "ACC0024953",
-        "importance": 0.3824,
-        "gnn_score": 1.0
-      },
-      {
-        "node_id": "ACC0058092",
-        "importance": 0.3824,
-        "gnn_score": 0.0001
-      },
-      {
-        "node_id": "ACC0068565",
-        "importance": 0.3822,
-        "gnn_score": 0.0045
-      },
-      {
-        "node_id": "ACC0064334",
-        "importance": 0.382,
-        "gnn_score": 0.0003
-      },
-      {
-        "node_id": "ACC0074815",
-        "importance": 0.3819,
-        "gnn_score": 0.0028
-      }
-    ],
-    "top_features": [
-      {
-        "feature": "total_received",
-        "importance": 0.0018
-      },
-      {
-        "feature": "unique_receivers",
-        "importance": 0.0018
-      },
-      {
-        "feature": "balance",
-        "importance": 0.0018
-      },
-      {
-        "feature": "burst_ratio",
-        "importance": 0.0018
-      },
-      {
-        "feature": "amount_ratio",
-        "importance": 0.0018
-      },
-      {
-        "feature": "degree_in",
-        "importance": 0.0018
-      }
-    ]
-  },
-  {
-    "node_id": "ACC0037460",
-    "node_idx": 37460,
-    "gnn_score": 1.0,
-    "top_neighbors": [
-      {
-        "node_id": "ACC0024064",
-        "importance": 0.3799,
-        "gnn_score": 1.0
-      },
-      {
-        "node_id": "ACC0040159",
-        "importance": 0.3794,
-        "gnn_score": 1.0
-      },
-      {
-        "node_id": "ACC0042659",
-        "importance": 0.3792,
-        "gnn_score": 1.0
-      },
-      {
-        "node_id": "ACC0028014",
-        "importance": 0.3784,
-        "gnn_score": 1.0
-      },
-      {
-        "node_id": "ACC0057929",
-        "importance": 0.3784,
-        "gnn_score": 0.0
-      }
-    ],
-    "top_features": [
-      {
-        "feature": "txn_count",
-        "importance": 0.0007
-      },
-      {
-        "feature": "degree_out",
-        "importance": 0.0007
-      },
-      {
-        "feature": "avg_sent",
+        "feature": "max_received",
         "importance": 0.0007
       },
       {
@@ -222,70 +98,194 @@
         "importance": 0.0007
       },
       {
-        "feature": "in_out_symmetry",
+        "feature": "mean_interval_hours",
         "importance": 0.0007
       },
       {
-        "feature": "rapid_out_ratio",
+        "feature": "burst_ratio",
+        "importance": 0.0007
+      },
+      {
+        "feature": "unique_receivers",
+        "importance": 0.0007
+      },
+      {
+        "feature": "type_merchant",
         "importance": 0.0007
       }
     ]
   },
   {
-    "node_id": "ACC0028084",
-    "node_idx": 28084,
+    "node_id": "ACC0021275",
+    "node_idx": 21275,
     "gnn_score": 1.0,
     "top_neighbors": [
       {
-        "node_id": "ACC0031043",
-        "importance": 0.3735,
+        "node_id": "ACC0045473",
+        "importance": 0.3791,
+        "gnn_score": 0.0004
+      },
+      {
+        "node_id": "ACC0024978",
+        "importance": 0.379,
+        "gnn_score": 0.0004
+      },
+      {
+        "node_id": "ACC0022450",
+        "importance": 0.3789,
         "gnn_score": 0.0001
       },
       {
-        "node_id": "ACC0065429",
-        "importance": 0.3735,
-        "gnn_score": 0.0008
+        "node_id": "ACC0067070",
+        "importance": 0.3788,
+        "gnn_score": 0.0069
       },
       {
-        "node_id": "ACC0057979",
-        "importance": 0.3734,
-        "gnn_score": 0.0
-      },
-      {
-        "node_id": "ACC0033830",
-        "importance": 0.3733,
-        "gnn_score": 0.0001
-      },
-      {
-        "node_id": "ACC0037723",
-        "importance": 0.3733,
-        "gnn_score": 0.0002
+        "node_id": "ACC0068424",
+        "importance": 0.3788,
+        "gnn_score": 0.0119
       }
     ],
     "top_features": [
       {
-        "feature": "risk_score",
-        "importance": 0.0005
+        "feature": "recency_ratio",
+        "importance": 0.0008
+      },
+      {
+        "feature": "opened_days_ago",
+        "importance": 0.0008
+      },
+      {
+        "feature": "type_personal",
+        "importance": 0.0008
       },
       {
         "feature": "unique_receivers",
-        "importance": 0.0005
+        "importance": 0.0008
+      },
+      {
+        "feature": "total_sent",
+        "importance": 0.0008
+      },
+      {
+        "feature": "max_sent",
+        "importance": 0.0008
+      }
+    ]
+  },
+  {
+    "node_id": "ACC0012395",
+    "node_idx": 12395,
+    "gnn_score": 1.0,
+    "top_neighbors": [
+      {
+        "node_id": "ACC0018619",
+        "importance": 0.378,
+        "gnn_score": 0.0021
+      },
+      {
+        "node_id": "ACC0036476",
+        "importance": 0.3778,
+        "gnn_score": 0.0009
+      },
+      {
+        "node_id": "ACC0002896",
+        "importance": 0.3777,
+        "gnn_score": 0.0001
+      },
+      {
+        "node_id": "ACC0074457",
+        "importance": 0.3777,
+        "gnn_score": 0.0001
+      },
+      {
+        "node_id": "ACC0014366",
+        "importance": 0.3775,
+        "gnn_score": 0.0
+      }
+    ],
+    "top_features": [
+      {
+        "feature": "mean_interval_hours",
+        "importance": 0.0009
+      },
+      {
+        "feature": "recency_ratio",
+        "importance": 0.0009
+      },
+      {
+        "feature": "type_merchant",
+        "importance": 0.0009
+      },
+      {
+        "feature": "degree_out",
+        "importance": 0.0009
+      },
+      {
+        "feature": "night_ratio",
+        "importance": 0.0009
+      },
+      {
+        "feature": "opened_days_ago",
+        "importance": 0.0009
+      }
+    ]
+  },
+  {
+    "node_id": "ACC0037251",
+    "node_idx": 37251,
+    "gnn_score": 1.0,
+    "top_neighbors": [
+      {
+        "node_id": "ACC0027136",
+        "importance": 0.3795,
+        "gnn_score": 0.9996
+      },
+      {
+        "node_id": "ACC0045904",
+        "importance": 0.3785,
+        "gnn_score": 1.0
+      },
+      {
+        "node_id": "ACC0070856",
+        "importance": 0.3785,
+        "gnn_score": 0.0001
+      },
+      {
+        "node_id": "ACC0041731",
+        "importance": 0.3783,
+        "gnn_score": 0.0006
+      },
+      {
+        "node_id": "ACC0062921",
+        "importance": 0.3783,
+        "gnn_score": 0.0001
+      }
+    ],
+    "top_features": [
+      {
+        "feature": "unique_receivers",
+        "importance": 0.0009
+      },
+      {
+        "feature": "degree_out",
+        "importance": 0.0009
+      },
+      {
+        "feature": "max_received",
+        "importance": 0.0009
+      },
+      {
+        "feature": "type_personal",
+        "importance": 0.0009
       },
       {
         "feature": "burst_ratio",
-        "importance": 0.0005
+        "importance": 0.0009
       },
       {
-        "feature": "amount_ratio",
-        "importance": 0.0004
-      },
-      {
-        "feature": "balance_retention",
-        "importance": 0.0004
-      },
-      {
-        "feature": "avg_received",
-        "importance": 0.0004
+        "feature": "degree_in",
+        "importance": 0.0009
       }
     ]
   }

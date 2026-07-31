@@ -1,48 +1,48 @@
 [
   {
     "model": "Logistic Regression",
-    "pr_auc": 0.8441,
-    "roc_auc": 0.9897,
-    "rec_at_p90": 0.3988,
+    "pr_auc": 0.7281,
+    "roc_auc": 0.9759,
+    "rec_at_p90": 0.1776,
     "thr_at_p90": 1.0,
-    "f1_optimal": 0.8235,
-    "threshold_opt": 0.9253,
+    "f1_optimal": 0.7389,
+    "threshold_opt": 0.8831,
     "confusion_matrix": [
       [
-        10871,
-        59
+        10826,
+        104
       ],
       [
-        55,
-        266
+        72,
+        249
       ]
     ],
-    "biz_daily_alerts": 27,
-    "biz_daily_fraud_tp": 22,
-    "biz_pct_fraud_missed": 17.1,
+    "biz_daily_alerts": 29,
+    "biz_daily_fraud_tp": 21,
+    "biz_pct_fraud_missed": 22.4,
     "biz_scale_factor": 30.1
   },
   {
     "model": "XGBoost",
-    "pr_auc": 0.9684,
-    "roc_auc": 0.9983,
-    "rec_at_p90": 0.9128,
-    "thr_at_p90": 0.7474,
-    "f1_optimal": 0.9153,
-    "threshold_opt": 0.9156,
+    "pr_auc": 0.9502,
+    "roc_auc": 0.9956,
+    "rec_at_p90": 0.8816,
+    "thr_at_p90": 0.7621,
+    "f1_optimal": 0.8956,
+    "threshold_opt": 0.7958,
     "confusion_matrix": [
       [
-        10918,
-        12
+        10902,
+        28
       ],
       [
-        40,
-        281
+        38,
+        283
       ]
     ],
-    "biz_daily_alerts": 24,
+    "biz_daily_alerts": 26,
     "biz_daily_fraud_tp": 23,
-    "biz_pct_fraud_missed": 12.5,
+    "biz_pct_fraud_missed": 11.8,
     "biz_scale_factor": 30.1
   }
 ]

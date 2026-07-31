@@ -82,7 +82,10 @@ dashboard:
 # Umbrales calibrados sobre la distribución legítima del dataset sintético
 # (legítimo P95: monto ~3.3K, avg_sent ~800, degree ~9).
 rules:
-  high_amount: 15000        # R02: transferencia individual atípica (legit P95 ~3.3K)
+  high_amount:              # R02: transferencia individual atípica (segmentado)
+    personal: 15000         # legit personal P95 ~3.3K
+    business: 50000         # las empresas pagan proveedores hasta ~$36K (P99)
+    merchant: 50000
   conduit_symmetry: 0.15    # R01: |entrada-salida|/total por debajo de esto = conducto
   conduit_retention: 1.0    # R01: saldo/entradas por debajo de esto = no retiene
   conduit_min_flow: 5000    # R01: flujo mínimo para considerar la cuenta activa
@@ -91,12 +94,24 @@ rules:
   dormant_days: 1095        # R04: antigüedad mínima (3 años) para "durmiente"
   dormant_active_days: 10   # R04: días activos máximos
   dormant_min_amount: 12000 # R04: monto de la ráfaga de reactivación
-  fanin_degree: 12          # R05: grado de entrada mínimo
   fanin_min_flow: 10000     # R05: flujo recibido mínimo (evita legítimas activas)
-  fanout_degree: 12         # R06: grado de salida mínimo
   fanout_avg_max: 4000      # R06: monto promedio máximo por chunk
   fanout_min_total: 15000   # R06: total distribuido mínimo (chunks chicos que suman alto)
-  agg_volume: 50000         # R07: volumen agregado (entrada+salida) atípico (legit P95 ~8K)
+  # Umbrales SEGMENTADOS por tipo de cuenta (KYC segmentation): para R05/R06/R07
+  # las empresas y comercios tienen umbrales mucho más altos porque el fan-in de
+  # clientes, la nómina y el alto volumen son comportamiento comercial esperable.
+  fanin_degree:             # R05: grado de entrada mínimo
+    personal: 12
+    business: 40
+    merchant: 70            # el fan-in de clientes es la operatoria normal de un comercio
+  fanout_degree:            # R06: grado de salida mínimo
+    personal: 12
+    business: 45            # la nómina es fan-out esperable
+    merchant: 40
+  agg_volume:               # R07: volumen agregado (entrada+salida) atípico
+    personal: 50000         # legit personal P95 ~8K
+    business: 500000
+    merchant: 500000
   severity_points:          # aporte al rule_score (0-100) por severidad
     alta: 40
     media: 25

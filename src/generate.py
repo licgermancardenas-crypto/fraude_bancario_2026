@@ -64,6 +64,13 @@ BASE_ROUNDTRIP    = 60        # round-tripping / U-turn schemes
 FRAUD_EDGE_NOISE  = 0.005
 BASE_TS           = 1_700_000_000
 
+# Legitimate economy: fraction of business/merchant accounts that behave like a
+# real going concern (payroll, suppliers, customer receipts) rather than a flat
+# noise floor. Adds a plausible legit layer whose high-activity accounts stress
+# the detector with realistic false-positive pressure.
+ECON_ACTIVE_BUSINESS = 0.25
+ECON_ACTIVE_MERCHANT = 0.35
+
 
 def _account_id(i: int) -> str:
     return f"ACC{i:07d}"
@@ -581,6 +588,86 @@ def embed_roundtripping(
     return typ, new_txns
 
 
+def embed_legitimate_economy(
+    accounts: pd.DataFrame,
+    rng: np.random.Generator,
+    claimed: set[str],
+    txn_offset: int = 0,
+    base_ts: int = BASE_TS,
+    time_window_days: int = 365,
+) -> list[dict]:
+    """
+    Give business and merchant accounts realistic *legitimate* behaviour so the
+    graph carries a plausible economy instead of a flat noise floor:
+      - merchants receive many small customer payments (legit fan-in)
+      - businesses run payroll (recurring fan-out to employee accounts) and pay
+        suppliers (recurring outflows to other businesses)
+
+    All edges are is_fraud=0. Fraud-claimed accounts are never used as the
+    business/merchant actor, so their behaviour stays driven by their typology
+    — but they may appear as counterparties (a mule can be someone's customer).
+    This deliberately creates legit high-fan-in / high-fan-out / high-volume
+    accounts that look superficially like laundering, the realistic false-
+    positive pressure a real transaction-monitoring system must cope with.
+    """
+    by_type = accounts.groupby("account_type")["account_id"].apply(list).to_dict()
+    businesses = [a for a in by_type.get("business", []) if a not in claimed]
+    merchants  = [a for a in by_type.get("merchant", []) if a not in claimed]
+    personals  = by_type.get("personal", [])
+    new_txns: list[dict] = []
+    c = txn_offset
+    span = max(1, time_window_days)
+
+    def _ts() -> int:
+        return int(base_ts + rng.integers(0, span * 24 * 3600))
+
+    # ── merchants: customer receipts (legit fan-in) ───────────────────────────
+    n_active_m = int(len(merchants) * ECON_ACTIVE_MERCHANT)
+    for m in random.sample(merchants, n_active_m) if merchants else []:
+        n_cust = int(rng.integers(12, 35))
+        for cust in random.sample(personals, min(n_cust, len(personals))):
+            amt = round(float(rng.lognormal(mean=5.5, sigma=1.0)), 2)  # ~$250 median
+            new_txns.append({
+                "transaction_id": f"TXN{c:09d}",
+                "src": cust, "dst": m, "amount": amt,
+                "timestamp": _ts(), "transaction_type": "payment", "is_fraud": 0,
+            })
+            c += 1
+
+    # ── businesses: payroll (fan-out) + supplier payments ─────────────────────
+    n_active_b = int(len(businesses) * ECON_ACTIVE_BUSINESS)
+    n_periods  = max(2, time_window_days // 180)   # ~ twice a year
+    for b in random.sample(businesses, n_active_b) if businesses else []:
+        # payroll to a stable set of employees, repeated each pay period
+        n_emp = int(rng.integers(4, 11))
+        employees = random.sample(personals, min(n_emp, len(personals)))
+        base_salary = float(rng.uniform(800, 3000))
+        for _ in range(n_periods):
+            period_ts = _ts()
+            for emp in employees:
+                amt = round(base_salary * rng.uniform(0.9, 1.1), 2)
+                ts = int(period_ts + rng.integers(0, 3 * 24 * 3600))
+                new_txns.append({
+                    "transaction_id": f"TXN{c:09d}",
+                    "src": b, "dst": emp, "amount": amt,
+                    "timestamp": ts, "transaction_type": "transfer", "is_fraud": 0,
+                })
+                c += 1
+        # recurring supplier payments to other businesses
+        n_sup = int(rng.integers(2, 5))
+        for sup in random.sample(businesses, min(n_sup, len(businesses))):
+            for _ in range(int(rng.integers(2, 5))):
+                amt = round(float(rng.uniform(3_000, 25_000)), 2)
+                new_txns.append({
+                    "transaction_id": f"TXN{c:09d}",
+                    "src": b, "dst": sup, "amount": amt,
+                    "timestamp": _ts(), "transaction_type": "payment", "is_fraud": 0,
+                })
+                c += 1
+
+    return new_txns
+
+
 # ── main ─────────────────────────────────────────────────────────────────────
 
 def generate(scale: float, output_dir: str, seed: int = 42, time_window_days: int = 365):
@@ -637,6 +724,12 @@ def generate(scale: float, output_dir: str, seed: int = 42, time_window_days: in
         fraud_txns.extend(txns)
         txn_offset += len(txns)
 
+    # 3b. Legitimate economy — business/merchant realistic behaviour (is_fraud=0)
+    econ_txns = embed_legitimate_economy(
+        accounts, rng, claimed, txn_offset=txn_offset, time_window_days=time_window_days,
+    )
+    txn_offset += len(econ_txns)
+
     # 4. Label fraud accounts + typology
     fraud_accs = set(typology)
     accounts.loc[accounts["account_id"].isin(fraud_accs), "is_fraud"] = 1
@@ -654,7 +747,7 @@ def generate(scale: float, output_dir: str, seed: int = 42, time_window_days: in
         accounts.loc[mask, "opened_days_ago"] = rng.integers(5, 90, size=mask.sum())
 
     # 5. Assemble transactions
-    all_txns = legit_txns + fraud_txns
+    all_txns = legit_txns + econ_txns + fraud_txns
     txns_df = pd.DataFrame(all_txns).sort_values("timestamp").reset_index(drop=True)
 
     # 6. Save

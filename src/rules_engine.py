@@ -105,18 +105,39 @@ _TRANSACTIONAL_RULE_IDS = ["R01", "R02", "R03", "R04", "R05", "R06", "R07"]
 
 def _default_thresholds() -> dict:
     return {
-        "high_amount": 15000, "conduit_symmetry": 0.15, "conduit_retention": 1.0,
+        "high_amount": {"personal": 15000, "business": 50000, "merchant": 50000},
+        "conduit_symmetry": 0.15, "conduit_retention": 1.0,
         "conduit_min_flow": 5000, "rapid_out_ratio": 0.50, "rapid_symmetry": 0.25,
         "dormant_days": 1095, "dormant_active_days": 10, "dormant_min_amount": 12000,
-        "fanin_degree": 12, "fanin_min_flow": 10000, "fanout_degree": 12,
-        "fanout_avg_max": 4000, "fanout_min_total": 15000, "agg_volume": 50000,
+        "fanin_min_flow": 10000, "fanout_avg_max": 4000, "fanout_min_total": 15000,
+        # segmentado por tipo de cuenta (KYC segmentation)
+        "fanin_degree":  {"personal": 12, "business": 40, "merchant": 70},
+        "fanout_degree": {"personal": 12, "business": 45, "merchant": 40},
+        "agg_volume":    {"personal": 50000, "business": 500000, "merchant": 500000},
         "severity_points": {"alta": 40, "media": 25, "baja": 15},
     }
+
+
+def _by_type(feats: pd.DataFrame, mapping) -> pd.Series:
+    """Per-account threshold from a {account_type: value} mapping (falls back to
+    personal). Accepts a scalar for backward compatibility."""
+    if not isinstance(mapping, dict):
+        return pd.Series(float(mapping), index=feats.index)
+    default = mapping.get("personal", next(iter(mapping.values())))
+    atype = feats["account_type"] if "account_type" in feats.columns else None
+    if atype is None:
+        return pd.Series(float(default), index=feats.index)
+    return atype.map(lambda x: mapping.get(x, default)).astype(float)
 
 
 def _rule_masks(feats: pd.DataFrame, t: dict) -> dict[str, pd.Series]:
     """Vectorised boolean mask per transactional rule, indexed like `feats`."""
     f = feats
+    # segmented thresholds by account type (KYC segmentation) for R05/R06/R07
+    fanin_thr  = _by_type(f, t["fanin_degree"])
+    fanout_thr = _by_type(f, t["fanout_degree"])
+    agg_thr    = _by_type(f, t["agg_volume"])
+    high_thr   = _by_type(f, t["high_amount"])
     return {
         "R01": (
             (f["in_out_symmetry"] <= t["conduit_symmetry"])
@@ -124,7 +145,7 @@ def _rule_masks(feats: pd.DataFrame, t: dict) -> dict[str, pd.Series]:
             & (f["total_received"] >= t["conduit_min_flow"])
         ),
         "R02": (
-            (f["max_sent"] >= t["high_amount"]) | (f["max_received"] >= t["high_amount"])
+            (f["max_sent"] >= high_thr) | (f["max_received"] >= high_thr)
         ),
         "R03": (
             (f["rapid_out_ratio"] >= t["rapid_out_ratio"])
@@ -137,18 +158,18 @@ def _rule_masks(feats: pd.DataFrame, t: dict) -> dict[str, pd.Series]:
             & (f["max_received"] >= t["dormant_min_amount"])
         ),
         "R05": (
-            (f["degree_in"] >= t["fanin_degree"])
-            & (f["unique_senders"] >= t["fanin_degree"])
+            (f["degree_in"] >= fanin_thr)
+            & (f["unique_senders"] >= fanin_thr)
             & (f["total_received"] >= t["fanin_min_flow"])
         ),
         "R06": (
-            (f["degree_out"] >= t["fanout_degree"])
-            & (f["unique_receivers"] >= t["fanout_degree"])
+            (f["degree_out"] >= fanout_thr)
+            & (f["unique_receivers"] >= fanout_thr)
             & (f["avg_sent"] <= t["fanout_avg_max"])
             & (f["total_sent"] >= t["fanout_min_total"])
         ),
         "R07": (
-            (f["total_received"] + f["total_sent"]) >= t["agg_volume"]
+            (f["total_received"] + f["total_sent"]) >= agg_thr
         ),
     }
 
