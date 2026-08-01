@@ -9,6 +9,7 @@ import { SCREENING_STATUS_STYLE } from "@/lib/screening";
 import { getStoredStatuses, setStoredStatus } from "@/lib/caseStatus";
 import { buildDetectionInsight } from "@/lib/insight";
 import PageHeader from "@/components/PageHeader";
+import CaseTraceability from "@/components/CaseTraceability";
 
 
 const STATUS_LABELS: Record<CaseStatus, string> = {
@@ -43,7 +44,7 @@ export default function CaseDetailPage() {
   const [status, setStatus]     = useState<CaseStatus>("abierto");
   const [notes, setNotes]       = useState<CaseNote[]>([]);
   const [noteText, setNoteText] = useState("");
-  const [activeTab, setActiveTab] = useState<"resumen" | "grafo" | "transacciones" | "notas">("resumen");
+  const [activeTab, setActiveTab] = useState<"resumen" | "trazabilidad" | "grafo" | "transacciones" | "notas">("resumen");
   const cyRef = useRef<HTMLDivElement>(null);
   const cyInst = useRef<any>(null);
 
@@ -257,7 +258,7 @@ export default function CaseDetailPage() {
 
       {/* Tabs */}
       <div className="flex gap-1 bg-[#12161F] p-1 rounded-xl w-fit">
-        {(["resumen","grafo","transacciones","notas"] as const).map(tab => (
+        {(["resumen","trazabilidad","grafo","transacciones","notas"] as const).map(tab => (
           <button key={tab} onClick={() => setActiveTab(tab)}
                   className="px-4 min-h-[44px] rounded-lg text-sm font-medium transition-colors capitalize"
                   style={{
@@ -450,6 +451,10 @@ export default function CaseDetailPage() {
             </div>
           </div>
         </div>
+      )}
+
+      {activeTab === "trazabilidad" && (
+        <CaseTraceability caseData={caseData} />
       )}
 
       {activeTab === "grafo" && (

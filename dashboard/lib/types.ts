@@ -201,6 +201,38 @@ export interface RuleHit {
   descripcion: string;
 }
 
+export interface TraceHop {
+  from: string;
+  to: string;
+  amount: number;
+  timestamp: number;
+  is_fraud_edge: number;
+  // upstream hops carry data about the source (`from`)
+  from_gnn_score?: number;
+  from_is_fraud?: number;
+  from_is_perp?: boolean;
+  from_name?: string | null;
+  // downstream hops carry data about the destination (`to`)
+  to_gnn_score?: number;
+  to_is_fraud?: number;
+  to_name?: string | null;
+}
+
+export interface TraceOrigin {
+  account_id: string;
+  gnn_score: number;
+  is_fraud: number;
+  is_perp: boolean;
+  name: string | null;
+  amount: number;
+}
+
+export interface Traceability {
+  upstream: TraceHop[];    // origin → … → case account
+  downstream: TraceHop[];  // case account → layering exits
+  origin: TraceOrigin | null;
+}
+
 export interface Case {
   case_id: string;
   account_id: string;
@@ -223,6 +255,7 @@ export interface Case {
   empresa: Empresa | null;
   neighbors: CaseNeighbor[];
   recent_transactions: CaseTransaction[];
+  traceability?: Traceability;
 }
 
 export type SARAuditAction = "borrador_creado" | "enviado_a_revision" | "aprobado_y_enviado" | "rechazado";

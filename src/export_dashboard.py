@@ -525,6 +525,86 @@ def export_cases(acc, txn, data, scores_all, cfg, out_dir, n_cases=80):
         rows.sort(key=lambda x: x["timestamp"], reverse=True)
         return rows[:top_k]
 
+    # ── traceability: multi-hop money trail (upstream to origin + layering out) ──
+    perp_set = set()
+    ot_path = Path(out_dir) / "origin_trace.json"
+    if ot_path.exists():
+        try:
+            perp_set = {p["node_id"] for p in json.loads(ot_path.read_text())["perpetrators"]}
+        except Exception:
+            perp_set = set()
+
+    def _name(nid):
+        if not personas_idx.empty and nid in personas_idx.index:
+            v = personas_idx.loc[nid].get("nombre_completo")
+            return str(v) if pd.notna(v) else None
+        return None
+
+    def _hop(src, dst):
+        d = G[src][dst]
+        return {
+            "from": src, "to": dst,
+            "amount": round(float(d["amount"]), 2),
+            "timestamp": int(d["timestamp"]),
+            "is_fraud_edge": int(d["is_fraud"]),
+        }
+
+    def _traceability(acc_id, max_depth=6):
+        """
+        Reconstruct the money trail around a case account:
+          - upstream: walk backward along the largest *fraudulent* inflow, hop by
+            hop, until reaching an origin (a known perpetrator or a node with no
+            fraudulent inflow). Cycle-safe (round-tripping schemes are cyclic).
+          - downstream: the layering exits — outgoing edges, largest first.
+        Returns ordered hops (origin first → case account → exits).
+        """
+        upstream, visited, cur = [], {acc_id}, acc_id
+        for _ in range(max_depth):
+            in_edges = [(s, G[s][cur]) for s in G.predecessors(cur) if s not in visited]
+            fraud_in = [(s, d) for s, d in in_edges if d["is_fraud"] == 1]
+            pool = fraud_in or [(s, d) for s, d in in_edges
+                                if s in fraud_ids or id2score.get(s, 0) > 0.5]
+            if not pool:
+                break
+            s, _d = max(pool, key=lambda x: x[1]["amount"])
+            hop = _hop(s, cur)
+            hop.update({
+                "from_gnn_score": round(id2score.get(s, 0), 4),
+                "from_is_fraud":  int(acc_idx.loc[s, "is_fraud"]) if s in acc_idx.index else 0,
+                "from_is_perp":   s in perp_set,
+                "from_name":      _name(s),
+            })
+            upstream.append(hop)
+            visited.add(s)
+            cur = s
+            if s in perp_set:
+                break
+        upstream.reverse()  # origin first → case account last
+
+        out_edges = sorted(
+            ((dst, G[acc_id][dst]) for dst in G.successors(acc_id)),
+            key=lambda x: x[1]["amount"], reverse=True,
+        )
+        downstream = []
+        for dst, _d in out_edges[:6]:
+            hop = _hop(acc_id, dst)
+            hop.update({
+                "to_gnn_score": round(id2score.get(dst, 0), 4),
+                "to_is_fraud":  int(acc_idx.loc[dst, "is_fraud"]) if dst in acc_idx.index else 0,
+                "to_name":      _name(dst),
+            })
+            downstream.append(hop)
+
+        origin = None
+        if upstream:
+            h = upstream[0]
+            origin = {
+                "account_id": h["from"], "gnn_score": h["from_gnn_score"],
+                "is_fraud": h["from_is_fraud"], "is_perp": h["from_is_perp"],
+                "name": h["from_name"], "amount": h["amount"],
+            }
+        return {"upstream": upstream, "downstream": downstream, "origin": origin}
+
     base_date = datetime(2026, 6, 1)
 
     # Ley 25.246 (UIF Argentina), art. 21 inc. b — plazo máximo para que un
@@ -580,6 +660,7 @@ def export_cases(acc, txn, data, scores_all, cfg, out_dir, n_cases=80):
             "empresa":      _empresa_info(acc_id),
             "neighbors":    neighbors,
             "recent_transactions": _recent_txns(acc_id),
+            "traceability": _traceability(acc_id),
         })
 
     _save(cases, f"{out_dir}/cases.json")
