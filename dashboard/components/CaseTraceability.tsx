@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import type { Case, TraceHop } from "@/lib/types";
 
 /* ── palette (Phantom dark) ───────────────────────────────────────────────── */
@@ -90,7 +90,30 @@ export default function CaseTraceability({ caseData }: { caseData: Case }) {
   const selEvent = events.find(e => e.id === sel) ?? null;
   /* timeline keeps the story beats: inflows, fraudulent (layering) exits, alert —
      tiny legitimate outflows are dropped to keep the axis readable. */
-  const timelineEvents = events.filter(e => e.kind !== "outflow" || e.dirty);
+  const timelineEvents = useMemo(
+    () => events.filter(e => e.kind !== "outflow" || e.dirty),
+    [events],
+  );
+
+  /* ── "seguir el dinero": chronological step-by-step playback ─────────────── */
+  const [playing, setPlaying] = useState(false);
+  const [step, setStep] = useState(-1);
+  useEffect(() => {
+    if (!playing) return;
+    if (step >= timelineEvents.length - 1) { setPlaying(false); return; }
+    const t = setTimeout(() => {
+      const n = step + 1;
+      setStep(n);
+      setSel(timelineEvents[n].id);
+    }, step < 0 ? 250 : 1700);
+    return () => clearTimeout(t);
+  }, [playing, step, timelineEvents]);
+  const togglePlay = () => {
+    if (playing) { setPlaying(false); return; }
+    if (step >= timelineEvents.length - 1) setStep(-1);
+    setSel(null);
+    setPlaying(true);
+  };
 
   if (!trace || (up.length === 0 && down.length === 0)) {
     return (
@@ -112,9 +135,20 @@ export default function CaseTraceability({ caseData }: { caseData: Case }) {
     <div className="space-y-4">
       {/* ── flow diagram ─────────────────────────────────────────────────── */}
       <div className="rounded-lg p-3" style={{ background: PANEL, border: `1px solid ${LINE}` }}>
-        <div className="mb-2 flex items-center justify-between">
+        <div className="mb-2 flex items-center justify-between gap-2">
           <h3 className="text-sm font-bold" style={{ color: BONE }}>Flujo del dinero</h3>
-          <span className="text-[11px]" style={{ color: MUTED }}>origen → cuenta → destino · clic para inspeccionar</span>
+          <div className="flex items-center gap-2">
+            <span className="hidden text-[11px] sm:inline" style={{ color: MUTED }}>origen → cuenta → destino</span>
+            <button onClick={togglePlay}
+              className="rounded-md px-3 py-1 text-[11px] font-semibold transition-colors"
+              style={{
+                background: playing ? "rgba(217,119,6,0.15)" : "rgba(46,107,255,0.15)",
+                color: playing ? AMBER_L : PULSE_L,
+                border: `1px solid ${playing ? AMBER : PULSE}`,
+              }}>
+              {playing ? "⏸ Pausar" : step >= timelineEvents.length - 1 && step >= 0 ? "↻ Repetir" : "▶ Seguir el dinero"}
+            </button>
+          </div>
         </div>
         <div style={{ overflowX: "auto" }}>
           <svg width={width} height={flowH} style={{ display: "block", minWidth: "100%" }}>
@@ -130,14 +164,15 @@ export default function CaseTraceability({ caseData }: { caseData: Case }) {
             {/* upstream edges (between consecutive rail nodes) */}
             {up.map((h, i) => {
               const x1 = PAD_L + i * COL_W, x2 = PAD_L + (i + 1) * COL_W;
-              const id = `in-${i}`, hot = h.is_fraud_edge === 1;
+              const id = `in-${i}`, hot = h.is_fraud_edge === 1, active = sel === id;
+              const d = `M ${x1 + NODE_R} ${rowY} L ${x2 - NODE_R} ${rowY}`;
               return (
-                <g key={id} opacity={dim(id)} style={{ cursor: "pointer" }} onClick={() => setSel(sel === id ? null : id)}>
-                  <line x1={x1 + NODE_R} y1={rowY} x2={x2 - NODE_R} y2={rowY}
-                    stroke={sel === id ? DANGER : hot ? "#7F1D1D" : MUTED} strokeWidth={sel === id ? 3 : 2}
+                <g key={id} opacity={dim(id)} style={{ cursor: "pointer" }} onClick={() => setSel(active ? null : id)}>
+                  <path d={d} fill="none" stroke={active ? DANGER : hot ? "#7F1D1D" : MUTED} strokeWidth={active ? 3 : 2}
                     markerEnd={`url(#${hot ? "arrowHot" : "arrow"})`} />
                   <text x={(x1 + x2) / 2} y={rowY - 9} textAnchor="middle" fontSize={10} fontWeight={700}
                     fill={hot ? "#F87171" : MUTED}>{money(h.amount)}</text>
+                  {active && <MoneyPulse d={d} />}
                 </g>
               );
             })}
@@ -145,15 +180,16 @@ export default function CaseTraceability({ caseData }: { caseData: Case }) {
             {/* downstream edges (center → exits) */}
             {down.map((h, i) => {
               const y2 = TOP + i * ROW_GAP + 20;
-              const id = `out-${i}`, hot = h.is_fraud_edge === 1;
+              const id = `out-${i}`, hot = h.is_fraud_edge === 1, active = sel === id;
               const mx = (centerX + downX) / 2;
               const path = `M ${centerX + NODE_R} ${rowY} C ${mx} ${rowY}, ${mx} ${y2}, ${downX - NODE_R} ${y2}`;
               return (
-                <g key={id} opacity={dim(id)} style={{ cursor: "pointer" }} onClick={() => setSel(sel === id ? null : id)}>
-                  <path d={path} fill="none" stroke={sel === id ? DANGER : hot ? "#7F1D1D" : LINE}
-                    strokeWidth={sel === id ? 3 : 2} markerEnd={`url(#${hot ? "arrowHot" : "arrow"})`} />
+                <g key={id} opacity={dim(id)} style={{ cursor: "pointer" }} onClick={() => setSel(active ? null : id)}>
+                  <path d={path} fill="none" stroke={active ? DANGER : hot ? "#7F1D1D" : LINE}
+                    strokeWidth={active ? 3 : 2} markerEnd={`url(#${hot ? "arrowHot" : "arrow"})`} />
                   <text x={mx} y={(rowY + y2) / 2 - 4} textAnchor="middle" fontSize={9} fontWeight={700}
                     fill={hot ? "#F87171" : MUTED}>{money(h.amount)}</text>
+                  {active && <MoneyPulse d={path} />}
                 </g>
               );
             })}
@@ -268,6 +304,15 @@ export default function CaseTraceability({ caseData }: { caseData: Case }) {
         </div>
       )}
     </div>
+  );
+}
+
+/* a gold dot travelling along an edge path — the "money in motion" cue */
+function MoneyPulse({ d }: { d: string }) {
+  return (
+    <circle r={5} fill={AMBER_L} stroke="#FDE68A" strokeWidth={1} style={{ filter: "drop-shadow(0 0 3px #F59E0B)" }}>
+      <animateMotion dur="1.15s" repeatCount="indefinite" path={d} />
+    </circle>
   );
 }
 
