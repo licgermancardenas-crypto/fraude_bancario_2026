@@ -211,85 +211,60 @@ _COND_WEIGHTS = [c[1] for c in CONDICIONES_AFIP]
 CATEGORIAS_MONO = ["A", "B", "C", "D", "E", "F", "G", "H", "I", "J", "K"]
 _MONO_WEIGHTS   = [25, 20, 15, 12, 10,  7,  4,  3,  2,  1,  1]
 
-ACTIVIDADES = {
-    "Monotributista": [
-        "Comercio al por menor de productos alimenticios",
-        "Servicios de reparación de vehículos automotores",
-        "Actividades de peluquería y tratamientos de belleza",
-        "Servicios de programación informática",
-        "Servicios de construcción y reformas del hogar",
-        "Venta de indumentaria y accesorios de moda",
-        "Servicios de delivery y mensajería",
-        "Actividades de diseño gráfico y publicidad",
-        "Elaboración artesanal de alimentos",
-        "Actividades de enseñanza particular",
-        "Servicios de plomería y gasifería matriculada",
-        "Venta de productos electrónicos y tecnología",
-        "Servicio de taxi o remís",
-        "Actividades de fotografía y audiovisual",
-    ],
-    "Responsable Inscripto": [
-        "Comercio al por mayor de alimentos y bebidas",
-        "Actividades inmobiliarias por cuenta propia",
-        "Fabricación de productos metálicos elaborados",
-        "Servicios de consultoría empresarial y gestión",
-        "Transporte automotor de cargas generales",
-        "Comercio al por mayor de vehículos automotores",
-        "Actividades de agencia de viajes y turismo",
-        "Servicios de importación y exportación",
-        "Fabricación de indumentaria y calzado",
-        "Actividades agroindustriales",
-    ],
-    "Relación de dependencia": [
-        "Empleado/a administrativo/a del sector privado",
-        "Operario/a en industria manufacturera",
-        "Docente de nivel primario o secundario",
-        "Auxiliar de enfermería en sector salud",
-        "Empleado/a de comercio minorista",
-        "Agente de seguridad privada",
-        "Técnico/a en sistemas e informática",
-        "Personal de limpieza y mantenimiento",
-        "Cajero/a o administrativo/a bancario/a",
-        "Repositor/a en supermercado",
-        "Mecánico/a automotriz en taller",
-    ],
-    "No inscripto": [
-        "Consumidor final — sin actividad económica registrada",
-    ],
-    "Exento": [
-        "Actividades de organización religiosa",
-        "Servicios de educación pública universitaria",
-        "Actividades de fundación sin fines de lucro",
-        "Actividades de organización mutual",
-    ],
-}
+# ── Perfiles coherentes ──────────────────────────────────────────────────────
+# Cada perfil ata ocupación ↔ actividad económica ↔ condición AFIP ↔ tipos de
+# cuenta compatibles, para que no salga "Peluquero/a" con actividad "Comercio de
+# alimentos" en una cuenta business. La selección se hace por account_type.
+# Campos: (ocupacion, actividad_economica, condicion_afip, {account_types}, peso)
+PERFILES = [
+    # ── empleados en relación de dependencia → personal ──
+    ("Empleado/a de comercio",   "Empleado/a de comercio minorista",              "Relación de dependencia", {"personal"}, 6),
+    ("Docente",                  "Docencia de nivel primario o secundario",       "Relación de dependencia", {"personal"}, 5),
+    ("Enfermero/a",              "Auxiliar de enfermería en sector salud",        "Relación de dependencia", {"personal"}, 4),
+    ("Administrativo/a",         "Empleado/a administrativo/a del sector privado","Relación de dependencia", {"personal"}, 6),
+    ("Operario/a industrial",    "Operario/a en industria manufacturera",         "Relación de dependencia", {"personal"}, 5),
+    ("Guardia de seguridad",     "Agente de seguridad privada",                   "Relación de dependencia", {"personal"}, 3),
+    ("Técnico/a informático/a",  "Técnico/a en sistemas e informática",           "Relación de dependencia", {"personal"}, 3),
+    ("Cajero/a bancario/a",      "Empleado/a administrativo/a bancario/a",        "Relación de dependencia", {"personal"}, 2),
+    ("Mecánico/a",               "Mecánico/a automotriz en taller",               "Relación de dependencia", {"personal"}, 3),
+    # ── monotributistas / independientes → personal y/o merchant ──
+    ("Comerciante",              "Comercio al por menor de productos alimenticios","Monotributista", {"personal", "merchant"}, 6),
+    ("Peluquero/a",              "Actividades de peluquería y tratamientos de belleza", "Monotributista", {"personal", "merchant"}, 4),
+    ("Modista",                  "Confección y venta de indumentaria",            "Monotributista", {"personal", "merchant"}, 3),
+    ("Programador/a freelance",  "Servicios de programación informática",         "Monotributista", {"personal"}, 3),
+    ("Gasista matriculado/a",    "Servicios de plomería y gasfitería matriculada","Monotributista", {"personal"}, 2),
+    ("Electricista matriculado/a","Servicios de instalaciones eléctricas",        "Monotributista", {"personal"}, 2),
+    ("Remisero/a",               "Servicio de taxi o remís",                      "Monotributista", {"personal"}, 3),
+    ("Fotógrafo/a",              "Actividades de fotografía y audiovisual",       "Monotributista", {"personal"}, 2),
+    ("Comerciante",              "Venta de indumentaria y accesorios de moda",    "Monotributista", {"merchant"}, 5),
+    ("Comerciante",              "Venta de productos electrónicos y tecnología",  "Monotributista", {"merchant"}, 4),
+    ("Comerciante gastronómico/a","Servicios de bar, café y comidas rápidas",     "Monotributista", {"merchant"}, 4),
+    ("Kiosquero/a",              "Comercio al por menor en kioscos y maxikioscos","Monotributista", {"merchant"}, 4),
+    # ── no inscriptos / pasivos → personal ──
+    ("Estudiante universitario/a","Consumidor final — sin actividad registrada",  "No inscripto", {"personal"}, 5),
+    ("Jubilado/a",               "Consumidor final — clase pasiva",               "No inscripto", {"personal"}, 4),
+    ("Pensionado/a",             "Consumidor final — clase pasiva",               "No inscripto", {"personal"}, 3),
+    ("Ama/o de casa",            "Consumidor final — sin actividad registrada",   "No inscripto", {"personal"}, 3),
+    # ── responsables inscriptos / empresas → business (y merchant grande) ──
+    ("Empresario/a gastronómico/a","Servicios de restaurante y catering",         "Responsable Inscripto", {"business", "merchant"}, 5),
+    ("Comerciante mayorista",    "Comercio al por mayor de alimentos y bebidas",  "Responsable Inscripto", {"business"}, 6),
+    ("Industrial",               "Fabricación de productos metálicos elaborados", "Responsable Inscripto", {"business"}, 5),
+    ("Importador/a",             "Servicios de importación y exportación",        "Responsable Inscripto", {"business"}, 4),
+    ("Empresario/a de la construcción","Construcción de edificios y obras",       "Responsable Inscripto", {"business"}, 4),
+    ("Consultor/a empresarial",  "Servicios de consultoría empresarial y gestión","Responsable Inscripto", {"business"}, 4),
+    ("Transportista",            "Transporte automotor de cargas generales",      "Responsable Inscripto", {"business"}, 4),
+    ("Empresario/a agroindustrial","Actividades agroindustriales",                "Responsable Inscripto", {"business"}, 3),
+    ("Propietario/a de empresa", "Actividades inmobiliarias por cuenta propia",   "Responsable Inscripto", {"business"}, 3),
+]
 
-OCUPACIONES = {
-    "Monotributista": [
-        "Comerciante", "Artesano/a", "Trabajador/a independiente",
-        "Técnico/a electrónico/a", "Gasista matriculado/a", "Modista",
-        "Peluquero/a", "Programador/a freelance", "Plomero/a",
-        "Electricista matriculado/a", "Remisero/a", "Fotógrafo/a",
-    ],
-    "Responsable Inscripto": [
-        "Empresario/a", "Industrial", "Importador/a",
-        "Propietario/a de empresa", "Empresario/a gastronómico/a",
-        "Comerciante mayorista",
-    ],
-    "Relación de dependencia": [
-        "Empleado/a de comercio", "Docente", "Enfermero/a",
-        "Administrativo/a", "Operario/a industrial", "Guardia de seguridad",
-        "Técnico/a informático/a", "Cajero/a bancario/a", "Auxiliar de salud",
-        "Repositor/a", "Mecánico/a",
-    ],
-    "No inscripto": [
-        "Estudiante universitario/a", "Ama/o de casa",
-        "Desempleado/a", "Jubilado/a", "Pensionado/a",
-    ],
-    "Exento": [
-        "Religioso/a", "Docente universitario/a", "Voluntario/a ONG",
-    ],
-}
+
+def _pick_perfil(account_type: str):
+    """Coherent (ocupacion, actividad, condicion_afip) bundle for an account type."""
+    pool = [p for p in PERFILES if account_type in p[3]] or \
+           [p for p in PERFILES if "personal" in p[3]]
+    weights = [p[4] for p in pool]
+    ocup, activ, cond, _types, _w = random.choices(pool, weights=weights)[0]
+    return ocup, activ, cond
 
 
 # ── CUIL verifier ────────────────────────────────────────────────────────────
@@ -337,8 +312,8 @@ def generate_personas(accounts_df: pd.DataFrame) -> pd.DataFrame:
         prefix = 20 if genero == "M" else 27
         cuil   = _cuil(prefix, dni)
 
-        is_biz = acc.get("account_type", "personal") == "business"
-        edad   = random.randint(30, 65) if is_biz else random.randint(18, 72)
+        is_owner = acc.get("account_type", "personal") in ("business", "merchant")
+        edad     = random.randint(30, 65) if is_owner else random.randint(18, 72)
         year   = 2026 - edad
         fecha_nac = f"{random.randint(1,28):02d}/{random.randint(1,12):02d}/{year}"
 
@@ -356,23 +331,20 @@ def generate_personas(accounts_df: pd.DataFrame) -> pd.DataFrame:
         direccion = f"{calle} {numero}{piso_str}"
         cp        = str(random.randint(1000, 9400))
 
-        cond = random.choices(_COND_NAMES, weights=_COND_WEIGHTS)[0]
-        if is_biz and cond in ("No inscripto", "Exento"):
-            cond = "Responsable Inscripto"
+        account_type = acc.get("account_type", "personal")
+        ocupacion, actividad, cond = _pick_perfil(account_type)
 
         cat_mono = None
         if cond == "Monotributista":
-            cat_mono = random.choices(CATEGORIAS_MONO, weights=_MONO_WEIGHTS)[0]
-
-        actividad = random.choice(ACTIVIDADES.get(cond, ["No especificada"]))
-        ocupacion = random.choice(OCUPACIONES.get(cond, ["No especificada"]))
+            # las empresas/comercios monotributistas suelen estar en categorías más altas
+            weights = _MONO_WEIGHTS if account_type == "personal" else _MONO_WEIGHTS[::-1]
+            cat_mono = random.choices(CATEGORIAS_MONO, weights=weights)[0]
 
         tipo_cuenta = (
-            "Cuenta Corriente" if is_biz
-            else random.choices(
-                ["Caja de Ahorro", "Cuenta Corriente"],
-                weights=[70, 30]
-            )[0]
+            "Cuenta Corriente" if account_type == "business"
+            else random.choices(["Cuenta Corriente", "Caja de Ahorro"], weights=[60, 40])[0]
+            if account_type == "merchant"
+            else random.choices(["Caja de Ahorro", "Cuenta Corriente"], weights=[80, 20])[0]
         )
 
         antiguedad = max(1, round(int(acc.get("opened_days_ago", 365)) / 30))

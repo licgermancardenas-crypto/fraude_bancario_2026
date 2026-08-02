@@ -11,6 +11,7 @@ Outputs (all in dashboard/public/data/):
   cases.json             — pre-generated alert cases for case management
 """
 
+import hashlib
 import json
 import random
 from datetime import datetime, timedelta
@@ -28,6 +29,40 @@ from sklearn.metrics import precision_recall_curve, average_precision_score
 from src.features import build_node_features, get_feature_matrix
 from src.models.graphsage import GraphSAGE
 from src.evaluate import recall_at_precision
+
+
+# ── texturas de transacción (canal / concepto / moneda) ──────────────────────
+# Derivadas de forma determinística a la hora de exportar, para que el extracto
+# se vea como uno real (transferencia CBU/CVU, débito, POS…) en lugar de un
+# simple src→dst. No alteran el dataset ni el modelo: es capa de presentación.
+_CANALES_BIG   = ["Transferencia CBU", "Transferencia inmediata CBU", "Transferencia MEP"]
+_CANALES_MED   = ["Transferencia CVU", "Transferencia CBU", "Débito automático"]
+_CANALES_SMALL = ["Pago con débito (POS)", "Pago de servicios (VEP)", "Transferencia CVU"]
+
+_CONCEPTOS_BIZ     = ["Pago a proveedor", "Cancelación de factura A", "Pago de honorarios",
+                      "Aporte de capital", "Pago de servicios profesionales"]
+_CONCEPTOS_MERCH   = ["Compra", "Pago con tarjeta", "Liquidación de venta", "Pago de mercadería"]
+_CONCEPTOS_PERSON  = ["Transferencia entre cuentas", "Préstamo entre particulares",
+                      "Devolución de dinero", "Pago de alquiler", "Reintegro"]
+
+
+def _stable_hash(*parts) -> int:
+    return int(hashlib.md5("|".join(str(p) for p in parts).encode()).hexdigest()[:8], 16)
+
+
+def _txn_meta(src: str, dst: str, amount: float, dst_type: str | None) -> dict:
+    """Deterministic channel/concept/currency for a transaction (presentation)."""
+    h = _stable_hash(src, dst, round(float(amount), 2))
+    if amount >= 50000:
+        canal = _CANALES_BIG[h % len(_CANALES_BIG)]
+    elif amount >= 3000:
+        canal = _CANALES_MED[h % len(_CANALES_MED)]
+    else:
+        canal = _CANALES_SMALL[h % len(_CANALES_SMALL)]
+    pool = (_CONCEPTOS_MERCH if dst_type == "merchant"
+            else _CONCEPTOS_BIZ if dst_type == "business"
+            else _CONCEPTOS_PERSON)
+    return {"canal": canal, "concepto": pool[h % len(pool)], "moneda": "ARS"}
 from src import rules_engine
 
 # Ordered so the dashboard lists baselines before the GNNs.
@@ -512,16 +547,18 @@ def export_cases(acc, txn, data, scores_all, cfg, out_dir, n_cases=80):
             "exposicion_indirecta": indirecta,
         }
 
+    def _dst_type(dst):
+        return acc_idx.loc[dst, "account_type"] if dst in acc_idx.index else None
+
     def _recent_txns(acc_id, top_k=10):
         rows = []
-        for src, dst, d in G.in_edges(acc_id, data=True):
-            rows.append({"src": src, "dst": dst, "amount": round(d["amount"], 2),
-                         "timestamp": d["timestamp"], "direction": "entrada",
-                         "is_fraud": d["is_fraud"]})
-        for src, dst, d in G.out_edges(acc_id, data=True):
-            rows.append({"src": src, "dst": dst, "amount": round(d["amount"], 2),
-                         "timestamp": d["timestamp"], "direction": "salida",
-                         "is_fraud": d["is_fraud"]})
+        for src, dst, d in list(G.in_edges(acc_id, data=True)) + list(G.out_edges(acc_id, data=True)):
+            direction = "entrada" if dst == acc_id else "salida"
+            row = {"src": src, "dst": dst, "amount": round(d["amount"], 2),
+                   "timestamp": d["timestamp"], "direction": direction,
+                   "is_fraud": d["is_fraud"]}
+            row.update(_txn_meta(src, dst, d["amount"], _dst_type(dst)))
+            rows.append(row)
         rows.sort(key=lambda x: x["timestamp"], reverse=True)
         return rows[:top_k]
 
@@ -542,12 +579,15 @@ def export_cases(acc, txn, data, scores_all, cfg, out_dir, n_cases=80):
 
     def _hop(src, dst):
         d = G[src][dst]
-        return {
+        hop = {
             "from": src, "to": dst,
             "amount": round(float(d["amount"]), 2),
             "timestamp": int(d["timestamp"]),
             "is_fraud_edge": int(d["is_fraud"]),
         }
+        hop.update(_txn_meta(src, dst, d["amount"],
+                             acc_idx.loc[dst, "account_type"] if dst in acc_idx.index else None))
+        return hop
 
     def _traceability(acc_id, max_depth=6):
         """

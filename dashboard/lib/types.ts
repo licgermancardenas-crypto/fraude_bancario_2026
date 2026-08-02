@@ -154,6 +154,9 @@ export interface CaseTransaction {
   timestamp: number;
   direction: "entrada" | "salida";
   is_fraud: number;
+  canal?: string;
+  concepto?: string;
+  moneda?: string;
 }
 
 export interface CaseNeighbor {
@@ -207,6 +210,9 @@ export interface TraceHop {
   amount: number;
   timestamp: number;
   is_fraud_edge: number;
+  canal?: string;
+  concepto?: string;
+  moneda?: string;
   // upstream hops carry data about the source (`from`)
   from_gnn_score?: number;
   from_is_fraud?: number;

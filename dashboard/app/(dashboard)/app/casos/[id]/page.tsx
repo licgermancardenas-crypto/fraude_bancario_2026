@@ -12,6 +12,12 @@ import PageHeader from "@/components/PageHeader";
 import CaseTraceability from "@/components/CaseTraceability";
 
 
+function fmtDateTime(ts: number): string {
+  return new Date(ts * 1000).toLocaleString("es-AR", {
+    day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit",
+  });
+}
+
 const STATUS_LABELS: Record<CaseStatus, string> = {
   abierto:      "Abierto",
   en_revision:  "En revisión",
@@ -472,7 +478,7 @@ export default function CaseDetailPage() {
             <table className="w-full text-sm">
               <thead>
                 <tr style={{ backgroundColor: "#12161F", borderBottom: "1px solid #1E2430" }}>
-                  {["Origen", "Destino", "Monto", "Dirección", "Timestamp"].map(h => (
+                  {["Fecha y hora", "Origen", "Destino", "Canal", "Concepto", "Monto", "Dirección"].map(h => (
                     <th key={h} className="px-4 py-3 text-left text-xs font-semibold text-[#5A6478] uppercase tracking-wider">{h}</th>
                   ))}
                 </tr>
@@ -481,15 +487,17 @@ export default function CaseDetailPage() {
                 {caseData.recent_transactions.map((t, i) => (
                   <tr key={i} style={{ borderBottom: i < caseData.recent_transactions.length-1 ? "1px solid #1E2430" : undefined }}
                       className={t.is_fraud ? "bg-[#EF4444]/10" : ""}>
+                    <td className="px-4 py-2.5 text-xs text-[#8A93A6] whitespace-nowrap">{fmtDateTime(t.timestamp)}</td>
                     <td className="px-4 py-2.5 font-mono text-xs text-[#5A6478]">{t.src}</td>
                     <td className="px-4 py-2.5 font-mono text-xs text-[#5A6478]">{t.dst}</td>
-                    <td className="px-4 py-2.5 text-xs font-semibold text-[#EDEAE6]">${t.amount.toLocaleString("es-AR")}</td>
+                    <td className="px-4 py-2.5 text-xs text-[#8A93A6] whitespace-nowrap">{t.canal ?? "—"}</td>
+                    <td className="px-4 py-2.5 text-xs text-[#8A93A6] whitespace-nowrap">{t.concepto ?? "—"}</td>
+                    <td className="px-4 py-2.5 text-xs font-semibold text-[#EDEAE6] whitespace-nowrap">$ {t.amount.toLocaleString("es-AR")} {t.moneda ?? ""}</td>
                     <td className="px-4 py-2.5">
                       <span className={`text-[11px] font-medium px-2 py-0.5 rounded-full ${t.direction === "entrada" ? "bg-[#EF4444]/15 text-[#EF4444]" : "bg-[#2E6BFF]/15 text-[#7AA2FF]"}`}>
                         {t.direction}
                       </span>
                     </td>
-                    <td className="px-4 py-2.5 text-xs text-[#5A6478] font-mono">{t.timestamp}</td>
                   </tr>
                 ))}
               </tbody>

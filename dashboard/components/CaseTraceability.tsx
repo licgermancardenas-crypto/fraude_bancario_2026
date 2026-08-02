@@ -29,6 +29,8 @@ type TEvent = {
   isFraud?: boolean;
   isPerp?: boolean;
   dirty?: boolean;
+  canal?: string;
+  concepto?: string;
   label: string;
 };
 
@@ -74,12 +76,14 @@ export default function CaseTraceability({ caseData }: { caseData: Case }) {
       id: `in-${i}`, kind: "inflow", ts: h.timestamp, amount: h.amount,
       account: h.from, name: h.from_name, score: h.from_gnn_score,
       isFraud: !!h.from_is_fraud, isPerp: !!h.from_is_perp, dirty: !!h.is_fraud_edge,
+      canal: h.canal, concepto: h.concepto,
       label: h.from_is_perp ? "Inyección de origen" : "Entrada de fondos",
     }));
     down.forEach((h, i) => ev.push({
       id: `out-${i}`, kind: "outflow", ts: h.timestamp, amount: h.amount,
       account: h.to, name: h.to_name, score: h.to_gnn_score,
       isFraud: !!h.to_is_fraud, dirty: !!h.is_fraud_edge,
+      canal: h.canal, concepto: h.concepto,
       label: h.is_fraud_edge ? "Salida fragmentada (layering)" : "Salida",
     }));
     const alertTs = Math.floor(new Date(caseData.alert_date + "T12:00:00").getTime() / 1000);
@@ -289,6 +293,8 @@ export default function CaseTraceability({ caseData }: { caseData: Case }) {
             <Field label="Cuenta" value={selEvent.account!} mono />
             <Field label="Monto" value={money(selEvent.amount!)} strong />
             <Field label="Fecha" value={shortDate(selEvent.ts)} />
+            {selEvent.canal && <Field label="Canal" value={selEvent.canal} />}
+            {selEvent.concepto && <Field label="Concepto" value={selEvent.concepto} />}
             <Field label="Score GNN" value={((selEvent.score ?? 0) * 100).toFixed(1) + "%"} />
             <Field label="Etiqueta" value={selEvent.isFraud ? "Fraude" : "Legítima"} color={selEvent.isFraud ? DANGER : MUTED} />
             <Field label="Transacción" value={selEvent.dirty ? "Fraudulenta" : "Normal"} color={selEvent.dirty ? DANGER : MUTED} />
