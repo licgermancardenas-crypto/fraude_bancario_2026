@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useParams } from "next/navigation";
 import type { Case, SARDraft, SARAuditEvent } from "@/lib/types";
 import { setStoredStatus } from "@/lib/caseStatus";
+import { downloadGoaml } from "@/lib/goaml";
 
 const AUDIT_ACTION_LABELS: Record<string, string> = {
   borrador_creado:      "Creó el borrador",
@@ -94,6 +95,7 @@ export default function SARPage() {
   const caseId = params.id as string;
 
   const [draft, setDraft]   = useState<SARDraft | null>(null);
+  const [caseData, setCaseData] = useState<Case | null>(null);
   const [saved, setSaved]   = useState(false);
   const [firma, setFirma]   = useState("");
   const [comentario, setComentario] = useState("");
@@ -105,6 +107,7 @@ export default function SARPage() {
       .then((cases: Case[]) => {
         const c = cases.find(x => x.case_id === caseId);
         if (!c) return;
+        setCaseData(c);
         const stored = getStoredSAR(caseId);
         const base   = buildSARDraft(c);
         const merged = { ...base, ...stored } as SARDraft;
@@ -203,6 +206,13 @@ export default function SARPage() {
             <button onClick={handleSendToReview}
                     className="px-3 min-h-[44px] text-xs font-medium rounded-lg border border-[#2E6BFF]/40 text-[#7AA2FF] bg-[#2E6BFF]/10 hover:bg-[#2E6BFF]/20 transition-colors">
               Enviar a revisión
+            </button>
+          )}
+          {caseData && (
+            <button onClick={() => downloadGoaml(draft, caseData)}
+                    className="px-3 min-h-[44px] text-xs font-medium rounded-lg border border-[#22C55E]/40 text-[#22C55E] bg-[#22C55E]/10 hover:bg-[#22C55E]/20 transition-colors"
+                    title="Descargar el XML goAML del ROS (esquema UIF)">
+              ⭳ Exportar goAML (XML)
             </button>
           )}
           <button onClick={handlePrint}
