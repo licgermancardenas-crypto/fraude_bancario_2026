@@ -63,6 +63,14 @@ export function ZapIcon() {
   );
 }
 
+export function ShieldIcon() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round">
+      <path d="M12 3l7 3v5c0 4.5-3 8-7 10-4-2-7-5.5-7-10V6l7-3z" /><path d="M9 12l2 2 4-4" />
+    </svg>
+  );
+}
+
 export type NavItem = { href: string; label: string; Icon: () => React.ReactElement };
 
 export const navGroups: { label: string; items: NavItem[] }[] = [
@@ -85,6 +93,7 @@ export const navGroups: { label: string; items: NavItem[] }[] = [
     label: "Análisis",
     items: [
       { href: "/app/cuentas",     label: "Cuentas",     Icon: TableIcon },
+      { href: "/app/gobernanza",  label: "Gobernanza",  Icon: ShieldIcon },
       { href: "/app/metodologia", label: "Metodología", Icon: BookIcon },
       { href: "/app/en-vivo",     label: "API en Vivo", Icon: ZapIcon },
     ],

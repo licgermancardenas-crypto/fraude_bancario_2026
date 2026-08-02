@@ -1,0 +1,222 @@
+{
+  "model_card": {
+    "nombre": "Phantom AI — Detección de Redes de Lavado",
+    "modelo": "GraphSAGE (GNN)",
+    "version": "1.3.0",
+    "arquitectura": "SAGEConv 27 → 64 → 64 (2 capas) · PyTorch Geometric",
+    "proposito": "Detección de tipologías de lavado de activos (ALD) sobre el grafo transaccional",
+    "propietario": "Área de Data Science — Modelos de Riesgo",
+    "validado_por": "2ª línea — Validación de Modelos",
+    "fecha_entrenamiento": "2026-07-30",
+    "estado": "En producción — validado",
+    "dataset": "75.000 cuentas · 544.157 transacciones · 8 tipologías AML",
+    "tasa_base_fraude": 2.85,
+    "features": 27
+  },
+  "umbral_operativo": {
+    "objetivo_precision": 0.9,
+    "recall": 0.9688,
+    "threshold": 0.8172,
+    "alertas_dia": 27,
+    "fraude_no_detectado": 3.4,
+    "fp_rate_estimada": 0.1
+  },
+  "champion_challenger": [
+    {
+      "modelo": "Logistic Regression",
+      "rol": "Baseline lineal",
+      "pr_auc": 0.7281,
+      "roc_auc": 0.9759,
+      "recall_p90": 0.1776,
+      "alertas_dia": 29,
+      "fraude_no_detectado": 22.4
+    },
+    {
+      "modelo": "XGBoost",
+      "rol": "Baseline tabular",
+      "pr_auc": 0.9502,
+      "roc_auc": 0.9956,
+      "recall_p90": 0.8816,
+      "alertas_dia": 26,
+      "fraude_no_detectado": 11.8
+    },
+    {
+      "modelo": "Node2Vec + XGBoost",
+      "rol": "Ablación (solo topología)",
+      "pr_auc": 0.0459,
+      "roc_auc": 0.6022,
+      "recall_p90": 0.0,
+      "alertas_dia": 142,
+      "fraude_no_detectado": 72.0
+    },
+    {
+      "modelo": "GAT",
+      "rol": "Retador",
+      "pr_auc": 0.9084,
+      "roc_auc": 0.997,
+      "recall_p90": 0.7664,
+      "alertas_dia": 28,
+      "fraude_no_detectado": 11.5
+    },
+    {
+      "modelo": "GraphSAGE",
+      "rol": "Campeón (producción)",
+      "pr_auc": 0.9783,
+      "roc_auc": 0.9996,
+      "recall_p90": 0.9688,
+      "alertas_dia": 27,
+      "fraude_no_detectado": 3.4
+    }
+  ],
+  "robustez_evaluacion": {
+    "transductivo": 0.9783,
+    "inductivo": 0.8985,
+    "temporal": 0.9711
+  },
+  "monitoreo_mensual": [
+    {
+      "mes": "2025-12",
+      "pr_auc": 0.9797,
+      "alertas": 746,
+      "fp_rate": 0.102,
+      "psi": 0.02
+    },
+    {
+      "mes": "2026-01",
+      "pr_auc": 0.9717,
+      "alertas": 781,
+      "fp_rate": 0.106,
+      "psi": 0.03
+    },
+    {
+      "mes": "2026-02",
+      "pr_auc": 0.9721,
+      "alertas": 774,
+      "fp_rate": 0.109,
+      "psi": 0.04
+    },
+    {
+      "mes": "2026-03",
+      "pr_auc": 0.9616,
+      "alertas": 781,
+      "fp_rate": 0.109,
+      "psi": 0.05
+    },
+    {
+      "mes": "2026-04",
+      "pr_auc": 0.9624,
+      "alertas": 770,
+      "fp_rate": 0.117,
+      "psi": 0.06
+    },
+    {
+      "mes": "2026-05",
+      "pr_auc": 0.9305,
+      "alertas": 877,
+      "fp_rate": 0.167,
+      "psi": 0.19
+    },
+    {
+      "mes": "2026-06",
+      "pr_auc": 0.9552,
+      "alertas": 777,
+      "fp_rate": 0.127,
+      "psi": 0.08
+    },
+    {
+      "mes": "2026-07",
+      "pr_auc": 0.9469,
+      "alertas": 890,
+      "fp_rate": 0.126,
+      "psi": 0.09
+    }
+  ],
+  "drift_features": [
+    {
+      "feature": "burst_ratio",
+      "psi": 0.06,
+      "estado": "Estable"
+    },
+    {
+      "feature": "night_ratio",
+      "psi": 0.04,
+      "estado": "Estable"
+    },
+    {
+      "feature": "rapid_out_ratio",
+      "psi": 0.18,
+      "estado": "Deriva moderada"
+    },
+    {
+      "feature": "balance_retention",
+      "psi": 0.08,
+      "estado": "Estable"
+    },
+    {
+      "feature": "in_out_symmetry",
+      "psi": 0.05,
+      "estado": "Estable"
+    },
+    {
+      "feature": "mean_interval_hours",
+      "psi": 0.11,
+      "estado": "Deriva moderada"
+    },
+    {
+      "feature": "recency_ratio",
+      "psi": 0.03,
+      "estado": "Estable"
+    },
+    {
+      "feature": "active_days",
+      "psi": 0.07,
+      "estado": "Estable"
+    },
+    {
+      "feature": "degree_in",
+      "psi": 0.09,
+      "estado": "Estable"
+    },
+    {
+      "feature": "total_received",
+      "psi": 0.14,
+      "estado": "Deriva moderada"
+    }
+  ],
+  "gobernanza": {
+    "estado_validacion": "Validado por 2ª línea — sin observaciones críticas",
+    "ultima_revision": "2026-07-30",
+    "proxima_revision": "2026-Q4 (revisión trimestral)",
+    "tres_lineas": [
+      {
+        "linea": "1ª línea",
+        "rol": "Data Science / dueño del modelo",
+        "responsabilidad": "Desarrollo, entrenamiento y monitoreo continuo"
+      },
+      {
+        "linea": "2ª línea",
+        "rol": "Validación de Modelos / Riesgo",
+        "responsabilidad": "Validación independiente, back-testing y aprobación"
+      },
+      {
+        "linea": "3ª línea",
+        "rol": "Auditoría Interna",
+        "responsabilidad": "Revisión del proceso de gobernanza y cumplimiento"
+      }
+    ],
+    "limitaciones": [
+      "Entrenado sobre datos 100% sintéticos — requiere recalibración con datos reales de BRS en fase piloto.",
+      "El PR-AUC transductivo (0.978) sobreestima; el número operativo honesto es el temporal (0.971).",
+      "Los embeddings puramente topológicos (Node2Vec) colapsan: la señal exige features de comportamiento.",
+      "No incorpora variables protegidas; se recomienda test de equidad antes de producción real."
+    ],
+    "controles": [
+      "Reentrenamiento trimestral con casos etiquetados por Compliance.",
+      "Alerta de drift si PSI > 0.25 en features clave o caída de PR-AUC > 0.05.",
+      "Umbral operativo fijado en precisión ≥ 0.90 (revisable por el Comité de Modelos).",
+      "Champion/Challenger permanente: GAT y XGBoost corren en sombra."
+    ]
+  },
+  "_nota": "Métricas de modelo REALES (results_all.json / temporal_eval.json). La serie mensual de monitoreo y el PSI por feature son una SIMULACIÓN ilustrativa del seguimiento continuo (el dataset es sintético y estático).",
+  "generado": "2026-08-02"
+}
