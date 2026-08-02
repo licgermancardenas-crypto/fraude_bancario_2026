@@ -103,6 +103,23 @@ export default function CasosPage() {
     screeningPendiente: cases.filter(c => c.screening.hit_directo?.estado === "pendiente").length,
   };
 
+  // Aging / SLA de reportes ROS (solo casos abiertos, no resueltos)
+  const openCases = cases.filter(c => !RESOLVED_STATUSES.includes(effectiveStatus(c)));
+  const sla = { vencidos: 0, criticos: 0, porVencer: 0, ok: 0 };
+  openCases.forEach(c => {
+    const d = daysUntil(c.vencimiento_ros);
+    if (d < 0) sla.vencidos++;
+    else if (d <= 15) sla.criticos++;
+    else if (d <= 45) sla.porVencer++;
+    else sla.ok++;
+  });
+  const slaBands = [
+    { key: "vencidos",  label: "Vencidos",        value: sla.vencidos,  color: "#EF4444" },
+    { key: "criticos",  label: "≤ 15 días",       value: sla.criticos,  color: "#F59E0B" },
+    { key: "porVencer", label: "16–45 días",      value: sla.porVencer, color: "#7AA2FF" },
+    { key: "ok",        label: "> 45 días",       value: sla.ok,        color: "#22C55E" },
+  ];
+
   return (
     <div className="space-y-6">
       <PageHeader
@@ -124,6 +141,29 @@ export default function CasosPage() {
             <p className="text-xs text-[#5A6478] mt-0.5">{s.label}</p>
           </div>
         ))}
+      </div>
+
+      {/* Aging / SLA de reportes ROS */}
+      <div className="bg-[#0E1219] rounded-xl border border-[#1E2430] p-4">
+        <div className="flex items-center justify-between mb-2">
+          <h3 className="text-sm font-bold text-[#EDEAE6]">Vencimiento de reportes ROS <span className="text-[11px] font-normal text-[#5A6478]">— plazo UIF (Ley 25.246)</span></h3>
+          <span className="text-xs text-[#5A6478]">{openCases.length} casos abiertos</span>
+        </div>
+        <div className="flex h-3 w-full overflow-hidden rounded-full bg-[#07090F]">
+          {slaBands.filter(b => b.value > 0).map(b => (
+            <div key={b.key} title={`${b.label}: ${b.value}`}
+              style={{ width: `${(b.value / Math.max(1, openCases.length)) * 100}%`, background: b.color }} />
+          ))}
+        </div>
+        <div className="mt-3 grid grid-cols-2 sm:grid-cols-4 gap-2">
+          {slaBands.map(b => (
+            <div key={b.key} className="flex items-center gap-2">
+              <span style={{ width: 9, height: 9, borderRadius: "50%", background: b.color }} />
+              <span className="text-lg font-bold" style={{ color: b.color }}>{b.value}</span>
+              <span className="text-[11px] text-[#5A6478]">{b.label}</span>
+            </div>
+          ))}
+        </div>
       </div>
 
       {/* Filters */}

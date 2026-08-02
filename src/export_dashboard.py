@@ -645,7 +645,10 @@ def export_cases(acc, txn, data, scores_all, cfg, out_dir, n_cases=80):
             }
         return {"upstream": upstream, "downstream": downstream, "origin": origin}
 
-    base_date = datetime(2026, 6, 1)
+    # Fechas de alerta repartidas en una ventana amplia (~6 meses) para que los
+    # plazos ROS (alerta + 150 días) caigan escalonados y la cola tenga aging
+    # realista: casos vencidos, por vencer y con holgura, no todos "recientes".
+    base_date = datetime(2026, 2, 1)
 
     # Ley 25.246 (UIF Argentina), art. 21 inc. b — plazo máximo para que un
     # sujeto obligado reporte una Operación Sospechosa (ROS) desde que la
@@ -670,7 +673,7 @@ def export_cases(acc, txn, data, scores_all, cfg, out_dir, n_cases=80):
             p = personas_idx.loc[acc_id]
             persona = {k: str(p[k]) if pd.notna(p[k]) else "" for k in p.index}
 
-        alert_dt   = base_date + timedelta(days=int(rng.integers(0, 45)))
+        alert_dt   = base_date + timedelta(days=int(rng.integers(0, 190)))
         alert_date = alert_dt.strftime("%Y-%m-%d")
         vencimiento_ros = (alert_dt + timedelta(days=DIAS_PLAZO_ROS)).strftime("%Y-%m-%d")
         score = id2score.get(acc_id, 0)

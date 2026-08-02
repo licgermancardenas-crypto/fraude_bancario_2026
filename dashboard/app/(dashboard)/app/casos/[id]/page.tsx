@@ -7,6 +7,8 @@ import { RESOLVED_STATUSES, daysUntil, rosUrgency } from "@/lib/dates";
 import { kycTier, KYC_TIER_STYLE, isBlindSpot } from "@/lib/kyc";
 import { SCREENING_STATUS_STYLE } from "@/lib/screening";
 import { getStoredStatuses, setStoredStatus } from "@/lib/caseStatus";
+import { getDisposition, setDisposition, MOTIVOS_DESESTIMAR, type Disposition } from "@/lib/disposition";
+import { relatedCases } from "@/lib/relatedCases";
 import { buildDetectionInsight } from "@/lib/insight";
 import PageHeader from "@/components/PageHeader";
 import CaseTraceability from "@/components/CaseTraceability";
@@ -48,7 +50,12 @@ export default function CaseDetailPage() {
   const caseId = params.id as string;
 
   const [caseData, setCaseData] = useState<Case | null>(null);
+  const [allCases, setAllCases] = useState<Case[]>([]);
   const [status, setStatus]     = useState<CaseStatus>("abierto");
+  const [disposition, setDispositionState] = useState<Disposition | null>(null);
+  const [showDesest, setShowDesest] = useState(false);
+  const [motivo, setMotivo]     = useState(MOTIVOS_DESESTIMAR[0]);
+  const [dispNota, setDispNota] = useState("");
   const [notes, setNotes]       = useState<CaseNote[]>([]);
   const [noteText, setNoteText] = useState("");
   const [activeTab, setActiveTab] = useState<"resumen" | "trazabilidad" | "grafo" | "transacciones" | "notas">("resumen");
@@ -59,9 +66,11 @@ export default function CaseDetailPage() {
     fetch("/data/cases.json")
       .then(r => r.json())
       .then((cases: Case[]) => {
+        setAllCases(cases);
         const c = cases.find(x => x.case_id === caseId);
         if (c) {
           setCaseData(c);
+          setDispositionState(getDisposition(c.case_id));
           const stored = getStoredStatuses();
           setStatus(stored[c.case_id] ?? c.status);
           setNotes(getStoredNotes(c.case_id));
@@ -134,6 +143,19 @@ export default function CaseDetailPage() {
     setStoredStatus(caseId, newStatus);
   };
 
+  const confirmDesestimar = () => {
+    if (!caseData) return;
+    const disp: Disposition = {
+      estado: "desestimado", motivo, nota: dispNota.trim() || undefined,
+      analista: caseData.analista_asignado, timestamp: new Date().toISOString(),
+    };
+    setDisposition(caseId, disp);
+    setDispositionState(disp);
+    handleStatusChange("desestimado");
+    setShowDesest(false);
+    setDispNota("");
+  };
+
   const handleAddNote = () => {
     if (!noteText.trim()) return;
     const note: CaseNote = {
@@ -203,7 +225,7 @@ export default function CaseDetailPage() {
             )}
             {(status === "abierto" || status === "en_revision") && (
               <>
-                <button onClick={() => handleStatusChange("desestimado")}
+                <button onClick={() => setShowDesest(v => !v)}
                         className="px-3 min-h-[44px] text-xs font-medium rounded-lg border border-[#1E2430] text-[#5A6478] bg-[#12161F] hover:bg-[#12161F] transition-colors">
                   Desestimar
                 </button>
@@ -221,6 +243,28 @@ export default function CaseDetailPage() {
               </Link>
             )}
           </div>
+
+          {/* Form de desestimación — exige motivo (auditoría de falsos positivos) */}
+          {showDesest && (status === "abierto" || status === "en_revision") && (
+            <div className="mt-3 rounded-lg border border-[#1E2430] bg-[#0A0D14] p-3 space-y-2">
+              <p className="text-xs font-semibold text-[#EDEAE6]">Desestimar caso — registrar motivo</p>
+              <select value={motivo} onChange={e => setMotivo(e.target.value)}
+                className="w-full rounded-md border border-[#1E2430] bg-[#12161F] px-2 py-2 text-xs text-[#EDEAE6] outline-none">
+                {MOTIVOS_DESESTIMAR.map(m => <option key={m} value={m}>{m}</option>)}
+              </select>
+              <textarea value={dispNota} onChange={e => setDispNota(e.target.value)} rows={2}
+                placeholder="Nota de respaldo (opcional)…"
+                className="w-full rounded-md border border-[#1E2430] bg-[#12161F] px-2 py-2 text-xs text-[#EDEAE6] outline-none placeholder:text-[#5A6478]" />
+              <div className="flex gap-2">
+                <button onClick={confirmDesestimar}
+                  className="rounded-md bg-[#EF4444] px-3 py-2 text-xs font-semibold text-white hover:bg-[#DC2626]">
+                  Confirmar desestimación
+                </button>
+                <button onClick={() => setShowDesest(false)}
+                  className="rounded-md border border-[#1E2430] px-3 py-2 text-xs text-[#5A6478]">Cancelar</button>
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Score GNN (dinámico, comportamiento en red) */}
@@ -280,10 +324,61 @@ export default function CaseDetailPage() {
       {/* Tab content */}
       {activeTab === "resumen" && (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+          {/* Resolución del caso (cuando está cerrado) */}
+          {RESOLVED_STATUSES.includes(status) && (
+            <div className="lg:col-span-2 rounded-xl border p-4"
+                 style={{ background: "#0E1219", borderColor: status === "sar_enviado" ? "rgba(34,197,94,0.3)" : "#1E2430" }}>
+              <div className="flex items-center gap-2">
+                <h3 className="text-sm font-bold text-[#EDEAE6]">Resolución del caso</h3>
+                <span className="rounded-full px-2 py-0.5 text-[10px] font-bold uppercase"
+                  style={{ background: STATUS_COLORS[status].bg, color: STATUS_COLORS[status].text }}>
+                  {STATUS_LABELS[status]}
+                </span>
+              </div>
+              {disposition ? (
+                <div className="mt-2 space-y-1 text-xs">
+                  <p className="text-[#EDEAE6]"><span className="text-[#5A6478]">Motivo:</span> {disposition.motivo}</p>
+                  {disposition.nota && <p className="text-[#8A93A6]"><span className="text-[#5A6478]">Nota:</span> {disposition.nota}</p>}
+                  <p className="text-[#5A6478]">Resuelto por {disposition.analista} · {new Date(disposition.timestamp).toLocaleString("es-AR")}</p>
+                </div>
+              ) : (
+                <p className="mt-2 text-xs text-[#8A93A6]">
+                  {status === "sar_enviado" ? "Caso elevado a ROS ante la UIF." : "Caso desestimado sin motivo registrado."}
+                </p>
+              )}
+            </div>
+          )}
+
           {/* Prioridad de investigación (score de triage compuesto) */}
           <div className="lg:col-span-2">
             <TriageWaterfall caseData={caseData} />
           </div>
+
+          {/* Casos vinculados por contraparte compartida */}
+          {(() => {
+            const rel = relatedCases(caseData, allCases);
+            if (rel.length === 0) return null;
+            return (
+              <div className="lg:col-span-2 bg-[#0E1219] rounded-xl border border-[#1E2430] p-4">
+                <h3 className="text-sm font-bold text-[#EDEAE6]">Casos vinculados</h3>
+                <p className="text-xs mt-0.5 mb-3" style={{ color: "#5A6478" }}>
+                  {rel.length} caso{rel.length > 1 ? "s" : ""} comparten una contraparte con esta cuenta — posible red común.
+                </p>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                  {rel.map(({ case: rc, sharedAccount }) => (
+                    <Link key={rc.case_id} href={`/app/casos/${rc.case_id}`}
+                      className="flex items-center justify-between gap-2 rounded-lg border border-[#1E2430] bg-[#12161F] px-3 py-2 hover:border-[#2E6BFF]/50 transition-colors">
+                      <div className="min-w-0">
+                        <p className="text-xs font-medium text-[#EDEAE6] truncate">{rc.case_id} · {rc.persona?.nombre_completo || rc.account_id}</p>
+                        <p className="text-[10px] text-[#5A6478] font-mono">contraparte común: {sharedAccount}</p>
+                      </div>
+                      <span className="text-[11px] text-[#7AA2FF] whitespace-nowrap">ver →</span>
+                    </Link>
+                  ))}
+                </div>
+              </div>
+            );
+          })()}
 
           {/* ¿Por qué se marcó este caso? */}
           <div className="lg:col-span-2 bg-[#0E1219] rounded-xl border border-[#1E2430] p-4 space-y-3">
