@@ -7,6 +7,7 @@ import { kycTier, KYC_TIER_STYLE } from "@/lib/kyc";
 import { SCREENING_STATUS_STYLE, screeningSummary } from "@/lib/screening";
 import { getStoredStatuses } from "@/lib/caseStatus";
 import { PATTERN_LABELS } from "@/lib/patterns";
+import { computeTriage } from "@/lib/triage";
 import PageHeader from "@/components/PageHeader";
 
 const STATUS_LABELS: Record<CaseStatus, string> = {
@@ -89,7 +90,7 @@ export default function CasosPage() {
       );
     })
     .sort((a, b) =>
-      sortBy === "score"       ? b.gnn_score - a.gnn_score :
+      sortBy === "score"       ? computeTriage(b).score - computeTriage(a).score :
       sortBy === "vencimiento" ? new Date(a.vencimiento_ros).getTime() - new Date(b.vencimiento_ros).getTime() :
                                  new Date(b.alert_date).getTime() - new Date(a.alert_date).getTime()
     );
@@ -169,7 +170,7 @@ export default function CasosPage() {
           onChange={e => setSortBy(e.target.value as any)}
           className="border border-[#1E2430] rounded-lg px-3 min-h-[44px] text-sm outline-none"
         >
-          <option value="score">Ordenar: Mayor score</option>
+          <option value="score">Ordenar: Mayor prioridad</option>
           <option value="date">Ordenar: Más reciente</option>
           <option value="vencimiento">Ordenar: Vencimiento ROS</option>
         </select>
@@ -182,7 +183,7 @@ export default function CasosPage() {
           <table className="w-full text-sm">
             <thead>
               <tr style={{ backgroundColor: "#12161F", borderBottom: "1px solid #1E2430" }}>
-                {["Caso", "Cuenta / Titular", "Patrón", "Rating KYC", "Score GNN", "Analista", "Vencimiento ROS", "Screening", "Estado", ""].map(h => (
+                {["Caso", "Prioridad", "Cuenta / Titular", "Patrón", "Rating KYC", "Score GNN", "Analista", "Vencimiento ROS", "Screening", "Estado", ""].map(h => (
                   <th key={h} className="px-4 py-3 text-left text-xs font-semibold text-[#5A6478] uppercase tracking-wider whitespace-nowrap">{h}</th>
                 ))}
               </tr>
@@ -198,6 +199,19 @@ export default function CasosPage() {
                     <td className="px-4 py-3 font-mono text-xs text-[#5A6478] whitespace-nowrap">
                       {c.case_id}
                       {c.is_pep && <span className="ml-1.5 text-[10px] px-1.5 py-0.5 rounded-full font-medium" style={{background:"rgba(245,158,11,0.15)",color:"#F59E0B"}}>PEP</span>}
+                    </td>
+                    <td className="px-4 py-3">
+                      {(() => {
+                        const t = computeTriage(c);
+                        return (
+                          <span className="inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-xs font-bold whitespace-nowrap"
+                            style={{ background: `${t.color}22`, color: t.color, border: `1px solid ${t.color}55` }}
+                            title={`${t.level} — ${t.score}/100`}>
+                            {t.score}
+                            <span className="text-[9px] font-semibold uppercase tracking-wide opacity-80">{t.level}</span>
+                          </span>
+                        );
+                      })()}
                     </td>
                     <td className="px-4 py-3">
                       <p className="font-medium text-[#EDEAE6] text-xs">{c.persona?.nombre_completo || c.account_id}</p>

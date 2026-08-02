@@ -10,6 +10,7 @@ import { getStoredStatuses, setStoredStatus } from "@/lib/caseStatus";
 import { buildDetectionInsight } from "@/lib/insight";
 import PageHeader from "@/components/PageHeader";
 import CaseTraceability from "@/components/CaseTraceability";
+import TriageWaterfall from "@/components/TriageWaterfall";
 
 
 function fmtDateTime(ts: number): string {
@@ -279,6 +280,11 @@ export default function CaseDetailPage() {
       {/* Tab content */}
       {activeTab === "resumen" && (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+          {/* Prioridad de investigación (score de triage compuesto) */}
+          <div className="lg:col-span-2">
+            <TriageWaterfall caseData={caseData} />
+          </div>
+
           {/* ¿Por qué se marcó este caso? */}
           <div className="lg:col-span-2 bg-[#0E1219] rounded-xl border border-[#1E2430] p-4 space-y-3">
             <div>
