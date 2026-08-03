@@ -217,6 +217,15 @@
       "Champion/Challenger permanente: GAT y XGBoost corren en sombra."
     ]
   },
+  "impacto_programa": {
+    "monto_ilicito_rastreado": 78849453.87,
+    "perpetradores_origen": 392,
+    "mulas_detectadas": 2075,
+    "tipologias_cubiertas": 8,
+    "portfolio": 75000,
+    "cuentas_fraude": 2140,
+    "tasa_deteccion": 0.9688
+  },
   "_nota": "Métricas de modelo REALES (results_all.json / temporal_eval.json). La serie mensual de monitoreo y el PSI por feature son una SIMULACIÓN ilustrativa del seguimiento continuo (el dataset es sintético y estático).",
   "generado": "2026-08-02"
 }

@@ -71,9 +71,23 @@ export function ShieldIcon() {
   );
 }
 
+export function BriefcaseIcon() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round">
+      <rect x="2" y="7" width="20" height="14" rx="2" /><path d="M8 7V5a2 2 0 012-2h4a2 2 0 012 2v2" /><line x1="2" y1="13" x2="22" y2="13" />
+    </svg>
+  );
+}
+
 export type NavItem = { href: string; label: string; Icon: () => React.ReactElement };
 
 export const navGroups: { label: string; items: NavItem[] }[] = [
+  {
+    label: "Dirección",
+    items: [
+      { href: "/app/direccion", label: "Panel Ejecutivo", Icon: BriefcaseIcon },
+    ],
+  },
   {
     label: "Sistema",
     items: [

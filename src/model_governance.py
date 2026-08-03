@@ -28,6 +28,14 @@ def build(config_path="config/config.yaml"):
     results = _load(f"{reports}/results_all.json")
     temporal = _load(f"{data_dir}/temporal_eval.json")
     kpis = _load(f"{data_dir}/kpis.json")
+    try:
+        ot = _load(f"{data_dir}/origin_trace.json").get("summary", {})
+    except Exception:
+        ot = {}
+    try:
+        bi = _load(f"{data_dir}/business_impact.json")
+    except Exception:
+        bi = {}
 
     by_model = {r["model"]: r for r in results}
     champ = by_model["GraphSAGE"]
@@ -141,6 +149,16 @@ def build(config_path="config/config.yaml"):
                 "Umbral operativo fijado en precisión ≥ 0.90 (revisable por el Comité de Modelos).",
                 "Champion/Challenger permanente: GAT y XGBoost corren en sombra.",
             ],
+        },
+        "impacto_programa": {
+            "monto_ilicito_rastreado": round(ot.get("total_amount_laundered",
+                                              bi.get("total_fraud_amount", 0)), 2),
+            "perpetradores_origen": ot.get("n_perpetrators", 0),
+            "mulas_detectadas": ot.get("n_mules_detected", 0),
+            "tipologias_cubiertas": 8,
+            "portfolio": kpis["n_accounts"],
+            "cuentas_fraude": kpis["n_fraud"],
+            "tasa_deteccion": kpis["recall_at_p90"],
         },
         "_nota": "Métricas de modelo REALES (results_all.json / temporal_eval.json). "
                  "La serie mensual de monitoreo y el PSI por feature son una SIMULACIÓN "
