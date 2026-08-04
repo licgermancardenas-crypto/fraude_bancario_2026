@@ -8,8 +8,11 @@ import PatternDonut from "@/components/PatternDonut";
 import AlertsAreaChart from "@/components/AlertsAreaChart";
 import RiskCohortScatter from "@/components/RiskCohortScatter";
 import GeoMapProvincias from "@/components/GeoMapProvincias";
+import Link from "next/link";
 import { casesByPattern, casesByMonth, casesByProvincia } from "@/lib/caseAggregates";
 import { isBlindSpot } from "@/lib/kyc";
+import { computeTriage } from "@/lib/triage";
+import { PATTERN_LABELS } from "@/lib/patterns";
 import type { KPIs, PRCurve, ScoreDistribution, Case, EntityGraph } from "@/lib/types";
 
 import kpisRaw     from "@/public/data/kpis.json";
@@ -74,6 +77,7 @@ export default function OverviewPage() {
   const transductivePrAuc = temporal.conditions.random_transductive?.pr_auc;
   const inductivePrAuc    = temporal.conditions.random_inductive?.pr_auc;
 
+  const recientes        = [...cases].sort((a, b) => b.alert_date.localeCompare(a.alert_date)).slice(0, 8);
   const patternCounts    = casesByPattern(cases);
   const monthlyCounts    = casesByMonth(cases);
   const provinciaCounts  = casesByProvincia(cases);
@@ -123,6 +127,34 @@ export default function OverviewPage() {
         </p>
         <h2 className="text-sm font-semibold mb-4" style={{ color: "#EDEAE6", fontFamily: "'Space Grotesk', sans-serif" }}>Alertas generadas por mes</h2>
         <AlertsAreaChart data={monthlyCounts} />
+      </div>
+
+      {/* Actividad reciente */}
+      <div className="rounded-xl p-5" style={{ backgroundColor: "#0E1219", border: "1px solid #1E2430" }}>
+        <div className="flex items-center justify-between mb-3">
+          <div>
+            <p className="text-[11px] font-bold uppercase tracking-widest mb-1" style={{ color: "#5A6478", fontFamily: "'JetBrains Mono', monospace" }}>Cola de trabajo</p>
+            <h2 className="text-sm font-semibold" style={{ color: "#EDEAE6", fontFamily: "'Space Grotesk', sans-serif" }}>Actividad reciente</h2>
+          </div>
+          <Link href="/app/casos" className="text-xs" style={{ color: "#7AA2FF" }}>Ver todos los casos →</Link>
+        </div>
+        <div className="space-y-1.5">
+          {recientes.map(c => {
+            const t = computeTriage(c);
+            return (
+              <Link key={c.case_id} href={`/app/casos/${c.case_id}`}
+                className="flex items-center gap-3 rounded-lg px-3 py-2 transition-colors hover:bg-[#12161F]" style={{ border: "1px solid #1E2430" }}>
+                <span className="rounded-full px-2 py-0.5 text-[11px] font-bold whitespace-nowrap" style={{ background: `${t.color}22`, color: t.color, border: `1px solid ${t.color}55` }}>{t.score}</span>
+                <div className="min-w-0 flex-1">
+                  <p className="text-xs font-medium truncate" style={{ color: "#EDEAE6" }}>{c.persona?.nombre_completo || c.account_id}</p>
+                  <p className="text-[10px]" style={{ color: "#5A6478" }}>{PATTERN_LABELS[c.pattern] ?? c.pattern} · {c.account_id}</p>
+                </div>
+                {c.is_pep && <span className="text-[9px] px-1.5 py-0.5 rounded-full" style={{ background: "rgba(245,158,11,0.15)", color: "#F59E0B" }}>PEP</span>}
+                <span className="text-[10px] whitespace-nowrap" style={{ color: "#5A6478" }}>{new Date(c.alert_date + "T00:00:00").toLocaleDateString("es-AR")}</span>
+              </Link>
+            );
+          })}
+        </div>
       </div>
 
       {/* Cohortes de riesgo + Geografía */}

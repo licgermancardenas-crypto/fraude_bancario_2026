@@ -100,6 +100,7 @@ export const navGroups: { label: string; items: NavItem[] }[] = [
     label: "Sistema",
     items: [
       { href: "/app",         label: "Inicio",  Icon: HomeIcon },
+      { href: "/app/red",     label: "Investigación", Icon: EntitiesIcon },
       { href: "/app/anillos", label: "Anillos", Icon: GraphIcon },
       { href: "/app/origen",  label: "Origen",  Icon: TargetIcon },
     ],
