@@ -115,6 +115,7 @@ export const navGroups: { label: string; items: NavItem[] }[] = [
   {
     label: "Análisis",
     items: [
+      { href: "/app/transacciones", label: "Transacciones", Icon: TableIcon },
       { href: "/app/cuentas",     label: "Cuentas",     Icon: TableIcon },
       { href: "/app/gobernanza",  label: "Gobernanza",  Icon: ShieldIcon },
       { href: "/app/metodologia", label: "Metodología", Icon: BookIcon },

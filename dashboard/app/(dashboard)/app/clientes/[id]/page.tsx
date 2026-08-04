@@ -31,11 +31,18 @@ function Field({ k, v }: { k: string; v: string }) {
   );
 }
 
+interface Txn { id: string; ts: number; src: string; dst: string; src_name: string; dst_name: string; amount: number; tipo: string; canal: string; concepto: string; is_fraud: number; }
+
 export default function ClientePage() {
   const id = useParams().id as string;
   const [profiles, setProfiles] = useState<Record<string, KycProfile> | null>(null);
+  const [txns, setTxns] = useState<Txn[]>([]);
 
-  useEffect(() => { fetch("/data/kyc_profiles.json").then(r => r.json()).then(setProfiles); }, []);
+  useEffect(() => {
+    fetch("/data/kyc_profiles.json").then(r => r.json()).then(setProfiles);
+    fetch("/data/transactions_sample.json").then(r => r.json())
+      .then((all: Txn[]) => setTxns(all.filter(t => t.src === id || t.dst === id).sort((a, b) => b.ts - a.ts).slice(0, 20)));
+  }, [id]);
 
   if (!profiles) return <div className="flex items-center justify-center h-64 text-[#5A6478]">Cargando legajo…</div>;
   const p = profiles[id];
@@ -194,6 +201,41 @@ export default function ClientePage() {
                       <td className="px-3 py-2 text-xs" style={{ color: MUTED }}>{PATTERN_LABELS[a.patron as keyof typeof PATTERN_LABELS] ?? a.patron}</td>
                       <td className="px-3 py-2 text-xs" style={{ color: BONE }}>{a.score.toFixed(2)}</td>
                       <td className="px-3 py-2 text-[11px]" style={{ color: a.estado.includes("investigación") ? "#F59E0B" : a.estado.includes("ROS") ? "#EF4444" : MUTED }}>{a.estado}</td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </Card>
+
+      {/* Transacciones de la entidad */}
+      <Card title={`Transacciones recientes (${txns.length})`}
+        right={<Link href={`/app/transacciones?q=${id}`} className="text-[11px]" style={{ color: "#7AA2FF" }}>Ver en explorador →</Link>}>
+        {txns.length === 0 ? (
+          <p className="text-xs" style={{ color: MUTED }}>Sin transacciones en la muestra para esta cuenta.</p>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr style={{ borderBottom: `1px solid ${LINE}` }}>
+                  {["Fecha", "Sentido", "Contraparte", "Canal", "Concepto", "Monto"].map(h => (
+                    <th key={h} className="px-3 py-2 text-left text-[10px] font-semibold uppercase tracking-wider" style={{ color: MUTED }}>{h}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {txns.map((t, i) => {
+                  const out = t.src === id;
+                  return (
+                    <tr key={t.id} className={t.is_fraud ? "bg-[#EF4444]/8" : ""} style={{ borderBottom: i < txns.length - 1 ? `1px solid ${LINE}` : undefined }}>
+                      <td className="px-3 py-2 text-[11px] whitespace-nowrap" style={{ color: "#8A93A6" }}>{new Date(t.ts * 1000).toLocaleDateString("es-AR")}</td>
+                      <td className="px-3 py-2 text-[11px]" style={{ color: out ? "#7AA2FF" : "#22C55E" }}>{out ? "↑ Envía" : "↓ Recibe"}</td>
+                      <td className="px-3 py-2 text-xs" style={{ color: BONE }}>{out ? (t.dst_name || t.dst) : (t.src_name || t.src)}</td>
+                      <td className="px-3 py-2 text-[11px] whitespace-nowrap" style={{ color: MUTED }}>{t.canal}</td>
+                      <td className="px-3 py-2 text-[11px] whitespace-nowrap" style={{ color: MUTED }}>{t.concepto}</td>
+                      <td className="px-3 py-2 text-xs font-semibold text-right whitespace-nowrap" style={{ color: t.is_fraud ? "#F87171" : BONE }}>{money(t.amount)}</td>
                     </tr>
                   );
                 })}
