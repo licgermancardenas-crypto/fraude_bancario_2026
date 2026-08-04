@@ -9,6 +9,9 @@ import { SCREENING_STATUS_STYLE } from "@/lib/screening";
 import { getStoredStatuses, setStoredStatus } from "@/lib/caseStatus";
 import { getDisposition, setDisposition, MOTIVOS_DESESTIMAR, type Disposition } from "@/lib/disposition";
 import { relatedCases } from "@/lib/relatedCases";
+import { getSession, setSessionRole, can, type Session, type Role } from "@/lib/session";
+import { appendAudit, getAuditLog, verifyIntegrity, type AuditEvent } from "@/lib/auditLog";
+import SessionSwitcher from "@/components/SessionSwitcher";
 import { buildDetectionInsight } from "@/lib/insight";
 import PageHeader from "@/components/PageHeader";
 import CaseTraceability from "@/components/CaseTraceability";
@@ -58,7 +61,10 @@ export default function CaseDetailPage() {
   const [dispNota, setDispNota] = useState("");
   const [notes, setNotes]       = useState<CaseNote[]>([]);
   const [noteText, setNoteText] = useState("");
-  const [activeTab, setActiveTab] = useState<"resumen" | "trazabilidad" | "grafo" | "transacciones" | "notas">("resumen");
+  const [session, setSession]   = useState<Session>({ role: "analista", nombre: "" });
+  const [audit, setAudit]       = useState<AuditEvent[]>([]);
+  const [integrity, setIntegrity] = useState<{ ok: boolean; brokenAt?: number; total: number } | null>(null);
+  const [activeTab, setActiveTab] = useState<"resumen" | "trazabilidad" | "grafo" | "transacciones" | "notas" | "auditoria">("resumen");
   const cyRef = useRef<HTMLDivElement>(null);
   const cyInst = useRef<any>(null);
 
@@ -76,7 +82,24 @@ export default function CaseDetailPage() {
           setNotes(getStoredNotes(c.case_id));
         }
       });
+    setSession(getSession());
+    refreshAudit();
   }, [caseId]);
+
+  const refreshAudit = () => {
+    setAudit(getAuditLog(caseId).sort((a, b) => b.seq - a.seq));
+    verifyIntegrity().then(setIntegrity);
+  };
+
+  const logAudit = async (action: string, detail?: string) => {
+    await appendAudit({ actor: session.nombre, role: session.role, action, target: caseId, detail });
+    refreshAudit();
+  };
+
+  const changeRole = (role: Role) => {
+    setSessionRole(role);
+    setSession(getSession());
+  };
 
   // Build subgraph in Cytoscape
   useEffect(() => {
@@ -147,11 +170,12 @@ export default function CaseDetailPage() {
     if (!caseData) return;
     const disp: Disposition = {
       estado: "desestimado", motivo, nota: dispNota.trim() || undefined,
-      analista: caseData.analista_asignado, timestamp: new Date().toISOString(),
+      analista: session.nombre, timestamp: new Date().toISOString(),
     };
     setDisposition(caseId, disp);
     setDispositionState(disp);
     handleStatusChange("desestimado");
+    logAudit("caso.desestimado", `Motivo: ${motivo}`);
     setShowDesest(false);
     setDispNota("");
   };
@@ -159,12 +183,13 @@ export default function CaseDetailPage() {
   const handleAddNote = () => {
     if (!noteText.trim()) return;
     const note: CaseNote = {
-      author: "Analista ALD",
+      author: session.nombre || "Analista ALD",
       text: noteText.trim(),
       timestamp: new Date().toISOString(),
     };
     addStoredNote(caseId, note);
     setNotes(prev => [...prev, note]);
+    logAudit("nota.agregada");
     setNoteText("");
   };
 
@@ -215,32 +240,43 @@ export default function CaseDetailPage() {
             </div>
           </div>
 
-          {/* Action buttons */}
-          <div className="flex gap-2 flex-wrap">
-            {status === "abierto" && (
-              <button onClick={() => handleStatusChange("en_revision")}
-                      className="px-3 min-h-[44px] text-xs font-medium rounded-lg border border-[#F59E0B]/40 text-[#F59E0B] bg-[#F59E0B]/10 hover:bg-[#F59E0B]/20 transition-colors">
-                Tomar caso
-              </button>
-            )}
-            {(status === "abierto" || status === "en_revision") && (
-              <>
-                <button onClick={() => setShowDesest(v => !v)}
-                        className="px-3 min-h-[44px] text-xs font-medium rounded-lg border border-[#1E2430] text-[#5A6478] bg-[#12161F] hover:bg-[#12161F] transition-colors">
-                  Desestimar
-                </button>
-                <Link href={`/app/casos/${caseId}/ros`}
-                      onClick={() => handleStatusChange("escalado")}
-                      className="px-3 min-h-[44px] text-xs font-medium rounded-lg bg-[#EF4444] text-white hover:bg-[#DC2626] transition-colors">
-                  Escalar → ROS
-                </Link>
-              </>
-            )}
-            {status === "escalado" && (
-              <Link href={`/app/casos/${caseId}/ros`}
-                    className="px-3 min-h-[44px] text-xs font-medium rounded-lg bg-[#EF4444] text-white hover:bg-[#DC2626] transition-colors">
-                Ver borrador ROS
-              </Link>
+          {/* Sesión (RBAC simulado) + acciones */}
+          <div className="flex flex-col items-end gap-2">
+            <SessionSwitcher role={session.role} nombre={session.nombre} onChange={changeRole} />
+            {session.role === "auditor" ? (
+              <span className="text-[11px] italic text-[#5A6478]">Auditoría — acceso de sólo lectura</span>
+            ) : (
+              <div className="flex gap-2 flex-wrap justify-end">
+                {status === "abierto" && can(session.role, "caso.tomar") && (
+                  <button onClick={() => { handleStatusChange("en_revision"); logAudit("caso.tomado"); }}
+                          className="px-3 min-h-[44px] text-xs font-medium rounded-lg border border-[#F59E0B]/40 text-[#F59E0B] bg-[#F59E0B]/10 hover:bg-[#F59E0B]/20 transition-colors">
+                    Tomar caso
+                  </button>
+                )}
+                {(status === "abierto" || status === "en_revision") && (
+                  <>
+                    {can(session.role, "caso.desestimar") && (
+                      <button onClick={() => setShowDesest(v => !v)}
+                              className="px-3 min-h-[44px] text-xs font-medium rounded-lg border border-[#1E2430] text-[#5A6478] bg-[#12161F] hover:bg-[#12161F] transition-colors">
+                        Desestimar
+                      </button>
+                    )}
+                    {can(session.role, "ros.crear") && (
+                      <Link href={`/app/casos/${caseId}/ros`}
+                            onClick={() => { handleStatusChange("escalado"); logAudit("ros.escalado"); }}
+                            className="px-3 min-h-[44px] text-xs font-medium rounded-lg bg-[#EF4444] text-white hover:bg-[#DC2626] transition-colors">
+                        Escalar → ROS
+                      </Link>
+                    )}
+                  </>
+                )}
+                {status === "escalado" && (
+                  <Link href={`/app/casos/${caseId}/ros`}
+                        className="px-3 min-h-[44px] text-xs font-medium rounded-lg bg-[#EF4444] text-white hover:bg-[#DC2626] transition-colors">
+                    Ver borrador ROS
+                  </Link>
+                )}
+              </div>
             )}
           </div>
 
@@ -309,14 +345,14 @@ export default function CaseDetailPage() {
 
       {/* Tabs */}
       <div className="flex gap-1 bg-[#12161F] p-1 rounded-xl w-fit">
-        {(["resumen","trazabilidad","grafo","transacciones","notas"] as const).map(tab => (
+        {(["resumen","trazabilidad","grafo","transacciones","notas","auditoria"] as const).map(tab => (
           <button key={tab} onClick={() => setActiveTab(tab)}
                   className="px-4 min-h-[44px] rounded-lg text-sm font-medium transition-colors capitalize"
                   style={{
                     backgroundColor: activeTab === tab ? "rgba(46,107,255,0.15)" : "transparent",
                     color: activeTab === tab ? "#7AA2FF" : "#5A6478",
                   }}>
-            {tab === "notas" ? `Notas (${notes.length})` : tab.charAt(0).toUpperCase() + tab.slice(1)}
+            {tab === "notas" ? `Notas (${notes.length})` : tab === "auditoria" ? `Auditoría (${audit.length})` : tab.charAt(0).toUpperCase() + tab.slice(1)}
           </button>
         ))}
       </div>
@@ -641,6 +677,58 @@ export default function CaseDetailPage() {
               Guardar nota
             </button>
           </div>
+        </div>
+      )}
+
+      {activeTab === "auditoria" && (
+        <div className="space-y-3">
+          <div className="bg-[#0E1219] rounded-xl border border-[#1E2430] p-4">
+            <div className="flex items-center justify-between flex-wrap gap-2">
+              <div>
+                <h3 className="text-sm font-bold text-[#EDEAE6]">Registro de auditoría inmutable</h3>
+                <p className="text-[11px] text-[#5A6478] mt-0.5">Cadena de eventos encadenada por hash (SHA-256) — cualquier alteración rompe la verificación.</p>
+              </div>
+              {integrity && (
+                <span className="rounded-full px-3 py-1 text-[11px] font-bold" style={{
+                  background: integrity.ok ? "rgba(34,197,94,0.15)" : "rgba(239,68,68,0.15)",
+                  color: integrity.ok ? "#22C55E" : "#EF4444",
+                  border: `1px solid ${integrity.ok ? "rgba(34,197,94,0.4)" : "rgba(239,68,68,0.4)"}`,
+                }}>
+                  {integrity.ok ? `✓ Cadena íntegra (${integrity.total} eventos)` : `✗ Integridad comprometida (evento #${integrity.brokenAt})`}
+                </span>
+              )}
+            </div>
+          </div>
+          {audit.length === 0 ? (
+            <div className="bg-[#0E1219] rounded-xl border border-[#1E2430] p-8 text-center text-[#5A6478] text-sm">
+              Sin eventos registrados para este caso. Las acciones (tomar, desestimar, escalar) quedan asentadas aquí.
+            </div>
+          ) : (
+            <div className="bg-[#0E1219] rounded-xl border border-[#1E2430] overflow-hidden">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr style={{ backgroundColor: "#12161F", borderBottom: "1px solid #1E2430" }}>
+                    {["#", "Fecha y hora", "Actor", "Rol", "Acción", "Detalle", "Hash"].map(h => (
+                      <th key={h} className="px-3 py-2.5 text-left text-[10px] font-semibold text-[#5A6478] uppercase tracking-wider">{h}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {audit.map((e, i) => (
+                    <tr key={e.seq} style={{ borderBottom: i < audit.length - 1 ? "1px solid #1E2430" : undefined }}>
+                      <td className="px-3 py-2 text-xs text-[#5A6478] font-mono">{e.seq}</td>
+                      <td className="px-3 py-2 text-xs text-[#8A93A6] whitespace-nowrap">{new Date(e.timestamp).toLocaleString("es-AR")}</td>
+                      <td className="px-3 py-2 text-xs text-[#EDEAE6] whitespace-nowrap">{e.actor}</td>
+                      <td className="px-3 py-2 text-[11px] text-[#5A6478]">{e.role}</td>
+                      <td className="px-3 py-2 text-xs font-mono text-[#7AA2FF] whitespace-nowrap">{e.action}</td>
+                      <td className="px-3 py-2 text-[11px] text-[#8A93A6]">{e.detail ?? "—"}</td>
+                      <td className="px-3 py-2 text-[10px] font-mono text-[#5A6478]" title={e.hash}>{e.hash.slice(0, 10)}…</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
         </div>
       )}
     </div>

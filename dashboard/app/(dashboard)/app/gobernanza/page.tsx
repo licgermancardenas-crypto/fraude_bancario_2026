@@ -1,6 +1,8 @@
 import PageHeader from "@/components/PageHeader";
 import MonitoringChart, { type MonthPoint } from "@/components/MonitoringChart";
+import SyntheticDisclaimer from "@/components/SyntheticDisclaimer";
 import gov from "@/public/data/model_governance.json";
+import fairness from "@/public/data/fairness.json";
 
 const PANEL = "#12161F", CARD = "#0E1219", LINE = "#1E2430", BONE = "#EDEAE6", MUTED = "#5A6478";
 
@@ -22,6 +24,8 @@ export default function GobernanzaPage() {
         title="Gobernanza y Monitoreo del Modelo"
         description="Ficha del modelo, performance en el tiempo, control de deriva (drift) y las tres líneas de defensa — lo que exige un marco de riesgo de modelos (SR 11-7 / BCBS 239) para sostener un modelo en producción."
       />
+
+      <SyntheticDisclaimer />
 
       {/* Model card */}
       <div className="rounded-xl p-5" style={{ background: PANEL, border: `1px solid ${LINE}` }}>
@@ -66,6 +70,10 @@ export default function GobernanzaPage() {
           <p className="text-[11px] mt-3" style={{ color: MUTED }}>
             Umbral fijado en precisión ≥ 90%: de cada 10 alertas, 9 son fraude real.
           </p>
+          <div className="mt-2 rounded-lg p-3 text-[11px] leading-relaxed"
+            style={{ background: "rgba(245,158,11,0.08)", border: "1px solid rgba(245,158,11,0.25)", color: "#F59E0B" }}>
+            ⚠ {gov.gobernanza.nota_falsos_positivos}
+          </div>
         </div>
 
         <div className="rounded-xl p-5" style={{ background: PANEL, border: `1px solid ${LINE}` }}>
@@ -83,9 +91,17 @@ export default function GobernanzaPage() {
               </div>
             ))}
           </div>
-          <p className="text-[11px] mt-3" style={{ color: MUTED }}>
-            transductivo → inductivo → temporal: la caída controlada confirma que el modelo aprende patrones estructurales estables.
-          </p>
+          {gov.robustez_evaluacion.advertencia_temporal ? (
+            <div className="mt-3 rounded-lg p-3 text-[11px] leading-relaxed"
+              style={{ background: "rgba(239,68,68,0.08)", border: "1px solid rgba(239,68,68,0.25)", color: "#F87171" }}>
+              ⚠ <b>Limitación declarada:</b> {gov.robustez_evaluacion.advertencia_temporal} (período de test:
+              {" "}{gov.robustez_evaluacion.n_late_fraud} fraude vs. {gov.robustez_evaluacion.n_early_fraud} en entrenamiento).
+            </div>
+          ) : (
+            <p className="text-[11px] mt-3" style={{ color: MUTED }}>
+              La caída controlada transductivo → inductivo → temporal indica que el modelo aprende patrones estructurales estables.
+            </p>
+          )}
         </div>
       </div>
 
@@ -196,6 +212,71 @@ export default function GobernanzaPage() {
               ))}
             </ul>
           </div>
+        </div>
+      </div>
+
+      {/* Equidad / fairness */}
+      <div className="rounded-xl p-5" style={{ background: PANEL, border: `1px solid ${LINE}` }}>
+        <div className="flex items-center justify-between flex-wrap gap-2 mb-1">
+          <h3 className="text-sm font-bold" style={{ color: BONE }}>Equidad del modelo (fairness)</h3>
+          <span className="rounded-full px-3 py-1 text-[11px] font-bold" style={{
+            background: fairness.four_fifths_ok_global ? "rgba(34,197,94,0.15)" : "rgba(239,68,68,0.15)",
+            color: fairness.four_fifths_ok_global ? "#22C55E" : "#EF4444",
+            border: `1px solid ${fairness.four_fifths_ok_global ? "rgba(34,197,94,0.4)" : "rgba(239,68,68,0.4)"}`,
+          }}>
+            {fairness.four_fifths_ok_global ? "✓ Sin impacto dispar" : "✗ Revisar impacto dispar"}
+          </span>
+        </div>
+        <p className="text-[11px] mb-3" style={{ color: MUTED }}>
+          Tasa de marcado por grupo sensible (regla de los 4/5: el grupo menos favorecido debe estar ≥ 80% del más favorecido). {fairness.n_evaluadas.toLocaleString("es-AR")} cuentas evaluadas.
+        </p>
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          {fairness.attributes.map(a => (
+            <div key={a.attr}>
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-xs font-semibold" style={{ color: BONE }}>{a.name}</span>
+                <span className="text-[10px] font-bold" style={{ color: a.four_fifths_ok ? "#22C55E" : "#EF4444" }}>
+                  ratio {a.min_ratio}
+                </span>
+              </div>
+              <div className="space-y-1.5">
+                {a.grupos.map(g => (
+                  <div key={g.grupo} className="flex items-center gap-2">
+                    <span className="w-16 shrink-0 text-[10px] truncate" style={{ color: MUTED }}>{g.grupo}</span>
+                    <div className="h-1.5 flex-1 overflow-hidden rounded-full" style={{ background: CARD }}>
+                      <div className="h-full rounded-full" style={{ width: `${g.disparate_impact * 100}%`, background: "#7AA2FF" }} />
+                    </div>
+                    <span className="w-8 text-right text-[10px] tabular-nums" style={{ color: MUTED }}>{(g.flagged_rate * 100).toFixed(1)}%</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
+        <p className="text-[10px] mt-3" style={{ color: MUTED }}>{fairness._nota}</p>
+      </div>
+
+      {/* Validación pendiente — hoja de ruta para producción */}
+      <div className="rounded-xl p-5" style={{ background: PANEL, border: `1px solid ${LINE}` }}>
+        <h3 className="text-sm font-bold mb-1" style={{ color: BONE }}>Validación pendiente para producción</h3>
+        <p className="text-[11px] mb-3" style={{ color: MUTED }}>
+          Requisitos que faltan antes de que este modelo pueda usarse sobre datos reales y aprobarse por una validación independiente.
+        </p>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+          {gov.gobernanza.validacion_pendiente.map((v, i) => {
+            const st = v.estado;
+            const c = st === "en curso" ? "#7AA2FF" : st === "parcial" ? "#F59E0B" : "#EF4444";
+            const icon = st === "en curso" ? "◐" : st === "parcial" ? "◑" : "○";
+            return (
+              <div key={i} className="flex items-start gap-2 rounded-lg p-2.5" style={{ background: CARD, border: `1px solid ${LINE}` }}>
+                <span style={{ color: c, fontSize: 14, lineHeight: 1.2 }}>{icon}</span>
+                <div>
+                  <p className="text-[11px]" style={{ color: BONE }}>{v.item}</p>
+                  <span className="text-[9px] uppercase tracking-wide" style={{ color: c }}>{st}</span>
+                </div>
+              </div>
+            );
+          })}
         </div>
       </div>
 

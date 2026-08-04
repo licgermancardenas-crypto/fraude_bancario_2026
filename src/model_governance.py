@@ -61,10 +61,22 @@ def build(config_path="config/config.yaml"):
     ]
 
     cond = temporal["conditions"]
+    tinfo = temporal.get("temporal_info", {})
+    n_late = tinfo.get("n_late_fraud", 0)
     robustez = {
         "transductivo": round(cond["random_transductive"]["pr_auc"], 4),
         "inductivo": round(cond["random_inductive"]["pr_auc"], 4),
         "temporal": round(cond["temporal"]["pr_auc"], 4),
+        "n_early_fraud": tinfo.get("n_early_fraud"),
+        "n_late_fraud": n_late,
+        # El split temporal es estadísticamente débil: casi todo el fraude cae en
+        # el período de entrenamiento. Se DECLARA, no se esconde.
+        "temporal_confiable": n_late >= 30,
+        "advertencia_temporal": (
+            f"El período de test tiene sólo {n_late} caso(s) de fraude: el PR-AUC "
+            "temporal NO es estadísticamente significativo. Requiere un dataset con "
+            "fraude distribuido en el tiempo antes de reportarse como métrica operativa."
+        ) if n_late < 30 else None,
     }
 
     # ── serie de monitoreo mensual (SIMULADA, determinística) ─────────────────
@@ -149,7 +161,28 @@ def build(config_path="config/config.yaml"):
                 "Umbral operativo fijado en precisión ≥ 0.90 (revisable por el Comité de Modelos).",
                 "Champion/Challenger permanente: GAT y XGBoost corren en sombra.",
             ],
+            "validacion_pendiente": [
+                {"item": "Validación con datos reales y etiquetas de ROS confirmados", "estado": "pendiente"},
+                {"item": "Split out-of-time con eventos de fraude suficientes en cada ventana", "estado": "pendiente"},
+                {"item": "Testing de umbrales above/below-the-line (ATL/BTL) documentado", "estado": "pendiente"},
+                {"item": "Medición del punto operativo real (tasa de FP de producción)", "estado": "pendiente"},
+                {"item": "Explicabilidad fiel al modelo por alerta (GNNExplainer por caso)", "estado": "parcial"},
+                {"item": "Test de equidad sobre atributos sensibles", "estado": "en curso"},
+                {"item": "Mapeo a la Evaluación de Riesgos (EWRA) del banco", "estado": "pendiente"},
+                {"item": "Validación independiente de 2ª línea y revisión de Auditoría Interna", "estado": "pendiente"},
+            ],
+            "nota_falsos_positivos": (
+                "Las métricas se computan sobre un dataset SINTÉTICO con etiquetas perfectas. "
+                "Un sistema de monitoreo transaccional real opera con tasas de falsos positivos "
+                "del 90–98%: la precisión de 0.90 mostrada NO es representativa de producción y "
+                "debe re-medirse con datos y etiquetas reales."
+            ),
         },
+        "disclaimer": (
+            "PRUEBA DE CONCEPTO sobre datos 100% sintéticos. No validado para uso en producción "
+            "ni aprobado por ninguna autoridad. Las métricas de performance reflejan el dataset "
+            "sintético y no constituyen garantía de resultados sobre datos reales."
+        ),
         "impacto_programa": {
             "monto_ilicito_rastreado": round(ot.get("total_amount_laundered",
                                               bi.get("total_fraud_amount", 0)), 2),

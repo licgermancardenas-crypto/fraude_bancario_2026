@@ -5,6 +5,7 @@ import Link from "next/link";
 import PageHeader from "@/components/PageHeader";
 import PatternDonut from "@/components/PatternDonut";
 import AlertsAreaChart from "@/components/AlertsAreaChart";
+import SyntheticDisclaimer from "@/components/SyntheticDisclaimer";
 import type { Case, CaseStatus } from "@/lib/types";
 import { computeTriage } from "@/lib/triage";
 import { daysUntil, RESOLVED_STATUSES } from "@/lib/dates";
@@ -41,8 +42,8 @@ export default function DireccionPage() {
   const monthData = cases.length ? casesByMonth(cases) : [];
 
   const hero = [
-    { label: "Fondos ilícitos identificados", value: moneyM(imp.monto_ilicito_rastreado), color: "#7AA2FF", sub: "rastreados en la red" },
-    { label: "Tasa de detección", value: `${Math.round(imp.tasa_deteccion * 100)}%`, color: "#22C55E", sub: "del fraude, a precisión 90%" },
+    { label: "Fondos ilícitos identificados", value: moneyM(imp.monto_ilicito_rastreado), color: "#7AA2FF", sub: "rastreados en la red sintética" },
+    { label: "Tasa de detección", value: `${Math.round(imp.tasa_deteccion * 100)}%`, color: "#22C55E", sub: "del fraude etiquetado (a validar con datos reales)" },
     { label: "Perpetradores de origen", value: imp.perpetradores_origen.toLocaleString("es-AR"), color: "#F59E0B", sub: "cuentas inyectoras rastreadas" },
     { label: "Casos críticos abiertos", value: String(criticos), color: "#EF4444", sub: "prioridad ≥ 80/100" },
     { label: "Cumplimiento SLA ROS", value: `${slaComp}%`, color: slaComp >= 90 ? "#22C55E" : slaComp >= 75 ? "#F59E0B" : "#EF4444", sub: `${overdue} reporte(s) vencido(s)` },
@@ -62,6 +63,8 @@ export default function DireccionPage() {
         title="Panel Ejecutivo — Programa de Prevención de Lavado"
         description="Vista consolidada para el Comité de Dirección: impacto del programa, postura de riesgo y cumplimiento regulatorio. Datos del período sobre el portfolio de BRS."
       />
+
+      <SyntheticDisclaimer />
 
       {/* Hero KPIs */}
       <div className="grid grid-cols-2 lg:grid-cols-5 gap-3">

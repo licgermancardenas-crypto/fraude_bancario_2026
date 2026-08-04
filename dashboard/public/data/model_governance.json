@@ -71,7 +71,11 @@
   "robustez_evaluacion": {
     "transductivo": 0.9783,
     "inductivo": 0.8985,
-    "temporal": 0.9711
+    "temporal": 0.9711,
+    "n_early_fraud": 2139,
+    "n_late_fraud": 1,
+    "temporal_confiable": false,
+    "advertencia_temporal": "El período de test tiene sólo 1 caso(s) de fraude: el PR-AUC temporal NO es estadísticamente significativo. Requiere un dataset con fraude distribuido en el tiempo antes de reportarse como métrica operativa."
   },
   "monitoreo_mensual": [
     {
@@ -215,8 +219,44 @@
       "Alerta de drift si PSI > 0.25 en features clave o caída de PR-AUC > 0.05.",
       "Umbral operativo fijado en precisión ≥ 0.90 (revisable por el Comité de Modelos).",
       "Champion/Challenger permanente: GAT y XGBoost corren en sombra."
-    ]
+    ],
+    "validacion_pendiente": [
+      {
+        "item": "Validación con datos reales y etiquetas de ROS confirmados",
+        "estado": "pendiente"
+      },
+      {
+        "item": "Split out-of-time con eventos de fraude suficientes en cada ventana",
+        "estado": "pendiente"
+      },
+      {
+        "item": "Testing de umbrales above/below-the-line (ATL/BTL) documentado",
+        "estado": "pendiente"
+      },
+      {
+        "item": "Medición del punto operativo real (tasa de FP de producción)",
+        "estado": "pendiente"
+      },
+      {
+        "item": "Explicabilidad fiel al modelo por alerta (GNNExplainer por caso)",
+        "estado": "parcial"
+      },
+      {
+        "item": "Test de equidad sobre atributos sensibles",
+        "estado": "en curso"
+      },
+      {
+        "item": "Mapeo a la Evaluación de Riesgos (EWRA) del banco",
+        "estado": "pendiente"
+      },
+      {
+        "item": "Validación independiente de 2ª línea y revisión de Auditoría Interna",
+        "estado": "pendiente"
+      }
+    ],
+    "nota_falsos_positivos": "Las métricas se computan sobre un dataset SINTÉTICO con etiquetas perfectas. Un sistema de monitoreo transaccional real opera con tasas de falsos positivos del 90–98%: la precisión de 0.90 mostrada NO es representativa de producción y debe re-medirse con datos y etiquetas reales."
   },
+  "disclaimer": "PRUEBA DE CONCEPTO sobre datos 100% sintéticos. No validado para uso en producción ni aprobado por ninguna autoridad. Las métricas de performance reflejan el dataset sintético y no constituyen garantía de resultados sobre datos reales.",
   "impacto_programa": {
     "monto_ilicito_rastreado": 78849453.87,
     "perpetradores_origen": 392,
@@ -227,5 +267,5 @@
     "tasa_deteccion": 0.9688
   },
   "_nota": "Métricas de modelo REALES (results_all.json / temporal_eval.json). La serie mensual de monitoreo y el PSI por feature son una SIMULACIÓN ilustrativa del seguimiento continuo (el dataset es sintético y estático).",
-  "generado": "2026-08-02"
+  "generado": "2026-08-04"
 }

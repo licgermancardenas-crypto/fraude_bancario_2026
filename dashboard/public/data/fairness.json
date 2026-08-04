@@ -1,0 +1,127 @@
+{
+  "threshold": 0.834,
+  "n_evaluadas": 75000,
+  "attributes": [
+    {
+      "name": "Género",
+      "attr": "genero",
+      "grupos": [
+        {
+          "grupo": "F",
+          "n": 37101,
+          "flagged_rate": 0.03,
+          "mean_score": 0.0353,
+          "disparate_impact": 1.0
+        },
+        {
+          "grupo": "M",
+          "n": 37899,
+          "flagged_rate": 0.03,
+          "mean_score": 0.0353,
+          "disparate_impact": 1.0
+        }
+      ],
+      "min_ratio": 1.0,
+      "four_fifths_ok": true,
+      "overall_flagged_rate": 0.03
+    },
+    {
+      "name": "Grupo etario",
+      "attr": "grupo_etario",
+      "grupos": [
+        {
+          "grupo": "60+",
+          "n": 14604,
+          "flagged_rate": 0.031,
+          "mean_score": 0.0364,
+          "disparate_impact": 1.0
+        },
+        {
+          "grupo": "18–30",
+          "n": 12915,
+          "flagged_rate": 0.03,
+          "mean_score": 0.0362,
+          "disparate_impact": 0.968
+        },
+        {
+          "grupo": "46–60",
+          "n": 23618,
+          "flagged_rate": 0.0299,
+          "mean_score": 0.0347,
+          "disparate_impact": 0.965
+        },
+        {
+          "grupo": "31–45",
+          "n": 23863,
+          "flagged_rate": 0.0295,
+          "mean_score": 0.0346,
+          "disparate_impact": 0.952
+        }
+      ],
+      "min_ratio": 0.952,
+      "four_fifths_ok": true,
+      "overall_flagged_rate": 0.03
+    },
+    {
+      "name": "Región",
+      "attr": "region",
+      "grupos": [
+        {
+          "grupo": "NEA",
+          "n": 2292,
+          "flagged_rate": 0.0332,
+          "mean_score": 0.0374,
+          "disparate_impact": 1.0
+        },
+        {
+          "grupo": "Patagonia",
+          "n": 6004,
+          "flagged_rate": 0.0326,
+          "mean_score": 0.0379,
+          "disparate_impact": 0.982
+        },
+        {
+          "grupo": "NOA",
+          "n": 9047,
+          "flagged_rate": 0.0322,
+          "mean_score": 0.0372,
+          "disparate_impact": 0.97
+        },
+        {
+          "grupo": "Cuyo",
+          "n": 5238,
+          "flagged_rate": 0.0319,
+          "mean_score": 0.0366,
+          "disparate_impact": 0.961
+        },
+        {
+          "grupo": "Litoral",
+          "n": 5330,
+          "flagged_rate": 0.0313,
+          "mean_score": 0.0373,
+          "disparate_impact": 0.943
+        },
+        {
+          "grupo": "Otra",
+          "n": 5996,
+          "flagged_rate": 0.0305,
+          "mean_score": 0.037,
+          "disparate_impact": 0.919
+        },
+        {
+          "grupo": "Centro",
+          "n": 41093,
+          "flagged_rate": 0.0285,
+          "mean_score": 0.0337,
+          "disparate_impact": 0.858
+        }
+      ],
+      "min_ratio": 0.858,
+      "four_fifths_ok": true,
+      "overall_flagged_rate": 0.03
+    }
+  ],
+  "four_fifths_ok_global": true,
+  "veredicto": "Sin impacto dispar detectado: todos los grupos cumplen la regla de los 4/5.",
+  "_nota": "Equidad medida sobre datos sintéticos (atributos no usados para generar el fraude). Demuestra el control; sobre datos reales la evaluación es obligatoria y debe incluir proxies indirectos."
+}
