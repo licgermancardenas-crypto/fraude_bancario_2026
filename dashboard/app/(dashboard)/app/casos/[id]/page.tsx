@@ -527,7 +527,12 @@ export default function CaseDetailPage() {
 
           {/* Entity info */}
           <div className="bg-[#0E1219] rounded-xl border border-[#1E2430] p-4 space-y-3">
-            <h3 className="text-sm font-bold text-[#EDEAE6]">Información del titular</h3>
+            <div className="flex items-center justify-between">
+              <h3 className="text-sm font-bold text-[#EDEAE6]">Información del titular</h3>
+              <Link href={`/app/clientes/${caseData.account_id}`} className="text-[11px] font-medium" style={{ color: "#7AA2FF" }}>
+                Ver legajo del cliente →
+              </Link>
+            </div>
             <div className="space-y-2 text-sm">
               {[
                 { label: "CUIL",       val: caseData.persona?.cuil },

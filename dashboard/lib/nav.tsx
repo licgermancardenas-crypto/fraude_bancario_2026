@@ -71,6 +71,14 @@ export function ShieldIcon() {
   );
 }
 
+export function UserFileIcon() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round">
+      <circle cx="12" cy="8" r="3.2" /><path d="M5.5 20a6.5 6.5 0 0113 0" />
+    </svg>
+  );
+}
+
 export function BriefcaseIcon() {
   return (
     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round">
@@ -100,6 +108,7 @@ export const navGroups: { label: string; items: NavItem[] }[] = [
     label: "Compliance",
     items: [
       { href: "/app/casos",      label: "Casos",      Icon: CasesIcon },
+      { href: "/app/clientes",   label: "Legajos",    Icon: UserFileIcon },
       { href: "/app/entidades",  label: "Entidades",  Icon: EntitiesIcon },
     ],
   },
