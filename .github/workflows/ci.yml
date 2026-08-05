@@ -16,7 +16,7 @@ jobs:
         with:
           python-version: "3.13"
       - name: Instalar dependencias
-        run: pip install pandas numpy scikit-learn pyyaml pytest
+        run: pip install pandas numpy scikit-learn networkx pyyaml pytest
       - name: Correr tests
         run: python -m pytest tests/ -q
 
