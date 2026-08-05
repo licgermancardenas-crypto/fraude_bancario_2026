@@ -1,14 +1,21 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, Fragment } from "react";
 import PageHeader from "@/components/PageHeader";
 
 const PANEL = "#0E1219", LINE = "#1E2430", BONE = "#EDEAE6", MUTED = "#5A6478";
 
 interface Txn {
   id: string; ts: number; src: string; dst: string; src_name: string; dst_name: string;
-  src_type: string; dst_type: string; amount: number; tipo: string; canal: string; concepto: string; moneda: string; is_fraud: number;
+  src_type: string; dst_type: string; amount: number; tipo: string; canal: string; canal_codigo: string;
+  cbu_dst: string; alias_dst: string; mcc: string; rubro: string; glosa: string; concepto: string;
+  estado: string; comision: number; impuesto: number; moneda: string; referencia: string; is_fraud: number;
 }
+const ESTADO_STYLE: Record<string, { bg: string; text: string }> = {
+  liquidada: { bg: "rgba(34,197,94,0.15)", text: "#22C55E" },
+  pendiente: { bg: "rgba(245,158,11,0.15)", text: "#F59E0B" },
+  reversada: { bg: "rgba(239,68,68,0.15)", text: "#EF4444" },
+};
 
 const fdt = (ts: number) => new Date(ts * 1000).toLocaleString("es-AR", { day: "2-digit", month: "2-digit", year: "2-digit", hour: "2-digit", minute: "2-digit" });
 const money = (n: number) => "$ " + n.toLocaleString("es-AR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -26,6 +33,7 @@ export default function TransaccionesPage() {
   const [fraudOnly, setFraudOnly] = useState(false);
   const [sort, setSort] = useState<{ col: SortCol; dir: 1 | -1 }>({ col: "ts", dir: -1 });
   const [page, setPage] = useState(0);
+  const [expanded, setExpanded] = useState<string | null>(null);
 
   useEffect(() => {
     fetch("/data/transactions_sample.json").then(r => r.json()).then(setTxns);
@@ -61,8 +69,8 @@ export default function TransaccionesPage() {
   const totalAmount = useMemo(() => filtered.reduce((a, t) => a + t.amount, 0), [filtered]);
 
   const exportCsv = () => {
-    const head = ["id", "fecha", "origen", "origen_nombre", "destino", "destino_nombre", "tipo", "canal", "concepto", "monto", "moneda", "fraude"];
-    const lines = filtered.map(t => [t.id, new Date(t.ts * 1000).toISOString(), t.src, t.src_name, t.dst, t.dst_name, t.tipo, t.canal, t.concepto, t.amount, t.moneda, t.is_fraud]
+    const head = ["id", "fecha", "origen", "origen_nombre", "destino", "destino_nombre", "tipo", "canal", "canal_codigo", "cbu_destino", "mcc", "rubro", "glosa", "estado", "comision", "impuesto", "monto", "moneda", "referencia", "fraude"];
+    const lines = filtered.map(t => [t.id, new Date(t.ts * 1000).toISOString(), t.src, t.src_name, t.dst, t.dst_name, t.tipo, t.canal, t.canal_codigo, t.cbu_dst, t.mcc, t.rubro, t.glosa, t.estado, t.comision, t.impuesto, t.amount, t.moneda, t.referencia, t.is_fraud]
       .map(v => `"${String(v).replace(/"/g, '""')}"`).join(","));
     const blob = new Blob([[head.join(","), ...lines].join("\n")], { type: "text/csv;charset=utf-8" });
     const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = "transacciones.csv"; a.click(); URL.revokeObjectURL(a.href);
@@ -120,15 +128,19 @@ export default function TransaccionesPage() {
             <thead>
               <tr style={{ background: "#12161F", borderBottom: `1px solid ${LINE}` }}>
                 <th onClick={sortBtn("ts")} className="px-3 py-2.5 text-left text-[10px] font-semibold uppercase tracking-wider cursor-pointer whitespace-nowrap" style={{ color: MUTED }}>Fecha{arrow("ts")}</th>
-                {["Origen", "Destino", "Tipo", "Canal", "Concepto"].map(h => (
+                {["Origen", "Destino", "Tipo", "Canal", "Concepto", "Estado"].map(h => (
                   <th key={h} className="px-3 py-2.5 text-left text-[10px] font-semibold uppercase tracking-wider" style={{ color: MUTED }}>{h}</th>
                 ))}
                 <th onClick={sortBtn("amount")} className="px-3 py-2.5 text-right text-[10px] font-semibold uppercase tracking-wider cursor-pointer whitespace-nowrap" style={{ color: MUTED }}>Monto{arrow("amount")}</th>
               </tr>
             </thead>
             <tbody>
-              {pageRows.map((t, i) => (
-                <tr key={t.id} className={t.is_fraud ? "bg-[#EF4444]/8" : ""} style={{ borderBottom: i < pageRows.length - 1 ? `1px solid ${LINE}` : undefined }}>
+              {pageRows.map((t, i) => {
+                const est = ESTADO_STYLE[t.estado] ?? ESTADO_STYLE.liquidada;
+                const open = expanded === t.id;
+                return (
+                <Fragment key={t.id}>
+                <tr onClick={() => setExpanded(open ? null : t.id)} className={(t.is_fraud ? "bg-[#EF4444]/8 " : "") + "cursor-pointer hover:bg-[#12161F]"} style={{ borderBottom: `1px solid ${LINE}` }}>
                   <td className="px-3 py-2 text-[11px] whitespace-nowrap" style={{ color: "#8A93A6" }}>{fdt(t.ts)}</td>
                   <td className="px-3 py-2">
                     <p className="text-xs" style={{ color: BONE }}>{t.src_name || t.src}</p>
@@ -141,11 +153,31 @@ export default function TransaccionesPage() {
                   <td className="px-3 py-2 text-[11px]" style={{ color: MUTED }}>{t.tipo}</td>
                   <td className="px-3 py-2 text-[11px] whitespace-nowrap" style={{ color: MUTED }}>{t.canal}</td>
                   <td className="px-3 py-2 text-[11px] whitespace-nowrap" style={{ color: MUTED }}>{t.concepto}</td>
+                  <td className="px-3 py-2"><span className="rounded-full px-2 py-0.5 text-[10px] font-semibold" style={{ background: est.bg, color: est.text }}>{t.estado}</span></td>
                   <td className="px-3 py-2 text-right text-xs font-semibold whitespace-nowrap" style={{ color: t.is_fraud ? "#F87171" : BONE }}>{money(t.amount)}</td>
                 </tr>
-              ))}
+                {open && (
+                  <tr style={{ borderBottom: `1px solid ${LINE}`, background: "#07090F" }}>
+                    <td colSpan={8} className="px-4 py-3">
+                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-x-6 gap-y-2 text-xs">
+                        {[
+                          ["ID transacción", t.id], ["Referencia", t.referencia], ["Canal", `${t.canal} (${t.canal_codigo})`], ["Moneda", t.moneda],
+                          ["CBU destino", t.cbu_dst], ["Alias destino", t.alias_dst || "—"], ["MCC / rubro", t.mcc ? `${t.mcc} — ${t.rubro}` : "—"], ["Glosa", t.glosa],
+                          ["Comisión", money(t.comision)], ["Impuesto Ley 25.413", money(t.impuesto)], ["Estado", t.estado], ["Marca", t.is_fraud ? "🔴 Fraudulenta" : "Normal"],
+                        ].map(([k, v]) => (
+                          <div key={k as string}>
+                            <div className="text-[9px] uppercase tracking-wide" style={{ color: MUTED }}>{k}</div>
+                            <div className="font-mono" style={{ color: BONE, fontSize: 11 }}>{v as string}</div>
+                          </div>
+                        ))}
+                      </div>
+                    </td>
+                  </tr>
+                )}
+                </Fragment>
+              );})}
               {filtered.length === 0 && (
-                <tr><td colSpan={7} className="px-3 py-10 text-center text-sm" style={{ color: MUTED }}>Sin transacciones para los filtros aplicados.</td></tr>
+                <tr><td colSpan={8} className="px-3 py-10 text-center text-sm" style={{ color: MUTED }}>Sin transacciones para los filtros aplicados.</td></tr>
               )}
             </tbody>
           </table>

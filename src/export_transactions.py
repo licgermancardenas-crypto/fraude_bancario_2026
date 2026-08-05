@@ -1,18 +1,16 @@
 """
 Genera dashboard/public/data/transactions_sample.json — una muestra de
-transacciones enriquecida para el Transaction Explorer (tabla con filtros
-avanzados y exportación). Incluye todas/la mayoría de las transacciones
-fraudulentas más una muestra de legítimas, con nombres de contraparte, canal,
-concepto, tipos de cuenta y moneda.
+transacciones para el Transaction Explorer. Los campos transaccionales (canal,
+CBU, MCC/rubro, glosa, estado, comisión, impuesto, referencia) provienen del
+DATASET (enriquecido en src/generate.py), no se sintetizan al exportar.
 
 Es una MUESTRA (no las 544K) para que el explorador sea navegable en el browser.
 """
 import json
-import random
 
 import pandas as pd
 
-from src.export_dashboard import _txn_meta, load_config
+from src.export_dashboard import load_config
 
 TIPO_MAP = {"transfer": "Transferencia", "payment": "Pago", "withdrawal": "Extracción"}
 
@@ -30,13 +28,15 @@ def build(config_path="config/config.yaml"):
 
     fraud = txn[txn.is_fraud == 1]
     legit = txn[txn.is_fraud == 0]
-    fr = fraud.sample(min(2500, len(fraud)), random_state=42)
-    lg = legit.sample(min(1500, len(legit)), random_state=42)
+    fr = fraud.sample(min(1600, len(fraud)), random_state=42)
+    lg = legit.sample(min(1000, len(legit)), random_state=42)
     sample = pd.concat([fr, lg]).sort_values("timestamp", ascending=False)
+
+    def s(v, default=""):
+        return default if pd.isna(v) else v
 
     rows = []
     for t in sample.itertuples():
-        meta = _txn_meta(t.src, t.dst, t.amount, atype.get(t.dst))
         rows.append({
             "id": t.transaction_id,
             "ts": int(t.timestamp),
@@ -45,7 +45,19 @@ def build(config_path="config/config.yaml"):
             "src_type": atype.get(t.src, ""), "dst_type": atype.get(t.dst, ""),
             "amount": round(float(t.amount), 2),
             "tipo": TIPO_MAP.get(t.transaction_type, t.transaction_type),
-            "canal": meta["canal"], "concepto": meta["concepto"], "moneda": "ARS",
+            "canal": s(getattr(t, "canal", "")),
+            "canal_codigo": s(getattr(t, "canal_codigo", "")),
+            "cbu_dst": str(s(getattr(t, "cbu_dst", ""))),
+            "alias_dst": s(getattr(t, "alias_dst", "")),
+            "mcc": str(s(getattr(t, "mcc", ""))),
+            "rubro": s(getattr(t, "rubro", "")),
+            "glosa": s(getattr(t, "glosa", "")),
+            "concepto": s(getattr(t, "glosa", "")),
+            "estado": s(getattr(t, "estado", "liquidada")),
+            "comision": round(float(s(getattr(t, "comision", 0), 0)), 2),
+            "impuesto": round(float(s(getattr(t, "impuesto", 0), 0)), 2),
+            "moneda": s(getattr(t, "moneda", "ARS"), "ARS"),
+            "referencia": s(getattr(t, "referencia", "")),
             "is_fraud": int(t.is_fraud),
         })
 

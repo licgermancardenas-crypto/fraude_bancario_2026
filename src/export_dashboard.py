@@ -439,10 +439,15 @@ def export_cases(acc, txn, data, scores_all, cfg, out_dir, n_cases=80):
                 "rule_score": rules_engine.score_from_ids(ids, cfg)}
 
     # transaction graph for neighbor lookups
+    _has_meta = "canal" in txn.columns
     G = nx.DiGraph()
     for _, row in txn.iterrows():
         G.add_edge(row.src, row.dst, amount=float(row.amount),
-                   timestamp=int(row.timestamp), is_fraud=int(row.is_fraud))
+                   timestamp=int(row.timestamp), is_fraud=int(row.is_fraud),
+                   canal=(row.canal if _has_meta else None),
+                   glosa=(row.glosa if _has_meta else None),
+                   estado=(row.estado if _has_meta else None),
+                   moneda=(row.moneda if _has_meta else "ARS"))
 
     # candidate accounts: all fraud + top scored legit (high-risk alerts)
     fraud_ids = set(acc.loc[acc.is_fraud == 1, "account_id"])
@@ -550,6 +555,15 @@ def export_cases(acc, txn, data, scores_all, cfg, out_dir, n_cases=80):
     def _dst_type(dst):
         return acc_idx.loc[dst, "account_type"] if dst in acc_idx.index else None
 
+    def _edge_meta(d):
+        """Campos transaccionales reales tomados de la arista (dataset enriquecido)."""
+        return {
+            "canal": d.get("canal") or "",
+            "concepto": d.get("glosa") or "",
+            "moneda": d.get("moneda") or "ARS",
+            "estado": d.get("estado") or "liquidada",
+        }
+
     def _recent_txns(acc_id, top_k=10):
         rows = []
         for src, dst, d in list(G.in_edges(acc_id, data=True)) + list(G.out_edges(acc_id, data=True)):
@@ -557,7 +571,7 @@ def export_cases(acc, txn, data, scores_all, cfg, out_dir, n_cases=80):
             row = {"src": src, "dst": dst, "amount": round(d["amount"], 2),
                    "timestamp": d["timestamp"], "direction": direction,
                    "is_fraud": d["is_fraud"]}
-            row.update(_txn_meta(src, dst, d["amount"], _dst_type(dst)))
+            row.update(_edge_meta(d))
             rows.append(row)
         rows.sort(key=lambda x: x["timestamp"], reverse=True)
         return rows[:top_k]
@@ -585,8 +599,7 @@ def export_cases(acc, txn, data, scores_all, cfg, out_dir, n_cases=80):
             "timestamp": int(d["timestamp"]),
             "is_fraud_edge": int(d["is_fraud"]),
         }
-        hop.update(_txn_meta(src, dst, d["amount"],
-                             acc_idx.loc[dst, "account_type"] if dst in acc_idx.index else None))
+        hop.update(_edge_meta(d))
         return hop
 
     def _traceability(acc_id, max_depth=6):

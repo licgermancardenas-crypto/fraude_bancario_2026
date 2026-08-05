@@ -670,6 +670,104 @@ def embed_legitimate_economy(
 
 # ── main ─────────────────────────────────────────────────────────────────────
 
+# ── enriquecimiento transaccional (metadata realista) ────────────────────────
+_CANAL_COD = {
+    "Transferencia inmediata (CBU)": "TRA-CBU", "Transferencia (CVU/alias)": "TRA-CVU",
+    "Home Banking": "HB", "DEBIN": "DEBIN",
+    "Pago con tarjeta de débito (POS)": "POS", "Pago electrónico (VEP)": "VEP",
+    "Débito automático": "DEB-AUT", "Billetera virtual (QR)": "QR",
+    "Cajero automático (ATM)": "ATM", "Ventanilla / caja": "CAJA", "Extracción en comercio": "EXT-COM",
+}
+_MCC_MERCHANT = [("5411", "Supermercados y almacenes"), ("5812", "Restaurantes y bares"),
+                 ("5912", "Farmacias"), ("5541", "Estaciones de servicio"),
+                 ("5651", "Indumentaria y calzado"), ("5732", "Electrónica y tecnología"),
+                 ("5999", "Comercio minorista varios"), ("5814", "Comidas rápidas")]
+_MCC_BUSINESS = [("7372", "Servicios informáticos"), ("8931", "Servicios contables"),
+                 ("1520", "Construcción"), ("4214", "Transporte de cargas"),
+                 ("5122", "Distribución mayorista"), ("6513", "Alquiler inmobiliario")]
+
+
+def enrich_transactions(txns_df: pd.DataFrame, accounts: pd.DataFrame, seed: int = 42) -> pd.DataFrame:
+    """
+    Añade campos transaccionales realistas (canal, código, CBU/alias del destino,
+    MCC/rubro, glosa, estado, comisión, impuesto Ley 25.413, moneda, referencia).
+
+    Es METADATA de presentación: NO altera src/dst/amount/timestamp/transaction_type/
+    is_fraud, así que el grafo y el modelo quedan idénticos. Determinístico (rng propio).
+    """
+    rng = np.random.default_rng(seed + 777)
+    n = len(txns_df)
+    at = accounts.set_index("account_id")["account_type"]
+    dst_type = txns_df["dst"].map(at).fillna("personal").to_numpy()
+    ttype = txns_df["transaction_type"].to_numpy()
+    amount = txns_df["amount"].to_numpy(dtype=float)
+    idx = txns_df.index
+
+    is_tr, is_pay, is_wd = ttype == "transfer", ttype == "payment", ttype == "withdrawal"
+
+    ch_tr = rng.choice(["Transferencia inmediata (CBU)", "Transferencia (CVU/alias)", "Home Banking", "DEBIN"], n, p=[.45, .25, .2, .1])
+    ch_pay = rng.choice(["Pago con tarjeta de débito (POS)", "Pago electrónico (VEP)", "Débito automático", "Billetera virtual (QR)"], n, p=[.4, .2, .25, .15])
+    ch_wd = rng.choice(["Cajero automático (ATM)", "Ventanilla / caja", "Extracción en comercio"], n, p=[.7, .2, .1])
+    canal = np.where(is_tr, ch_tr, np.where(is_pay, ch_pay, ch_wd))
+    canal_cod = pd.Series(canal, index=idx).map(_CANAL_COD).to_numpy()
+
+    # CBU estable por cuenta destino (22 dígitos) + alias para canal CVU
+    accs = accounts["account_id"].to_numpy()
+    digits = np.random.default_rng(seed + 888).integers(0, 10, size=(len(accs), 22))
+    cbu_map = {a: "".join(map(str, digits[i])) for i, a in enumerate(accs)}
+    cbu_dst = txns_df["dst"].map(cbu_map).to_numpy()
+    alias_dst = np.where(canal == "Transferencia (CVU/alias)",
+                         pd.Series(txns_df["dst"].to_numpy(), index=idx).map(lambda x: f"{x[-4:].lower()}.brs.ar").to_numpy(), "")
+
+    # MCC / rubro para pagos a comercios y empresas
+    mcc = np.array([""] * n, dtype=object); rubro = np.array([""] * n, dtype=object)
+    mask_m, mask_b = is_pay & (dst_type == "merchant"), is_pay & (dst_type == "business")
+    for mask, table in ((mask_m, _MCC_MERCHANT), (mask_b, _MCC_BUSINESS)):
+        k = int(mask.sum())
+        if k:
+            pick = rng.integers(0, len(table), k)
+            mcc[mask] = [table[i][0] for i in pick]
+            rubro[mask] = [table[i][1] for i in pick]
+
+    # glosa (orden: cada regla posterior pisa a la anterior)
+    g = pd.Series("Transferencia entre cuentas", index=idx)
+    g[dst_type == "business"] = "Transferencia a proveedor"
+    g[dst_type == "merchant"] = "Pago a comercio"
+    g[is_pay] = "Pago de servicios"
+    g[mask_m | mask_b] = "Pago - " + pd.Series(rubro, index=idx)[mask_m | mask_b]
+    g[is_wd] = "Extracción de efectivo"
+
+    estado = rng.choice(["liquidada", "pendiente", "reversada"], n, p=[.965, .025, .01])
+
+    comision = np.zeros(n)
+    m_atm = canal == "Cajero automático (ATM)"
+    k = int(m_atm.sum())
+    if k:
+        comision[m_atm] = np.round(rng.uniform(80, 420, k) * (rng.random(k) < 0.35), 2)
+
+    # impuesto a débitos y créditos (Ley 25.413, 0,6%) — aplica a parte de la operatoria
+    impuesto = np.zeros(n)
+    m_imp = (is_tr | is_pay) & (rng.random(n) < 0.5)
+    impuesto[m_imp] = np.round(amount[m_imp] * 0.006, 2)
+
+    referencia = [f"REF-{r}" for r in rng.integers(10_000_000, 99_999_999, n)]
+
+    out = txns_df.copy()
+    out["canal"] = canal
+    out["canal_codigo"] = canal_cod
+    out["cbu_dst"] = cbu_dst
+    out["alias_dst"] = alias_dst
+    out["mcc"] = mcc
+    out["rubro"] = rubro
+    out["glosa"] = g.to_numpy()
+    out["estado"] = estado
+    out["comision"] = comision
+    out["impuesto"] = impuesto
+    out["moneda"] = "ARS"
+    out["referencia"] = referencia
+    return out
+
+
 def generate(scale: float, output_dir: str, seed: int = 42, time_window_days: int = 365):
     set_seed(seed)
     rng = np.random.default_rng(seed)
@@ -749,6 +847,9 @@ def generate(scale: float, output_dir: str, seed: int = 42, time_window_days: in
     # 5. Assemble transactions
     all_txns = legit_txns + econ_txns + fraud_txns
     txns_df = pd.DataFrame(all_txns).sort_values("timestamp").reset_index(drop=True)
+
+    # 5b. Enriquecimiento transaccional (metadata realista; no toca la estructura)
+    txns_df = enrich_transactions(txns_df, accounts, seed=seed)
 
     # 6. Save
     acc_path  = Path(output_dir) / "accounts.csv"
