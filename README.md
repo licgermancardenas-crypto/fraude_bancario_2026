@@ -1,5 +1,6 @@
 # Phantom AI — Detección de Redes de Lavado mediante Inteligencia de Grafos
 
+![CI](https://github.com/licgermancardenas-crypto/fraude_bancario_2026/actions/workflows/ci.yml/badge.svg)
 ![Python](https://img.shields.io/badge/Python-3.13-blue?logo=python&logoColor=white)
 ![PyTorch](https://img.shields.io/badge/PyTorch-2.x-EE4C2C?logo=pytorch&logoColor=white)
 ![PyG](https://img.shields.io/badge/PyTorch_Geometric-2.x-orange)
