@@ -71,6 +71,14 @@ export function ShieldIcon() {
   );
 }
 
+export function BellIcon() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round">
+      <path d="M18 8a6 6 0 00-12 0c0 7-3 9-3 9h18s-3-2-3-9" /><path d="M13.7 21a2 2 0 01-3.4 0" />
+    </svg>
+  );
+}
+
 export function UserFileIcon() {
   return (
     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round">
@@ -108,6 +116,7 @@ export const navGroups: { label: string; items: NavItem[] }[] = [
   {
     label: "Compliance",
     items: [
+      { href: "/app/alertas",    label: "Alertas",    Icon: BellIcon },
       { href: "/app/casos",      label: "Casos",      Icon: CasesIcon },
       { href: "/app/clientes",   label: "Legajos",    Icon: UserFileIcon },
       { href: "/app/entidades",  label: "Entidades",  Icon: EntitiesIcon },
