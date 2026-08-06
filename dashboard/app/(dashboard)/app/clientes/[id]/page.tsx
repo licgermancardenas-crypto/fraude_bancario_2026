@@ -5,6 +5,10 @@ import Link from "next/link";
 import { useParams } from "next/navigation";
 import { type KycProfile, RIESGO_STYLE, docEstadoColor } from "@/lib/cdd";
 import { PATTERN_LABELS } from "@/lib/patterns";
+import { getSession, setSessionRole, can, type Session, type Role } from "@/lib/session";
+import { appendAudit } from "@/lib/auditLog";
+import SessionSwitcher from "@/components/SessionSwitcher";
+import { type CddReview, DECISIONES, CHECKLIST, nextReviewDate, getReviewsFor, addReview } from "@/lib/cddReview";
 
 const PANEL = "#0E1219", LINE = "#1E2430", BONE = "#EDEAE6", MUTED = "#5A6478";
 const money = (n: number) => "$ " + Math.round(n).toLocaleString("es-AR");
@@ -37,12 +41,23 @@ export default function ClientePage() {
   const id = useParams().id as string;
   const [profiles, setProfiles] = useState<Record<string, KycProfile> | null>(null);
   const [txns, setTxns] = useState<Txn[]>([]);
+  const [session, setSession] = useState<Session>({ role: "analista", nombre: "" });
+  const [reviews, setReviews] = useState<CddReview[]>([]);
+  const [showReview, setShowReview] = useState(false);
+  const [decision, setDecision] = useState(DECISIONES[0]);
+  const [revNota, setRevNota] = useState("");
+  const [checks, setChecks] = useState<string[]>([]);
 
   useEffect(() => {
     fetch("/data/kyc_profiles.json").then(r => r.json()).then(setProfiles);
     fetch("/data/transactions_sample.json").then(r => r.json())
       .then((all: Txn[]) => setTxns(all.filter(t => t.src === id || t.dst === id).sort((a, b) => b.ts - a.ts).slice(0, 20)));
+    setSession(getSession());
+    setReviews(getReviewsFor(id));
   }, [id]);
+
+  const changeRole = (role: Role) => { setSessionRole(role); setSession(getSession()); };
+  const toggleCheck = (c: string) => setChecks(prev => prev.includes(c) ? prev.filter(x => x !== c) : [...prev, c]);
 
   if (!profiles) return <div className="flex items-center justify-center h-64 text-[#5A6478]">Cargando legajo…</div>;
   const p = profiles[id];
@@ -59,6 +74,24 @@ export default function ClientePage() {
   const cdd = p.cdd;
   const rs = RIESGO_STYLE[cdd.riesgo_nivel];
 
+  // Estado efectivo de revisión: si ya se realizó una, manda; si no, el del legajo.
+  const lastReview = reviews[0];
+  const effProxima = lastReview?.proxima_revision ?? cdd.proxima_revision;
+  const effUltima = lastReview ? lastReview.fecha.slice(0, 10) : cdd.ultima_revision;
+  const effVencida = lastReview ? false : cdd.revision_vencida;
+
+  const confirmReview = () => {
+    const review: CddReview = {
+      decision, nota: revNota.trim() || undefined, revisor: session.nombre,
+      fecha: new Date().toISOString(), proxima_revision: nextReviewDate(cdd.riesgo_nivel),
+      checklist: checks,
+    };
+    addReview(id, review);
+    setReviews(getReviewsFor(id));
+    appendAudit({ actor: session.nombre, role: session.role, action: "cdd.revision", target: id, detail: decision });
+    setShowReview(false); setChecks([]); setRevNota("");
+  };
+
   return (
     <div className="space-y-4">
       <div className="text-xs text-[#5A6478]">
@@ -74,13 +107,16 @@ export default function ClientePage() {
               DNI {per.dni} · CUIL {per.cuil} · {per.ocupacion} · {per.municipio}, {per.provincia}
             </p>
           </div>
-          <div className="flex flex-wrap gap-2 justify-end">
-            <span className="rounded-full px-3 py-1 text-xs font-bold" style={{ background: rs.bg, color: rs.text, border: `1px solid ${rs.text}66` }}>
-              Riesgo CDD: {cdd.riesgo_nivel}
-            </span>
-            {cdd.edd_requerida && <span className="rounded-full px-3 py-1 text-xs font-bold" style={{ background: "rgba(239,68,68,0.15)", color: "#EF4444", border: "1px solid rgba(239,68,68,0.4)" }}>EDD requerida</span>}
-            {cdd.revision_vencida && <span className="rounded-full px-3 py-1 text-xs font-bold" style={{ background: "rgba(245,158,11,0.15)", color: "#F59E0B", border: "1px solid rgba(245,158,11,0.4)" }}>Revisión vencida</span>}
-            {p.pep && <span className="rounded-full px-3 py-1 text-xs font-bold" style={{ background: "rgba(167,139,250,0.15)", color: "#A78BFA", border: "1px solid rgba(167,139,250,0.4)" }}>PEP</span>}
+          <div className="flex flex-col items-end gap-2">
+            <SessionSwitcher role={session.role} nombre={session.nombre} onChange={changeRole} />
+            <div className="flex flex-wrap gap-2 justify-end">
+              <span className="rounded-full px-3 py-1 text-xs font-bold" style={{ background: rs.bg, color: rs.text, border: `1px solid ${rs.text}66` }}>
+                Riesgo CDD: {cdd.riesgo_nivel}
+              </span>
+              {cdd.edd_requerida && <span className="rounded-full px-3 py-1 text-xs font-bold" style={{ background: "rgba(239,68,68,0.15)", color: "#EF4444", border: "1px solid rgba(239,68,68,0.4)" }}>EDD requerida</span>}
+              {effVencida && <span className="rounded-full px-3 py-1 text-xs font-bold" style={{ background: "rgba(245,158,11,0.15)", color: "#F59E0B", border: "1px solid rgba(245,158,11,0.4)" }}>Revisión vencida</span>}
+              {p.pep && <span className="rounded-full px-3 py-1 text-xs font-bold" style={{ background: "rgba(167,139,250,0.15)", color: "#A78BFA", border: "1px solid rgba(167,139,250,0.4)" }}>PEP</span>}
+            </div>
           </div>
         </div>
       </div>
@@ -106,23 +142,65 @@ export default function ClientePage() {
           )}
         </Card>
 
-        {/* Revisión periódica */}
-        <Card title="Revisión periódica (KYC continuo)">
+        {/* Revisión periódica (workflow) */}
+        <Card title="Revisión periódica (KYC continuo)"
+          right={can(session.role, "cdd.revisar") && !showReview && (
+            <button onClick={() => setShowReview(true)}
+              className="rounded-md px-2.5 py-1 text-[11px] font-semibold"
+              style={{ background: effVencida ? "rgba(245,158,11,0.15)" : "rgba(46,107,255,0.12)", color: effVencida ? "#F59E0B" : "#7AA2FF", border: `1px solid ${effVencida ? "rgba(245,158,11,0.4)" : "rgba(46,107,255,0.35)"}` }}>
+              {effVencida ? "⚠ Realizar revisión" : "Realizar revisión"}
+            </button>
+          )}>
           <div className="grid grid-cols-3 gap-3">
             <Field k="Alta del cliente" v={fdate(cdd.fecha_alta)} />
-            <Field k="Última revisión" v={fdate(cdd.ultima_revision)} />
+            <Field k="Última revisión" v={fdate(effUltima)} />
             <div>
               <div className="text-[10px] uppercase tracking-wide" style={{ color: MUTED }}>Próxima revisión</div>
-              <div className="text-xs font-semibold" style={{ color: cdd.revision_vencida ? "#EF4444" : "#22C55E" }}>
-                {fdate(cdd.proxima_revision)} {cdd.revision_vencida && "⚠"}
+              <div className="text-xs font-semibold" style={{ color: effVencida ? "#EF4444" : "#22C55E" }}>
+                {fdate(effProxima)} {effVencida && "⚠"}
               </div>
             </div>
           </div>
-          <p className="text-[11px] mt-3" style={{ color: MUTED }}>
-            {cdd.revision_vencida
-              ? "La revisión periódica está vencida — riesgo de incumplimiento de KYC continuo."
-              : `Cadencia según riesgo ${cdd.riesgo_nivel.toLowerCase()}: revisión ${cdd.riesgo_nivel === "Alto" ? "semestral" : cdd.riesgo_nivel === "Medio" ? "anual" : "bienal"}.`}
-          </p>
+
+          {showReview ? (
+            <div className="mt-3 rounded-lg border p-3 space-y-2" style={{ borderColor: LINE, background: "#0A0D14" }}>
+              <p className="text-xs font-semibold" style={{ color: BONE }}>Realizar revisión periódica — {session.nombre}</p>
+              <div className="space-y-1">
+                {CHECKLIST.map(c => (
+                  <label key={c} className="flex items-center gap-2 text-[11px] cursor-pointer" style={{ color: MUTED }}>
+                    <input type="checkbox" checked={checks.includes(c)} onChange={() => toggleCheck(c)} /> {c}
+                  </label>
+                ))}
+              </div>
+              <select value={decision} onChange={e => setDecision(e.target.value)}
+                className="w-full rounded-md border px-2 py-2 text-xs outline-none" style={{ borderColor: LINE, background: "#12161F", color: BONE }}>
+                {DECISIONES.map(d => <option key={d} value={d}>{d}</option>)}
+              </select>
+              <textarea value={revNota} onChange={e => setRevNota(e.target.value)} rows={2} placeholder="Nota de la revisión (opcional)…"
+                className="w-full rounded-md border px-2 py-2 text-xs outline-none placeholder:text-[#5A6478]" style={{ borderColor: LINE, background: "#12161F", color: BONE }} />
+              <div className="flex gap-2">
+                <button onClick={confirmReview} className="rounded-md px-3 py-2 text-xs font-semibold text-white" style={{ background: "#2E6BFF" }}>Confirmar revisión</button>
+                <button onClick={() => setShowReview(false)} className="rounded-md border px-3 py-2 text-xs" style={{ borderColor: LINE, color: MUTED }}>Cancelar</button>
+              </div>
+            </div>
+          ) : (
+            <p className="text-[11px] mt-3" style={{ color: MUTED }}>
+              {effVencida
+                ? "La revisión periódica está vencida — riesgo de incumplimiento de KYC continuo."
+                : `Cadencia según riesgo ${cdd.riesgo_nivel.toLowerCase()}: revisión ${cdd.riesgo_nivel === "Alto" ? "semestral" : cdd.riesgo_nivel === "Medio" ? "anual" : "bienal"}.`}
+            </p>
+          )}
+
+          {reviews.length > 0 && (
+            <div className="mt-3 pt-3 space-y-1.5" style={{ borderTop: `1px solid ${LINE}` }}>
+              <p className="text-[10px] uppercase tracking-wide" style={{ color: MUTED }}>Historial de revisiones</p>
+              {reviews.slice(0, 4).map((r, i) => (
+                <div key={i} className="text-[11px]" style={{ color: MUTED }}>
+                  <span style={{ color: BONE }}>{r.decision}</span> — {r.revisor} · {new Date(r.fecha).toLocaleDateString("es-AR")}
+                </div>
+              ))}
+            </div>
+          )}
         </Card>
 
         {/* Cuentas */}

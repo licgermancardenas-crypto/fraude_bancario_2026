@@ -39,11 +39,16 @@ export default function ClientesPage() {
 
   return (
     <div className="space-y-6">
-      <PageHeader
-        eyebrow="KYC / Debida Diligencia del Cliente"
-        title="Legajos de Clientes"
-        description="Cartera bajo debida diligencia (CDD): calificación de riesgo, estado de revisión periódica y disparadores de EDD. Cubre los clientes de mayor riesgo y una muestra de la cartera."
-      />
+      <div className="flex items-start justify-between gap-3 flex-wrap">
+        <PageHeader
+          eyebrow="KYC / Debida Diligencia del Cliente"
+          title="Legajos de Clientes"
+          description="Cartera bajo debida diligencia (CDD): calificación de riesgo, estado de revisión periódica y disparadores de EDD. Cubre los clientes de mayor riesgo y una muestra de la cartera."
+        />
+        <Link href="/app/clientes/onboarding" className="whitespace-nowrap rounded-lg px-3 py-2 text-sm font-semibold" style={{ background: "rgba(46,107,255,0.15)", color: "#7AA2FF", border: "1px solid #2E6BFF" }}>
+          + Alta de cliente
+        </Link>
+      </div>
 
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
         {[
