@@ -117,6 +117,7 @@ export const navGroups: { label: string; items: NavItem[] }[] = [
     label: "Compliance",
     items: [
       { href: "/app/alertas",    label: "Alertas",    Icon: BellIcon },
+      { href: "/app/screening",  label: "Screening",  Icon: ShieldIcon },
       { href: "/app/casos",      label: "Casos",      Icon: CasesIcon },
       { href: "/app/clientes",   label: "Legajos",    Icon: UserFileIcon },
       { href: "/app/entidades",  label: "Entidades",  Icon: EntitiesIcon },
