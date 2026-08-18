@@ -238,6 +238,55 @@ no forma parte del repo (vivió en el scratchpad de la sesión) — si hace
 falta regenerar el asset con otro recorte/tolerancia, rehacer el mismo
 pipeline apuntando al geojson de AgroNova.
 
+## Gestión de escenarios [2026-08-18]
+`/app/escenarios` — la capa de administración que le faltaba al motor de reglas
+(`src/rules_engine.py`, 8 escenarios con cita regulatoria). Artefacto:
+`src/export_scenarios.py` → `dashboard/public/data/scenarios.json` (~19 KB).
+
+Qué calcula el backtest, por escenario: umbrales vigentes (incluidos los
+segmentados por `account_type`), performance contra `is_fraud` (disparos,
+precisión, recall, tasa de FP, lift), desagregado por segmento KYC, aporte
+exclusivo (cuentas que sólo ese escenario marca) y una **curva de calibración**
+— el escenario re-evaluado con su umbral principal escalado de 0,5× a 2×
+(`CALIBRATION_FACTORS`), que alimenta el simulador what-if del dashboard.
+`PRIMARY_PARAM` define qué umbral es el "calibrable" de cada regla; R08
+(sanciones) no tiene, se dispone a mano en el workbench de screening.
+
+**Hallazgo honesto que quedó expuesto en la página:** la complementariedad
+reglas ↔ GNN da `solo_reglas = 0` — el modelo detecta todo lo que detectan las
+reglas, y 744 fraudes más. El valor de las reglas no es cobertura sino
+defendibilidad regulatoria (escenario determinista, citable, auditable,
+versionable). La página lo dice así, no lo esconde. La comparación lleva su
+salvedad: los scores del GNN se calculan sobre el grafo completo (incluye nodos
+de entrenamiento), así que la cobertura del modelo está sobreestimada; la
+lectura válida es relativa.
+
+**Flujo de cambio de umbral (cuatro ojos), en `dashboard/lib/scenarios.ts`:** el
+analista mueve el slider, ve el impacto backtesteado y eleva una propuesta con
+justificación → queda pendiente → el Oficial de Cumplimiento aprueba o rechaza.
+`canApprove()` bloquea la autoaprobación aunque el rol tenga el permiso. Todo se
+asienta en el audit log encadenado (`lib/auditLog.ts`). Permisos nuevos en
+`lib/session.ts`: `escenario.calibrar` (analista + oficial) y `escenario.aprobar`
+(sólo oficial); auditoría es sólo lectura. Las propuestas viven en localStorage y
+**no** se aplican al motor — es la demostración del proceso de gobierno, no su
+enforcement (los umbrales productivos siguen en `config/config.yaml`).
+
+Componente del gráfico: `components/CalibrationChart.tsx` (Recharts, barras de
+volumen + líneas de precisión/recall, `ReferenceLine` en el umbral vigente y en
+el simulado). Nav: 'Escenarios' primero en el grupo Compliance (SlidersIcon) —
+el orden narrativo es escenarios → alertas → casos.
+
+**OJO acoplamiento:** `export_scenarios.py` define su propio `load_config` en vez
+de importarlo de `export_dashboard`, que arrastra `torch` a nivel de módulo y
+rompía los tests en CI (el job Python no instala torch). Torch se importa
+lazy adentro de `_complementarity()`. Si se agrega otro export que sólo necesite
+pandas, seguir el mismo criterio.
+
+Tests: `tests/test_export_scenarios.py` (13 casos: escalado de umbrales
+segmentados, métricas sin división por cero, monotonía de la curva) y
+`dashboard/lib/__tests__/scenarios.test.ts` (11 casos: impacto de calibración,
+control de cuatro ojos). Total del repo: 26 pytest + 28 vitest.
+
 ## Pendientes
 - Setear NEXT_PUBLIC_API_URL=https://phantom-rcs9.onrender.com en las env vars del
   proyecto Vercel del dashboard (Settings → Environment Variables) para que

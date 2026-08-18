@@ -39,8 +39,8 @@ export function setSessionRole(role: Role) {
 
 /** Matriz de permisos por rol. */
 const PERMS: Record<Role, Set<string>> = {
-  analista: new Set(["caso.tomar", "caso.desestimar", "ros.crear", "ros.enviar_revision", "nota.agregar", "cdd.revisar", "cliente.alta", "screening.disponer"]),
-  oficial: new Set(["caso.tomar", "caso.desestimar", "ros.crear", "ros.enviar_revision", "ros.aprobar", "ros.rechazar", "nota.agregar", "cdd.revisar", "cliente.alta", "screening.disponer"]),
+  analista: new Set(["caso.tomar", "caso.desestimar", "ros.crear", "ros.enviar_revision", "nota.agregar", "cdd.revisar", "cliente.alta", "screening.disponer", "escenario.calibrar"]),
+  oficial: new Set(["caso.tomar", "caso.desestimar", "ros.crear", "ros.enviar_revision", "ros.aprobar", "ros.rechazar", "nota.agregar", "cdd.revisar", "cliente.alta", "screening.disponer", "escenario.calibrar", "escenario.aprobar"]),
   auditor: new Set(["auditoria.ver"]),
 };
 

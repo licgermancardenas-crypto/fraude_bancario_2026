@@ -75,6 +75,7 @@ en `/`, `app/(dashboard)` es la herramienta real bajo `/app/*`.
 | `/app/origen` | Grafo dirigido del anillo + tabla de perpetradores identificados |
 | `/app/cuentas` | Ranking de riesgo top 200, filtrable y ordenable |
 | `/app/metodologia` | Documentación técnica del sistema |
+| `/app/escenarios` | **Gestión de escenarios** — catálogo del motor de reglas con norma de respaldo, performance medida por escenario y segmento KYC, simulador what-if de umbrales (backtest sobre la cartera) y cambio de calibración con aprobación de cuatro ojos |
 | `/app/casos` | **Cola de alertas** con 80 casos pre-generados, filtros, KPIs, gestión de estado |
 | `/app/entidades` | **Red de entidades** (personas, empresas, PEPs, shell companies) en Cytoscape.js |
 | `/app/casos/[id]/ros` | **Formulario ROS** (Reporte de Operación Sospechosa) pre-completado, narrativa automática, control de cuatro ojos, referencia a Ley 25.246 / UIF |
@@ -178,6 +179,8 @@ fraud-gnn/
 │   ├── analysis.py            # comparativa, ablation, error analysis
 │   ├── eda.py                 # análisis exploratorio del grafo
 │   ├── export_dashboard.py    # JSONs para el dashboard (cuentas, anillos, casos, entidades)
+│   ├── rules_engine.py        # motor de 8 escenarios ALD deterministas con cita regulatoria
+│   ├── export_scenarios.py    # gestión de escenarios: performance por regla + curva de calibración
 │   ├── generate_entities.py   # empresas, shell companies, PEPs, directores
 │   ├── enrich_personas.py     # identidades sintéticas argentinas (DNI, CUIL, AFIP)
 │   ├── generate_report.py     # informe PDF institucional
@@ -237,6 +240,7 @@ python -m src.evaluate_temporal     # evaluación temporal
 python -m src.analysis              # comparativa + figuras
 python -m src.generate_entities     # empresas, PEPs, shell companies
 python -m src.export_dashboard      # JSONs para dashboard
+python -m src.export_scenarios      # backtest de calibración de escenarios ALD
 python -m src.enrich_personas       # identidades sintéticas
 python -m src.generate_report       # informe PDF
 

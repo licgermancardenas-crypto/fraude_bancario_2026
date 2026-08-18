@@ -95,6 +95,16 @@ export function BriefcaseIcon() {
   );
 }
 
+export function SlidersIcon() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round">
+      <line x1="4" y1="7" x2="20" y2="7" /><circle cx="10" cy="7" r="2.2" />
+      <line x1="4" y1="13" x2="20" y2="13" /><circle cx="16" cy="13" r="2.2" />
+      <line x1="4" y1="19" x2="20" y2="19" /><circle cx="8" cy="19" r="2.2" />
+    </svg>
+  );
+}
+
 export type NavItem = { href: string; label: string; Icon: () => React.ReactElement };
 
 export const navGroups: { label: string; items: NavItem[] }[] = [
@@ -116,6 +126,7 @@ export const navGroups: { label: string; items: NavItem[] }[] = [
   {
     label: "Compliance",
     items: [
+      { href: "/app/escenarios", label: "Escenarios", Icon: SlidersIcon },
       { href: "/app/alertas",    label: "Alertas",    Icon: BellIcon },
       { href: "/app/screening",  label: "Screening",  Icon: ShieldIcon },
       { href: "/app/casos",      label: "Casos",      Icon: CasesIcon },
