@@ -266,6 +266,48 @@ segmentados por tipo de cuenta donde el comportamiento comercial legítimo —n�
 cobros de comercio— produce el mismo patrón por motivos lícitos.
 
 
+## Escala monetaria y anclaje regulatorio
+
+El generador emite montos en una unidad sintética adimensional. `monetary.scale`
+en `config/config.yaml` los lleva a pesos argentinos plausibles para 2026
+(`generate.py::rescale_amounts`), de modo que las cifras del dashboard, del
+explorador de transacciones y de los ROS se lean como un extracto real y no como
+números de laboratorio.
+
+**El anclaje es declarado, no inventado.** La UIF indexa sus umbrales en Salarios
+Mínimos, Vitales y Móviles desde la Res. 78/2025 — el reporte sistemático de
+operaciones en efectivo es de 40 SMVM. Tomando el SMVM de agosto de 2026
+($376.600), los umbrales del motor de reglas quedan expresados en múltiplos
+auditables contra la norma en vez de ser números sueltos:
+
+| Umbral | Pesos | En SMVM |
+|---|---:|---:|
+| Transferencia individual atípica (persona física) | $1.500.000 | 4,0 |
+| Transferencia individual atípica (empresa) | $5.000.000 | 13,3 |
+| Volumen agregado atípico (persona física) | $5.000.000 | 13,3 |
+| U-turn: monto mínimo para emparejar | $5.000.000 | 13,3 |
+| Referencia UIF — reporte sistemático de efectivo | $15.064.000 | 40,0 |
+
+**El reescalado no toca el modelo.** Es un factor lineal sobre
+`amount`/`comision`/`impuesto`/`balance`: no altera `src`/`dst`/`timestamp`/
+`is_fraud`, así que el grafo es el mismo. Y como `build_graph` normaliza las
+features con la media y el desvío de train, el factor se cancela exactamente —
+`(Kx − Kμ)/(Kσ) = (x − μ)/σ` — con lo cual `data.x` queda idéntica (diferencia
+máxima medida: 1,5e-4, ruido de representación float32) y **no hay
+reentrenamiento**. `edge_attr` lleva el monto crudo pero los modelos nunca
+reciben `edge_weight`, así que tampoco influye. Los umbrales de ambos motores
+están en la misma escala: verificado que marcan **exactamente el mismo conjunto
+de 3.432 cuentas con las mismas reglas disparadas** antes y después.
+
+**Limitación declarada — densidad, no escala.** El dataset tiene ~14,5
+movimientos por cuenta por año; una cuenta minorista real tiene entre 200 y 600.
+Por eso ningún factor único deja bien las dos cosas a la vez: anclado al monto
+individual (lo que se hizo), los montos de cada operación son plausibles pero el
+volumen anual por cuenta queda por debajo del de una cartera real. Lo que falta
+es densidad transaccional, no escala monetaria — y corregirlo implica regenerar
+el grafo, con lo cual sí habría que reentrenar y recalibrar todo. Queda como
+frente abierto y declarado, no disimulado.
+
 ## Reproducir
 
 ```bash

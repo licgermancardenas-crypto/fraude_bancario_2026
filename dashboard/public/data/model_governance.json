@@ -258,7 +258,7 @@
   },
   "disclaimer": "PRUEBA DE CONCEPTO sobre datos 100% sintéticos. No validado para uso en producción ni aprobado por ninguna autoridad. Las métricas de performance reflejan el dataset sintético y no constituyen garantía de resultados sobre datos reales.",
   "impacto_programa": {
-    "monto_ilicito_rastreado": 78849453.87,
+    "monto_ilicito_rastreado": 7884945387.0,
     "perpetradores_origen": 392,
     "mulas_detectadas": 2075,
     "tipologias_cubiertas": 8,
@@ -267,5 +267,5 @@
     "tasa_deteccion": 0.9688
   },
   "_nota": "Métricas de modelo REALES (results_all.json / temporal_eval.json). La serie mensual de monitoreo y el PSI por feature son una SIMULACIÓN ilustrativa del seguimiento continuo (el dataset es sintético y estático).",
-  "generado": "2026-08-04"
+  "generado": "2026-08-22"
 }

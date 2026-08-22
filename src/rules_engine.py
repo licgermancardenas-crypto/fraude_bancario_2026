@@ -172,16 +172,18 @@ _TRANSACTIONAL_RULE_IDS = ["R01", "R02", "R03", "R04", "R05", "R06", "R07"]
 
 
 def _default_thresholds() -> dict:
+    # Montos en PESOS (escala monetaria de config.yaml::monetary.scale). Deben
+    # coincidir con config.yaml::rules — test_defaults_match_config lo verifica.
     return {
-        "high_amount": {"personal": 15000, "business": 50000, "merchant": 50000},
+        "high_amount": {"personal": 1_500_000, "business": 5_000_000, "merchant": 5_000_000},
         "conduit_symmetry": 0.15, "conduit_retention": 1.0,
-        "conduit_min_flow": 5000, "rapid_out_ratio": 0.50, "rapid_symmetry": 0.25,
-        "dormant_days": 1095, "dormant_active_days": 10, "dormant_min_amount": 12000,
-        "fanin_min_flow": 10000, "fanout_avg_max": 4000, "fanout_min_total": 15000,
+        "conduit_min_flow": 500_000, "rapid_out_ratio": 0.50, "rapid_symmetry": 0.25,
+        "dormant_days": 1095, "dormant_active_days": 10, "dormant_min_amount": 1_200_000,
+        "fanin_min_flow": 1_000_000, "fanout_avg_max": 400_000, "fanout_min_total": 1_500_000,
         # segmentado por tipo de cuenta (KYC segmentation)
         "fanin_degree":  {"personal": 12, "business": 40, "merchant": 70},
         "fanout_degree": {"personal": 12, "business": 45, "merchant": 40},
-        "agg_volume":    {"personal": 50000, "business": 500000, "merchant": 500000},
+        "agg_volume":    {"personal": 5_000_000, "business": 50_000_000, "merchant": 50_000_000},
         "severity_points": {"alta": 40, "media": 25, "baja": 15},
     }
 

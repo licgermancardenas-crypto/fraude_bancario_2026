@@ -24,7 +24,7 @@ Cada fila representa una cuenta bancaria.
 | Columna | Tipo | Descripción | Rango / Valores |
 |---|---|---|---|
 | `account_id` | string | Identificador único de cuenta | `ACC0000000` … `ACC0001499` |
-| `balance` | float64 | Saldo de la cuenta (USD) | $2.54 … $552 349 (mediana $1 819) |
+| `balance` | float64 | Saldo de la cuenta (ARS) | $67 … $1.484.276.972 (mediana $178.684) |
 | `risk_score` | float64 | Score de riesgo crediticio externo | 0.0015 … 0.7086 (media 0.197) |
 | `account_type` | string | Tipo de cuenta | `personal` (70.6%), `business` (18.8%), `merchant` (10.6%) |
 | `opened_days_ago` | int64 | Antigüedad de la cuenta en días | 31 … 3 649 (media 1 808) |
@@ -45,14 +45,21 @@ Cada fila representa una transacción entre dos cuentas. El grafo es **dirigido*
 | `transaction_id` | string | Identificador único de transacción | `TXN000000000` … |
 | `src` | string | Cuenta origen | FK → `accounts.account_id` |
 | `dst` | string | Cuenta destino | FK → `accounts.account_id` |
-| `amount` | float64 | Monto transferido (USD) | $0.53 … $48 411 (mediana $95.79) |
+| `amount` | float64 | Monto transferido (ARS) | $4 … $23.920.919 (mediana $15.084) |
 | `timestamp` | int64 | Unix timestamp de la transacción | 2023-11-14 … 2024-11-13 (~1 año) |
 | `transaction_type` | string | Tipo de transacción | `transfer` (50%), `payment` (35%), `withdrawal` (15%) |
 | `is_fraud` | int64 | **Label supervisado** — ¿transacción fraudulenta? | 0 (legítima) / 1 (fraudulenta) |
 
 ### Distribución de montos
-- Transacciones legítimas: lognormal, mediana ~$90 (variedad cotidiana)
-- Transacciones fraudulentas: montos iniciales $5 000–$50 000 que se van reduciendo en cada salto del anillo (~85-98% del monto anterior)
+- Transacciones legítimas: lognormal, mediana ~$15.000 (variedad cotidiana)
+- Transacciones fraudulentas: mediana $742.598 (P05 $230.497 – P95 $7.404.541); el monto inicial se va
+  reduciendo en cada salto del anillo (~85-98% del monto anterior)
+
+> **Escala monetaria.** El generador emite montos en una unidad sintética y
+> `config.yaml::monetary.scale` los lleva a pesos argentinos de 2026. Los umbrales del
+> motor de reglas están en la misma escala y se anotan en SMVM para ser auditables
+> contra la Res. UIF 78/2025. Ver la sección "Escala monetaria y anclaje regulatorio"
+> del README, incluida la limitación declarada de densidad transaccional.
 
 ---
 

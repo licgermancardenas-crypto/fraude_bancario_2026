@@ -15,7 +15,12 @@ import gov from "@/public/data/model_governance.json";
 import bi from "@/public/data/business_impact.json";
 
 const PANEL = "#12161F", CARD = "#0E1219", LINE = "#1E2430", BONE = "#EDEAE6", MUTED = "#5A6478";
-const moneyM = (n: number) => "$ " + (n / 1e6).toLocaleString("es-AR", { maximumFractionDigits: 1 }) + " M";
+// Con la escala monetaria en pesos los agregados pasan el millón de millones:
+// por encima de mil millones el sufijo " M" deja de ser legible.
+const moneyM = (n: number) =>
+  n >= 1e9
+    ? "$ " + (n / 1e9).toLocaleString("es-AR", { maximumFractionDigits: 2 }) + " mil M"
+    : "$ " + (n / 1e6).toLocaleString("es-AR", { maximumFractionDigits: 1 }) + " M";
 
 export default function DireccionPage() {
   const [cases, setCases] = useState<Case[]>([]);

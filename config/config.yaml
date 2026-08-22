@@ -78,25 +78,51 @@ dashboard:
   top_accounts: 200
   max_json_mb: 2
 
+# ── escala monetaria ─────────────────────────────────────────────────────────
+# El generador emite montos en una unidad sintética adimensional. `scale` los
+# lleva a pesos argentinos plausibles para 2026 (generate.py::rescale_amounts).
+# Es un factor LINEAL sobre amount/comision/impuesto/balance: no toca la
+# estructura del grafo, y como build_graph normaliza con media/desvío de train
+# el factor se cancela en data.x → el modelo NO se reentrena.
+#
+# ANCLAJE (declarado, no inventado): con scale=100 el umbral de "transferencia
+# individual atípica" de una persona física cae en ~4 SMVM. La UIF indexa sus
+# umbrales en SMVM desde la Res. 78/2025; el reporte sistemático de operaciones
+# en efectivo es de 40 SMVM. Los umbrales de abajo se anotan en SMVM para que
+# sean auditables contra la norma en vez de ser números sueltos.
+#
+# LIMITACIÓN DECLARADA: el dataset tiene ~14,5 movimientos por cuenta por año,
+# contra 200-600 de una cuenta minorista real. Por eso los montos individuales
+# quedan plausibles pero el volumen anual por cuenta queda por debajo de lo real:
+# falta densidad transaccional, no escala. Ver README.
+monetary:
+  currency: ARS
+  scale: 100
+  smvm: 376600              # SMVM agosto 2026 — unidad de referencia de los umbrales
+  smvm_ref: "agosto 2026"
+  uif_efectivo_smvm: 40     # Res. UIF 78/2025 — umbral de reporte sistemático de
+                            # efectivo. NINGÚN escenario lo usa: las 60.250
+                            # extracciones del dataset son todas legítimas.
+
 # Motor de reglas AML determinista (corre en paralelo al GNN).
 # Umbrales calibrados sobre la distribución legítima del dataset sintético
-# (legítimo P95: monto ~3.3K, avg_sent ~800, degree ~9).
+# (legítimo P95: monto ~$330.000, avg_sent ~$80.000, degree ~9).
 rules:
   high_amount:              # R02: transferencia individual atípica (segmentado)
-    personal: 15000         # legit personal P95 ~3.3K
-    business: 50000         # las empresas pagan proveedores hasta ~$36K (P99)
-    merchant: 50000
+    personal: 1500000       # ≈ 4,0 SMVM · legítimo personal P95 ~$330.000
+    business: 5000000       # ≈ 13,3 SMVM · proveedores hasta ~$3,6M (P99)
+    merchant: 5000000       # ≈ 13,3 SMVM
   conduit_symmetry: 0.15    # R01: |entrada-salida|/total por debajo de esto = conducto
   conduit_retention: 1.0    # R01: saldo/entradas por debajo de esto = no retiene
-  conduit_min_flow: 5000    # R01: flujo mínimo para considerar la cuenta activa
+  conduit_min_flow: 500000  # R01: flujo mínimo para considerar la cuenta activa
   rapid_out_ratio: 0.50     # R03: fracción de entradas reenviadas en <24h
   rapid_symmetry: 0.25      # R03: además debe pasar el dinero (baja simetría)
   dormant_days: 1095        # R04: antigüedad mínima (3 años) para "durmiente"
   dormant_active_days: 10   # R04: días activos máximos
-  dormant_min_amount: 12000 # R04: monto de la ráfaga de reactivación
-  fanin_min_flow: 10000     # R05: flujo recibido mínimo (evita legítimas activas)
-  fanout_avg_max: 4000      # R06: monto promedio máximo por chunk
-  fanout_min_total: 15000   # R06: total distribuido mínimo (chunks chicos que suman alto)
+  dormant_min_amount: 1200000   # R04: ráfaga de reactivación (≈ 3,2 SMVM)
+  fanin_min_flow: 1000000   # R05: flujo recibido mínimo (evita legítimas activas)
+  fanout_avg_max: 400000    # R06: monto promedio máximo por chunk
+  fanout_min_total: 1500000 # R06: total distribuido mínimo (chunks chicos que suman alto)
   # Umbrales SEGMENTADOS por tipo de cuenta (KYC segmentation): para R05/R06/R07
   # las empresas y comercios tienen umbrales mucho más altos porque el fan-in de
   # clientes, la nómina y el alto volumen son comportamiento comercial esperable.
@@ -109,9 +135,9 @@ rules:
     business: 45            # la nómina es fan-out esperable
     merchant: 40
   agg_volume:               # R07: volumen agregado (entrada+salida) atípico
-    personal: 50000         # legit personal P95 ~8K
-    business: 500000
-    merchant: 500000
+    personal: 5000000       # ≈ 13,3 SMVM · legítimo personal P95 ~$800.000
+    business: 50000000      # ≈ 133 SMVM
+    merchant: 50000000
   severity_points:          # aporte al rule_score (0-100) por severidad
     alta: 40
     media: 25
@@ -128,25 +154,25 @@ rules_temporal:
   burst_out_window_h: 48
   burst_out_min_counterparties: 4
   burst_out_min_total:        # segmentado: la nómina de una empresa es fan-out lícito
-    personal: 8000
-    business: 80000
-    merchant: 80000
+    personal: 800000          # ≈ 2,1 SMVM
+    business: 8000000         # ≈ 21 SMVM
+    merchant: 8000000
   # R10 — agregación en ráfaga: N remitentes distintos en la ventana
   burst_in_window_h: 72
   burst_in_min_counterparties: 4
   burst_in_min_total:
-    personal: 8000
-    business: 80000
-    merchant: 160000         # el fan-in de clientes es la operatoria normal del comercio
+    personal: 800000          # ≈ 2,1 SMVM
+    business: 8000000
+    merchant: 16000000        # el fan-in de clientes es la operatoria normal del comercio
   # R11 — operación circular (U-turn): salida y retorno equivalente por otra contraparte
   uturn_window_days: 30
-  uturn_tolerance: 0.15      # ±15% cubre las "comisiones/rendimientos" del retorno
-  uturn_min_amount: 50000    # por debajo de esto el emparejamiento es coincidencia
+  uturn_tolerance: 0.15       # ±15% cubre las "comisiones/rendimientos" del retorno
+  uturn_min_amount: 5000000   # ≈ 13,3 SMVM · por debajo el emparejamiento es coincidencia
   # R12 — tránsito emparejado: ingreso y reenvío casi total dentro de la ventana
   passthrough_window_h: 72
   passthrough_min_ratio: 0.80   # la salida cubre ≥80% de la entrada
-  passthrough_min_amount: 5000
+  passthrough_min_amount: 500000    # ≈ 1,3 SMVM
   # R13 — desvío del perfil: día pico contra la mediana diaria de la propia cuenta
   velocity_multiple: 20
   velocity_min_active_days: 4   # sin historia mínima no hay baseline contra la cual comparar
-  velocity_min_peak: 30000
+  velocity_min_peak: 3000000    # ≈ 8,0 SMVM

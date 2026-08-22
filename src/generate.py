@@ -768,7 +768,41 @@ def enrich_transactions(txns_df: pd.DataFrame, accounts: pd.DataFrame, seed: int
     return out
 
 
-def generate(scale: float, output_dir: str, seed: int = 42, time_window_days: int = 365):
+# ── escala monetaria ─────────────────────────────────────────────────────────
+# Columnas expresadas en dinero. El resto (mcc, timestamps, grados, ratios) no.
+MONETARY_COLS_TXN = ("amount", "comision", "impuesto")
+MONETARY_COLS_ACC = ("balance",)
+
+
+def rescale_amounts(txns_df: pd.DataFrame, accounts: pd.DataFrame,
+                    factor: float) -> tuple[pd.DataFrame, pd.DataFrame]:
+    """
+    Lleva los montos de la unidad sintética del generador a pesos argentinos.
+
+    Es un factor LINEAL sobre las columnas monetarias. No toca src/dst/timestamp/
+    transaction_type/is_fraud, así que el grafo es idéntico; y como build_graph
+    normaliza las features con media/desvío de train, el factor se cancela
+    exactamente —  (Kx - Kμ)/(Kσ) = (x - μ)/σ  — con lo cual data.x no cambia y
+    el modelo NO se reentrena. edge_attr lleva el monto crudo pero los modelos
+    nunca reciben edge_weight (siempre None), así que tampoco influye.
+
+    Los umbrales monetarios de config.yaml están en la MISMA escala, de modo que
+    ambos motores de reglas disparan exactamente sobre las mismas cuentas.
+    """
+    if factor == 1:
+        return txns_df, accounts
+    txns_df, accounts = txns_df.copy(), accounts.copy()
+    for col in MONETARY_COLS_TXN:
+        if col in txns_df.columns:
+            txns_df[col] = (txns_df[col] * factor).round(2)
+    for col in MONETARY_COLS_ACC:
+        if col in accounts.columns:
+            accounts[col] = (accounts[col] * factor).round(2)
+    return txns_df, accounts
+
+
+def generate(scale: float, output_dir: str, seed: int = 42, time_window_days: int = 365,
+             monetary_scale: float = 1.0):
     set_seed(seed)
     rng = np.random.default_rng(seed)
     Path(output_dir).mkdir(parents=True, exist_ok=True)
@@ -851,6 +885,9 @@ def generate(scale: float, output_dir: str, seed: int = 42, time_window_days: in
     # 5b. Enriquecimiento transaccional (metadata realista; no toca la estructura)
     txns_df = enrich_transactions(txns_df, accounts, seed=seed)
 
+    # 5c. Escala monetaria: de la unidad sintética del generador a pesos de 2026.
+    txns_df, accounts = rescale_amounts(txns_df, accounts, monetary_scale)
+
     # 6. Save
     acc_path  = Path(output_dir) / "accounts.csv"
     txn_path  = Path(output_dir) / "transactions.csv"
@@ -888,7 +925,10 @@ def main():
     seed    = cfg["project"]["seed"]
     window  = cfg["data"].get("time_window_days", 365)
 
-    generate(scale=scale, output_dir=outdir, seed=seed, time_window_days=window)
+    mscale  = cfg.get("monetary", {}).get("scale", 1.0)
+
+    generate(scale=scale, output_dir=outdir, seed=seed, time_window_days=window,
+             monetary_scale=mscale)
 
 
 if __name__ == "__main__":

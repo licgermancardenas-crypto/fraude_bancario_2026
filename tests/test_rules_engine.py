@@ -49,7 +49,7 @@ def test_evaluate_benign_fires_nothing():
 
 
 def test_evaluate_high_amount_triggers_r02():
-    out = re.evaluate(_feats(max_sent=20000.0))["ACC0000001"]
+    out = re.evaluate(_feats(max_sent=2_000_000.0))["ACC0000001"]
     assert "R02" in out["rules_fired"]
     # el score debe ser consistente con score_from_ids sobre las reglas disparadas
     assert out["rule_score"] == re.score_from_ids(out["rules_fired"])

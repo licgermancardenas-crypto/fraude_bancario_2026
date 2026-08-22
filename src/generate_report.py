@@ -14,6 +14,35 @@ def load_config(path="config/config.yaml"):
         return yaml.safe_load(f)
 
 
+def money(n, decimals=0):
+    """Monto en formato es-AR ($1.234.567). La escala monetaria vive en el
+    dataset (config.yaml::monetary.scale); acá sólo se formatea."""
+    txt = f"{n:,.{decimals}f}"
+    return "$" + txt.replace(",", "\u00ad").replace(".", ",").replace("\u00ad", ".")
+
+
+def money_m(n):
+    """Agregados grandes: millones, o miles de millones cuando pasa de 1e9."""
+    if abs(n) >= 1e9:
+        return money(n / 1e9, 1).replace(",0", "") + " mil M"
+    return money(n / 1e6, 1) + "M"
+
+
+def load_artifacts(cfg):
+    """
+    Cifras del anexo leídas de los artefactos del pipeline en vez de
+    hardcodeadas. Antes estaban escritas a mano y se desincronizaban con cada
+    corrida (y con cada cambio de escala monetaria).
+    """
+    ddir = Path(cfg["paths"]["dashboard_data_dir"])
+    art = {}
+    for key, fname in [("trace", "origin_trace.json"),
+                       ("placement", "placement_candidates.json")]:
+        path = ddir / fname
+        art[key] = json.loads(path.read_text(encoding="utf-8")) if path.exists() else None
+    return art
+
+
 def b64img(path, fallback_h=160):
     p = Path(path)
     if not p.exists():
@@ -281,7 +310,7 @@ def executive_summary():
   <div class="plain-lang no-break">
     <div class="plain-lang-tag">En palabras simples — el problema</div>
     <div class="plain-lang-body">
-      Imaginen que una banda decide lavar $100.000. En lugar de hacer una sola transferencia grande (que dispararía una alerta), divide ese dinero en 50 transferencias de $2.000, las hace circular por 20 cuentas distintas y las reagrupa al final. Cada transferencia parece normal. El sistema de reglas del banco no ve nada raro. <strong>Este software detecta ese patrón analizando las conexiones entre cuentas, no los montos individuales.</strong>
+      Imaginen que una banda decide lavar $100.000.000. En lugar de hacer una sola transferencia grande (que dispararía una alerta), divide ese dinero en 50 transferencias de $2.000.000, las hace circular por 20 cuentas distintas y las reagrupa al final. Cada transferencia parece normal. El sistema de reglas del banco no ve nada raro. <strong>Este software detecta ese patrón analizando las conexiones entre cuentas, no los montos individuales.</strong>
     </div>
   </div>
 
@@ -299,7 +328,7 @@ def executive_summary():
     <li>El <strong>historial crediticio es ciego al lavado de dinero</strong>: las cuentas que mueven dinero sucio tienen exactamente el mismo puntaje crediticio que las cuentas normales. El problema no está en el perfil de la persona, está en con quién se conecta.</li>
     <li>GraphSAGE supera a todos los modelos comparados con una puntuación de <strong>0.978 sobre 1.0</strong> y detecta el 97% del fraude cuando se le exige que 9 de cada 10 alertas sean reales.</li>
     <li>El modelo se basa en <strong>señales de conectividad</strong> (cuántas transferencias hace una cuenta, cuántos remitentes únicos recibe, su puntuación de riesgo), no en los montos absolutos.</li>
-    <li>El rastreo hacia atrás identificó <strong>2 perpetradores que el modelo de IA no vio directamente</strong> pero que habían inyectado $66.000 al esquema desde cuentas aparentemente legítimas.</li>
+    <li>El rastreo hacia atrás identificó <strong>2 perpetradores que el modelo de IA no vio directamente</strong> pero que habían inyectado $6.600.000 al esquema desde cuentas aparentemente legítimas.</li>
   </ul>
 
   <h3>Recomendación</h3>
@@ -527,7 +556,14 @@ def results_section(results, figures_dir):
 </div>"""
 
 
-def insights_section():
+def insights_section(art=None):
+    art = art or {}
+    tr = (art.get("trace") or {}).get("summary", {})
+    perps = sorted((art.get("trace") or {}).get("perpetrators", []),
+                   key=lambda r: -r["amount_injected"])
+    top = perps[0] if perps else None
+    cands = (art.get("placement") or {}).get("candidates", [])[:4]
+    hidden = [c for c in cands if c.get("is_known_perp")]
     insights = [
         ("La señal de fraude es estructural, no de monto individual",
          "Las transacciones fraudulentas tienen una mediana 13.7× mayor que las legítimas, pero dentro de cada anillo el monto se reduce progresivamente (85-98% por salto). Las reglas de umbral capturan la entrada del anillo pero pierden los saltos intermedios de 'enfriamiento'.",
@@ -552,7 +588,7 @@ def insights_section():
          "Priorizar scoring en <strong>cuasi-real-time (cada 4h)</strong> para nodos de mayor riesgo, en lugar de batch diario."),
         ("Pico de actividad fraudulenta: 20:00h y jueves",
          "Las transacciones de fraude se concentran fuera del horario bancario. Si el equipo de compliance opera de 9-18h, los anillos iniciados a las 20:00 completan 2-3 saltos antes de la apertura del día siguiente.",
-         "Configurar alertas automáticas de alta prioridad para transacciones >$5.000 en horario nocturno, combinadas con el score de red del modelo."),
+         "Configurar alertas automáticas de alta prioridad para transacciones >$500.000 en horario nocturno, combinadas con el score de red del modelo."),
         ("El GNN mejora 3 puntos de PR-AUC sobre XGBoost",
          "GraphSAGE logra PR-AUC=0.978 vs XGBoost=0.950 vs LogReg=0.728, usando exactamente el mismo test set. El único diferencial es el acceso a la estructura del grafo.",
          "Presentar la curva PR comparativa al directorio como argumento central: el área entre las curvas representa el 'fraude adicional detectado' por la inteligencia de grafos."),
@@ -575,13 +611,15 @@ def insights_section():
          "En evaluación estándar (transductiva), el GNN ve durante el entrenamiento todas las aristas, incluyendo las que conectan nodos de test con nodos fraude de train. Al aislar el test set (inductivo, simula cuentas nuevas sin aristas al conjunto de entrenamiento), el PR-AUC baja de 0.978 a 0.899: parte de la señal de una cuenta fraude provenía de sus conexiones directas a nodos fraude ya vistos en entrenamiento.",
          "En el piloto con datos reales de BRS, evaluar en ventana temporal: entrenar con transacciones hasta el mes M, evaluar en M+1. Ningún nodo de test tendrá aristas en el grafo de train — la estimación de rendimiento operativo será honesta."),
         ("El GNN detecta mulas pero no el perpetrador de origen",
-         "Rastreando hacia atrás desde los nodos detectados en el grafo dirigido de transacciones, se identificaron 392 cuentas raíz (in-degree=0 en el subgrafo de fraude) que alimentaron a 2.075 mulas detectadas y remontan ~$78,8M en fondos movidos. El principal inyector oculto (ACC0055086) colocó $239.209 con score GNN ≈ 2% e is_fraud=False en el dataset. El GNN detecta la estratificación (placement→layering); el backward tracing detecta la colocación (placement).",
+         f"Rastreando hacia atrás desde los nodos detectados en el grafo dirigido de transacciones, se identificaron {tr.get('n_perpetrators', 0)} cuentas raíz (in-degree=0 en el subgrafo de fraude) que alimentaron a {tr.get('n_mules_detected', 0)} mulas detectadas y remontan ~{money_m(tr.get('total_amount_laundered', 0))} en fondos movidos. El principal inyector oculto ({top['node_id'] if top else '—'}) colocó {money(top['amount_injected']) if top else '—'} con score GNN ≈ {(top['gnn_score'] if top else 0):.0%} e is_fraud=False en el dataset. El GNN detecta la estratificación (placement→layering); el backward tracing detecta la colocación (placement).",
          "Combinar el scoring GNN con una segunda pasada de backward tracing: dado cualquier nodo detectado como fraude, agregar a la cola de investigación todos sus predecesores directos en el grafo dirigido temporal que no sean ellos mismos detectados. Priorizar por monto inyectado."),
          ("Evaluación temporal: PR-AUC=0.971 bajo split honesto por tiempo",
          "Re-entrenando GraphSAGE con solo el 70% del período histórico (transacciones hasta 2024-07-27, 380.910 de 544.157 aristas) y evaluando en el test set con el grafo completo, el PR-AUC es 0.971. La secuencia completa: transductivo=0.978 → inductivo=0.899 → temporal=0.971. Bajo evaluación temporal el modelo mantiene un rendimiento alto (0.971), señal de que aprende patrones estructurales estables y no conexiones específicas del período de entrenamiento.",
          "Adoptar split temporal mensual para el piloto BRS: entrenar hasta mes M, validar en M+1, evaluar en M+2. Re-entrenar trimestralmente con los nuevos casos etiquetados por compliance. Reportar siempre PR-AUC temporal a dirección, no el transductivo."),
         ("Propagación inversa de riesgo valida y amplía el backward tracing",
-         "Aplicando la fórmula placement(u) = Σ gnn[v]×amount(u→v) + 0.3×Σ gnn[w]×amount(v→w)×amount(u→v)/total_out(v) sobre todos los nodos, los perpetradores no detectados por el GNN (score ≈ 0–2%) copan los rangos #2–#4: ACC0055086 (score_norm=0.993, $239.209), ACC0000399 (0.933) y ACC0069437 (0.892). El rango #1 es una mula ya detectada por el GNN. El método opera exclusivamente sobre scores GNN existentes y el grafo dirigido — sin etiquetas adicionales.",
+         "Aplicando la fórmula placement(u) = Σ gnn[v]×amount(u→v) + 0.3×Σ gnn[w]×amount(v→w)×amount(u→v)/total_out(v) sobre todos los nodos, los perpetradores no detectados por el GNN (score ≈ 0–2%) copan los rangos inmediatamente debajo del tope: "
+         + ", ".join(f"{c['account_id']} (score_norm={c['placement_score_norm']:.3f}, {money(c['total_sent_to_fraud'])})" for c in hidden)
+         + ". El rango #1 es una mula ya detectada por el GNN. El método opera exclusivamente sobre scores GNN existentes y el grafo dirigido — sin etiquetas adicionales.",
          "Integrar el placement score en el sistema de alertas como capa de segunda línea: cualquier cuenta con placement_score_norm > 0.3 y gnn_score < 0.5 entra automáticamente a la cola de investigación de colocación, complementando la cola primaria de mulas del GNN."),
     ]
 
@@ -684,10 +722,54 @@ def roadmap_section():
 </div>"""
 
 
-def annex_section(results, cfg, figures_dir):
+def annex_section(results, cfg, figures_dir, art=None):
     gnn_r  = next(r for r in results if r["model"] == "GraphSAGE")
     xgb_r  = next(r for r in results if r["model"] == "XGBoost")
     gnn_cfg = cfg["model"]["graphsage"]
+    art = art or {}
+
+    # ── Rastreo hacia atrás: top inyectores por monto, leídos del artefacto ──
+    trace = art.get("trace") or {}
+    perps = sorted(trace.get("perpetrators", []),
+                   key=lambda r: -r["amount_injected"])[:3]
+    trace_rows = ""
+    for r in perps:
+        detectado = r["gnn_score"] >= 0.5
+        estado = ('<span style="color:#15803D;font-weight:700;">Detectado</span>' if detectado
+                  else '<span style="color:#B91C1C;font-weight:700;">No detectado</span>')
+        trace_rows += (
+            f'      <tr><td>{r["node_id"]}</td><td>{r["gnn_score"]:.3f}</td><td>{estado}</td>'
+            f'<td>{r["n_mules_fed"]}</td><td>{money(r["amount_injected"])}</td>'
+            f'<td>{str(r["first_transaction"])[:10]}</td></tr>\n'
+        )
+    n_perps   = trace.get("summary", {}).get("n_perpetrators", 0)
+    n_mules   = trace.get("summary", {}).get("n_mules_detected", 0)
+    total_lav = trace.get("summary", {}).get("total_amount_laundered", 0)
+    top_perps_txt = " y ".join(
+        f'{r["node_id"]} colocó {money(r["amount_injected"])}' for r in perps[:2]
+    )
+
+    # ── Scoring de colocación: top candidatos, leídos del artefacto ──────────
+    cands = (art.get("placement") or {}).get("candidates", [])[:4]
+    place_rows = ""
+    for i, c in enumerate(cands, start=1):
+        if c.get("is_known_perp"):
+            estado = '<span style="color:#D97706;font-weight:700;">Perpetrador conocido</span>'
+        elif c.get("detected_by_gnn"):
+            estado = "Detectado por GNN (mula)"
+        else:
+            estado = '<span style="color:#B91C1C;font-weight:700;">Candidato nuevo</span>'
+        best = ' class="td-best"' if i == 1 else ""
+        place_rows += (
+            f'      <tr><td>{i}</td><td><strong>{c["account_id"]}</strong></td>'
+            f'<td{best}>{c["placement_score_norm"]:.3f}</td><td>{c["gnn_score"]:.3f}</td>'
+            f'<td>{money(c["total_sent_to_fraud"])}</td><td>{estado}</td></tr>\n'
+        )
+    hidden = [c for c in cands if c.get("is_known_perp")]
+    hidden_txt = ", ".join(
+        f'{c["account_id"]} ({money(c["total_sent_to_fraud"])})' for c in hidden
+    ) or "—"
+    top_cand = cands[0]["account_id"] if cands else "—"
 
     return f"""
 <div class="break-before">
@@ -761,11 +843,9 @@ def annex_section(results, cfg, figures_dir):
   <p>Partiendo de los nodos detectados como fraude por GraphSAGE (score > 0.5), se construyó el subgrafo de transacciones fraudulentas (is_fraud=1) y se identificaron los nodos raíz: aquellos con in-degree=0 que inyectaron dinero al anillo sin recibirlo de él.</p>
 
   <table>
-    <thead><tr><th>Cuenta</th><th>Score GNN</th><th>Etiqueta real</th><th>Mulas alimentadas</th><th>Monto inyectado</th><th>Primera txn</th></tr></thead>
+    <thead><tr><th>Cuenta</th><th>Score GNN</th><th>Detección GNN</th><th>Mulas alimentadas</th><th>Monto inyectado</th><th>Primera txn</th></tr></thead>
     <tbody>
-      <tr><td>ACC0055086</td><td>0.023</td><td style="color:#B91C1C;font-weight:700;">No fraude (no detectado)</td><td>1</td><td>$239.209</td><td>2024-05-25</td></tr>
-      <tr><td>ACC0031909</td><td>0.023</td><td style="color:#B91C1C;font-weight:700;">No fraude (no detectado)</td><td>1</td><td>$223.889</td><td>2024-05-09</td></tr>
-      <tr><td>ACC0000399</td><td>0.002</td><td style="color:#B91C1C;font-weight:700;">No fraude (no detectado)</td><td>1</td><td>$221.182</td><td>2024-09-02</td></tr>
+{trace_rows.rstrip()}
     </tbody>
   </table>
 
@@ -777,7 +857,7 @@ def annex_section(results, cfg, figures_dir):
   <div class="callout no-break">
     <div class="callout-tag">Hallazgo crítico</div>
     <div class="callout-body">
-      Los mayores inyectores de fondos son sistemáticamente invisibles para el GNN: ACC0055086 colocó $239.209 y ACC0000399 $221.182, ambos con score GNN ≈ 0–2% e is_fraud=False en el dataset. Estas cuentas tienen <strong>baja centralidad de red</strong>: alimentan una sola mula y desaparecen — el perfil típico de una cuenta que inyecta fondos una vez. Este patrón es invisible para un clasificador de nodos basado en conectividad. El backward tracing sobre el grafo dirigido es el mecanismo que cierra esta brecha, remontando ~$78,8M a 392 perpetradores de origen.
+      Los mayores inyectores de fondos son sistemáticamente invisibles para el GNN: {top_perps_txt}, ambos con score GNN ≈ 0–2% e is_fraud=False en el dataset. Estas cuentas tienen <strong>baja centralidad de red</strong>: alimentan una sola mula y desaparecen — el perfil típico de una cuenta que inyecta fondos una vez. Este patrón es invisible para un clasificador de nodos basado en conectividad. El backward tracing sobre el grafo dirigido es el mecanismo que cierra esta brecha, remontando ~{money_m(total_lav)} a {n_perps} perpetradores de origen que alimentaron {n_mules:,} mulas detectadas.
     </div>
   </div>
 
@@ -793,10 +873,7 @@ placement(u) = Σ_{{u→v}}      gnn[v] × amount(u→v)                        
   <table>
     <thead><tr><th>Rank</th><th>Cuenta</th><th>Score norm.</th><th>Score GNN</th><th>Enviado a fraude</th><th>Estado</th></tr></thead>
     <tbody>
-      <tr><td>1</td><td>ACC0023462</td><td class="td-best">1.000</td><td>1.000</td><td>$257.659</td><td>Detectado por GNN (mula)</td></tr>
-      <tr><td>2</td><td><strong>ACC0055086</strong></td><td>0.993</td><td>0.023</td><td>$239.209</td><td style="color:#D97706;font-weight:700;">Perpetrador conocido</td></tr>
-      <tr><td>3</td><td><strong>ACC0000399</strong></td><td>0.933</td><td>0.002</td><td>$224.384</td><td style="color:#D97706;font-weight:700;">Perpetrador conocido</td></tr>
-      <tr><td>4</td><td><strong>ACC0069437</strong></td><td>0.892</td><td>0.194</td><td>$214.820</td><td style="color:#D97706;font-weight:700;">Perpetrador conocido</td></tr>
+{place_rows.rstrip()}
     </tbody>
   </table>
 
@@ -808,7 +885,7 @@ placement(u) = Σ_{{u→v}}      gnn[v] × amount(u→v)                        
   <div class="callout no-break">
     <div class="callout-tag">Validación del método</div>
     <div class="callout-body">
-      El top candidato (ACC0023462, score_norm=1.0) ya es detectado por el GNN. Pero los rangos <strong>#2–#4</strong> son perpetradores invisibles al GNN (score ≈ 0–2%): ACC0055086 ($239.209), ACC0000399 ($224.384) y ACC0069437 ($214.820). La propagación inversa los sube al tope del ranking sin requerir etiquetas adicionales: opera exclusivamente sobre los scores GNN existentes y el grafo de transacciones.
+      El top candidato ({top_cand}, score_norm=1.0) ya es detectado por el GNN. Pero los rangos siguientes son perpetradores invisibles al GNN (score ≈ 0–2%): {hidden_txt}. La propagación inversa los sube al tope del ranking sin requerir etiquetas adicionales: opera exclusivamente sobre los scores GNN existentes y el grafo de transacciones.
     </div>
   </div>
 
@@ -864,7 +941,7 @@ def glossary_section():
          "GraphSAGE fue diseñado específicamente para funcionar bien en modo inductivo."),
         ("Backward Tracing (rastreo hacia atrás)",
          "Técnica que, partiendo de las cuentas mula detectadas por el modelo, recorre las transacciones en sentido inverso para identificar las cuentas de <strong>origen</strong> que inyectaron el dinero al esquema. El modelo de IA detecta las mulas; el rastreo detecta a quienes las dirigen.",
-         "En el estudio: identificó 2 perpetradores con score GNN ≈ 0% que habían inyectado $66.000 desde cuentas aparentemente legítimas."),
+         "En el estudio: identificó 2 perpetradores con score GNN ≈ 0% que habían inyectado $6.600.000 desde cuentas aparentemente legítimas."),
         ("Placement / Colocación",
          "Primera etapa del lavado de dinero: introducir el dinero sucio al sistema financiero. Es la más difícil de detectar porque las cuentas que hacen esta tarea tienen pocas transacciones totales y parecen legítimas.",
          "El backward tracing y el placement score están diseñados específicamente para detectar esta etapa que la IA convencional no ve."),
@@ -922,7 +999,7 @@ def glossary_section():
 # Renderer
 # ─────────────────────────────────────────────────────────────────────────────
 
-def build_html(cfg, results):
+def build_html(cfg, results, art=None):
     figs = cfg["paths"]["figures_dir"]
     sections = "\n".join([
         cover(),
@@ -931,9 +1008,9 @@ def build_html(cfg, results):
         context_section(),
         data_section(figs),
         results_section(results, figs),
-        insights_section(),
+        insights_section(art),
         roadmap_section(),
-        annex_section(results, cfg, figs),
+        annex_section(results, cfg, figs, art),
         glossary_section(),
     ])
     return f"""<!DOCTYPE html>
@@ -994,7 +1071,8 @@ def main(config_path="config/config.yaml"):
     pdf_path  = "reports/informe_final.pdf"
 
     print("\n── 1. Generando HTML ────────────────────────────────────")
-    html = build_html(cfg, results)
+    art  = load_artifacts(cfg)
+    html = build_html(cfg, results, art)
     Path(html_path).write_text(html, encoding="utf-8")
     print(f"  → {html_path}  ({len(html)//1024} KB)")
 

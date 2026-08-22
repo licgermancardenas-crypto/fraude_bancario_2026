@@ -44,27 +44,29 @@ _FLOW_TYPES = ("transfer", "payment")
 
 
 def _default_thresholds() -> dict:
+    # Montos en PESOS (config.yaml::monetary.scale). Deben coincidir con
+    # config.yaml::rules_temporal — test_defaults_match_config lo verifica.
     return {
         # R09 — dispersión en ráfaga (pitufeo)
         "burst_out_window_h": 48,
         "burst_out_min_counterparties": 4,
-        "burst_out_min_total": {"personal": 8_000, "business": 80_000, "merchant": 80_000},
+        "burst_out_min_total": {"personal": 800_000, "business": 8_000_000, "merchant": 8_000_000},
         # R10 — agregación en ráfaga
         "burst_in_window_h": 72,
         "burst_in_min_counterparties": 4,
-        "burst_in_min_total": {"personal": 8_000, "business": 80_000, "merchant": 160_000},
+        "burst_in_min_total": {"personal": 800_000, "business": 8_000_000, "merchant": 16_000_000},
         # R11 — operación circular (U-turn)
         "uturn_window_days": 30,
         "uturn_tolerance": 0.15,
-        "uturn_min_amount": 50_000,
+        "uturn_min_amount": 5_000_000,
         # R12 — tránsito emparejado
         "passthrough_window_h": 72,
         "passthrough_min_ratio": 0.80,
-        "passthrough_min_amount": 5_000,
+        "passthrough_min_amount": 500_000,
         # R13 — desvío contra la baseline propia
         "velocity_multiple": 20,
         "velocity_min_active_days": 4,
-        "velocity_min_peak": 30_000,
+        "velocity_min_peak": 3_000_000,
     }
 
 
