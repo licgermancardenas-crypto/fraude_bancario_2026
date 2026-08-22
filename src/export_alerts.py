@@ -18,7 +18,7 @@ import pandas as pd
 
 from src.export_dashboard import load_all, load_config
 from src.features import build_node_features
-from src import rules_engine
+from src import rules_engine, rules_temporal
 
 
 def build(config_path="config/config.yaml"):
@@ -31,7 +31,16 @@ def build(config_path="config/config.yaml"):
     id2score = {nid: float(scores_all[i]) for i, nid in enumerate(node_ids)}
 
     feats = build_node_features(acc, txn)
+
+    # Los dos motores alimentan la misma cola: el agregado sobre las features de
+    # cuenta y el temporal sobre el stream. Se combinan por cuenta para que el
+    # disparador y el rule_score de la alerta coincidan con lo que después
+    # muestra el detalle del caso.
     rules_by = rules_engine.evaluate(feats, cfg)
+    for aid, r in rules_temporal.evaluate(txn, acc, cfg).items():
+        entry = rules_by.setdefault(aid, {"rules_fired": [], "rule_score": 0})
+        entry["rules_fired"] = entry["rules_fired"] + r["rules_fired"]
+        entry["rule_score"] = rules_engine.score_from_ids(entry["rules_fired"], cfg)
 
     personas = pd.read_csv(f"{raw}/personas.csv").set_index("account_id")
     name = personas["nombre_completo"].to_dict()

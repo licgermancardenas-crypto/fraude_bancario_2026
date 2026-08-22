@@ -17,10 +17,21 @@ def _feats(**over):
 
 def test_catalogue_structure():
     cat = re.catalogue()
-    assert len(cat) == 8
+    # El catálogo cubre los dos motores: agregado (R01-R08) y temporal (R09-R13).
+    assert len(cat) == 13
     for r in cat:
-        assert {"id", "nombre", "descripcion", "cita", "severidad"} <= set(r)
+        assert {"id", "nombre", "descripcion", "cita", "severidad", "motor"} <= set(r)
         assert r["severidad"] in {"alta", "media", "baja"}
+        assert r["motor"] in {"agregado", "temporal"}
+    assert sum(1 for r in cat if r["motor"] == "agregado") == 8
+    assert sum(1 for r in cat if r["motor"] == "temporal") == 5
+
+
+def test_aggregate_engine_ignores_temporal_rules():
+    """`rules_engine.evaluate` no debe disparar escenarios que no evalúa."""
+    res = re.evaluate(_feats(in_out_symmetry=0.0, balance_retention=0.0, total_received=99_999.0))
+    for entry in res.values():
+        assert all(rid in re._TRANSACTIONAL_RULE_IDS for rid in entry["rules_fired"])
 
 
 def test_score_from_ids_caps_and_severity():

@@ -1,20 +1,25 @@
 """
-Deterministic AML rules engine.
+Deterministic AML rules engine — motor AGREGADO.
 
-Runs alongside the GNN as an explainable, regulator-facing layer: a catalogue
-of named scenarios, each with a regulatory citation and a severity, evaluated
-per account from the transactional/behavioural features. Rules and the GNN are
-complementary — rules flag the obvious, auditable red flags (large amounts,
-pass-through conduits, dormant reactivation) while the GNN catches the subtle
-network-only structures a rule cannot express.
+Corre junto al GNN como capa explicable y defendible ante el regulador: un
+catálogo de escenarios con nombre, cita normativa y severidad, evaluados por
+cuenta a partir de las features transaccionales y de comportamiento.
 
-Output per account: the list of fired rules and a 0-100 `rule_score`
-(capped sum of severity points). This is intentionally NOT the GNN score —
-the dashboard shows both so an analyst sees the rule-based and the model-based
-view side by side.
+Este módulo evalúa los escenarios **agregados** (R01-R07, más R08 que se agrega
+en la capa de export desde el screening de listas): miran totales, grados,
+promedios y ratios calculados sobre todo el período. Los escenarios de **ventana
+temporal** (R09-R13) viven en `rules_temporal`, que razona sobre la secuencia de
+operaciones en el stream y no sobre agregados — lo que el agregado no puede ver
+por construcción. El CATÁLOGO de los dos motores vive acá, en `RULES`, con el
+campo `motor` indicando quién evalúa cada escenario.
 
-Thresholds live in config.yaml (`rules:`), calibrated on the legitimate
-population of the synthetic dataset.
+Output por cuenta: la lista de escenarios disparados y un `rule_score` 0-100
+(suma de puntos por severidad, con tope). Deliberadamente NO es el score del
+GNN — el dashboard muestra los dos para que el analista vea la lectura por
+reglas y la del modelo lado a lado.
+
+Umbrales en config.yaml (`rules:`), calibrados sobre la población legítima del
+dataset sintético.
 """
 
 from __future__ import annotations
@@ -36,6 +41,7 @@ RULES: list[dict] = [
                        "retención de saldo: comportamiento de cuenta conducto.",
         "cita": "GAFI — cuentas de tránsito (pass-through)",
         "severidad": "alta",
+        "motor": "agregado",
     },
     {
         "id": "R02",
@@ -44,6 +50,7 @@ RULES: list[dict] = [
                        "habitual de la cartera minorista.",
         "cita": "UIF Res. 30/2017 — umbral de operación",
         "severidad": "media",
+        "motor": "agregado",
     },
     {
         "id": "R03",
@@ -52,6 +59,7 @@ RULES: list[dict] = [
                        "señal típica de cuenta mula.",
         "cita": "GAFI — money mules / rapid movement of funds",
         "severidad": "alta",
+        "motor": "agregado",
     },
     {
         "id": "R04",
@@ -60,6 +68,7 @@ RULES: list[dict] = [
                        "ingresos de alto monto concentrados.",
         "cita": "GAFI — dormant account reactivation",
         "severidad": "alta",
+        "motor": "agregado",
     },
     {
         "id": "R05",
@@ -68,6 +77,7 @@ RULES: list[dict] = [
                        "período, patrón de agregación previa a la salida.",
         "cita": "GAFI — placement / agregación de fondos",
         "severidad": "media",
+        "motor": "agregado",
     },
     {
         "id": "R06",
@@ -76,6 +86,7 @@ RULES: list[dict] = [
                        "promedio bajos, consistente con estructuración.",
         "cita": "UIF Res. 30/2017 — estructuración (pitufeo)",
         "severidad": "media",
+        "motor": "agregado",
     },
     {
         "id": "R07",
@@ -84,6 +95,7 @@ RULES: list[dict] = [
                        "perfil de una cuenta minorista habitual.",
         "cita": "Monitoreo de umbral acumulado",
         "severidad": "media",
+        "motor": "agregado",
     },
     # R08 (exposición a listas de sanciones) se evalúa en la capa de export,
     # donde está disponible el resultado del screening por caso.
@@ -94,6 +106,62 @@ RULES: list[dict] = [
                        "a un salto de una cuenta listada.",
         "cita": "Ley 25.246 — sujetos obligados / listas de designación",
         "severidad": "alta",
+        "motor": "agregado",
+    },
+    # ── escenarios de ventana temporal ────────────────────────────────────────
+    # Se evalúan en `rules_temporal` sobre el stream de transacciones, no sobre
+    # las features agregadas: dependen de la secuencia y del intervalo entre
+    # operaciones, que el agregado por definición no conserva. Devuelven además
+    # las operaciones concretas que los dispararon (evidencia citable en el ROS).
+    {
+        "id": "R09",
+        "nombre": "Dispersión en ráfaga (pitufeo)",
+        "descripcion": "Salidas a múltiples destinatarios distintos concentradas en "
+                       "una ventana de horas: fraccionamiento deliberado de un monto "
+                       "único para diluirlo por debajo del control por operación.",
+        "cita": "UIF Res. 30/2017 — fraccionamiento / estructuración (pitufeo)",
+        "severidad": "alta",
+        "motor": "temporal",
+    },
+    {
+        "id": "R10",
+        "nombre": "Agregación en ráfaga",
+        "descripcion": "Ingresos desde múltiples remitentes distintos concentrados en "
+                       "pocos días, consistente con una cuenta recolectora que junta "
+                       "los tramos de una estructuración previa.",
+        "cita": "GAFI — cuentas recolectoras / smurfing",
+        "severidad": "media",
+        "motor": "temporal",
+    },
+    {
+        "id": "R11",
+        "nombre": "Operación circular (U-turn)",
+        "descripcion": "Los fondos salen de la cuenta y regresan por un monto "
+                       "equivalente a través de otra contraparte: retorno con "
+                       "apariencia de origen lícito, típico de la fase de integración.",
+        "cita": "GAFI — integración / operaciones circulares (round-tripping)",
+        "severidad": "alta",
+        "motor": "temporal",
+    },
+    {
+        "id": "R12",
+        "nombre": "Tránsito emparejado entrada-salida",
+        "descripcion": "Un ingreso y su reenvío por casi el mismo monto a otra "
+                       "contraparte dentro de la misma ventana corta: el par concreto "
+                       "que evidencia que la cuenta operó como conducto.",
+        "cita": "GAFI — cuentas de tránsito / movimiento inmediato de fondos",
+        "severidad": "alta",
+        "motor": "temporal",
+    },
+    {
+        "id": "R13",
+        "nombre": "Desvío del perfil transaccional",
+        "descripcion": "El volumen del día pico supera en varios órdenes la mediana "
+                       "diaria histórica de la propia cuenta: cambio abrupto de "
+                       "comportamiento respecto del perfil declarado.",
+        "cita": "UIF Res. 30/2017 — conocimiento del cliente / perfil transaccional",
+        "severidad": "media",
+        "motor": "temporal",
     },
 ]
 

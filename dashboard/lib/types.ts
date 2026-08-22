@@ -196,12 +196,61 @@ export interface Screening {
 
 export type RuleSeverity = "alta" | "media" | "baja";
 
+/** Qué motor evalúa el escenario: features agregadas de cuenta o el stream. */
+export type RuleEngine = "agregado" | "temporal";
+
+/** Operación citada como evidencia de un escenario temporal. */
+export interface RuleEvidenceTxn {
+  transaction_id: string;
+  src: string;
+  dst: string;
+  amount: number;
+  timestamp: number;
+  tipo: string;
+  canal: string;
+  glosa: string;
+}
+
+/**
+ * Evidencia de un escenario de ventana temporal: las operaciones concretas que
+ * lo dispararon más los agregados de la ventana. Los campos varían según la
+ * familia de escenario (ráfaga, par emparejado, desvío de perfil), por eso
+ * están todos opcionales.
+ */
+export interface RuleEvidence {
+  operaciones: RuleEvidenceTxn[];
+  /** R09/R10 — ráfaga */
+  contrapartes?: number;
+  monto_total?: number;
+  ventana_horas?: number;
+  desde?: number;
+  hasta?: number;
+  umbral_aplicado?: number;
+  /** R11/R12 — par emparejado por monto */
+  monto_referencia?: number;
+  monto_contrapartida?: number;
+  cobertura?: number;
+  horas_transcurridas?: number;
+  contraparte_origen?: string;
+  contraparte_destino?: string;
+  /** R13 — desvío contra la baseline propia */
+  volumen_pico?: number;
+  mediana_diaria?: number;
+  multiplo?: number | null;
+  dias_activos?: number;
+  dia_pico?: number;
+}
+
 export interface RuleHit {
   id: string;
   nombre: string;
   cita: string;
   severidad: RuleSeverity;
   descripcion: string;
+  /** Ausente en artefactos anteriores a los escenarios temporales. */
+  motor?: RuleEngine;
+  /** Sólo la traen los escenarios temporales. */
+  evidencia?: RuleEvidence;
 }
 
 export interface TraceHop {

@@ -37,7 +37,7 @@ import numpy as np
 import pandas as pd
 import yaml
 
-from src import rules_engine
+from src import rules_engine, rules_temporal
 from src.features import build_node_features
 
 # Factores aplicados al umbral principal de cada escenario para el backtest.
@@ -63,7 +63,20 @@ PRIMARY_PARAM: dict[str, dict] = {
             "unidad": "ARS", "entero": True},
     # R08 se evalúa contra las listas de sanciones: no tiene umbral numérico
     # que calibrar (una coincidencia se confirma o se descarta a mano).
+    "R09": {"clave": "burst_out_min_total", "label": "Monto total de la ráfaga",
+            "unidad": "ARS", "entero": True},
+    "R10": {"clave": "burst_in_min_total", "label": "Monto total agregado en la ventana",
+            "unidad": "ARS", "entero": True},
+    "R11": {"clave": "uturn_min_amount", "label": "Monto mínimo del circuito",
+            "unidad": "ARS", "entero": True},
+    "R12": {"clave": "passthrough_min_amount", "label": "Monto mínimo del ingreso",
+            "unidad": "ARS", "entero": True},
+    "R13": {"clave": "velocity_multiple", "label": "Múltiplo sobre la mediana diaria",
+            "unidad": "×", "entero": False},
 }
+
+# Escenarios cuyo umbral principal vive en `rules_temporal:` y no en `rules:`.
+TEMPORAL_IDS = set(rules_temporal.TEMPORAL_RULE_IDS)
 
 # Todos los umbrales, con etiqueta para la ficha del escenario.
 THRESHOLD_LABELS: dict[str, str] = {
@@ -82,6 +95,22 @@ THRESHOLD_LABELS: dict[str, str] = {
     "fanout_avg_max": "Monto promedio máximo por envío",
     "fanout_min_total": "Total distribuido mínimo",
     "agg_volume": "Volumen agregado del período",
+    # escenarios de ventana temporal
+    "burst_out_window_h": "Ventana de la ráfaga (horas)",
+    "burst_out_min_counterparties": "Destinatarios distintos mínimos",
+    "burst_out_min_total": "Monto total de la ráfaga",
+    "burst_in_window_h": "Ventana de la ráfaga (horas)",
+    "burst_in_min_counterparties": "Remitentes distintos mínimos",
+    "burst_in_min_total": "Monto total agregado en la ventana",
+    "uturn_window_days": "Plazo máximo del retorno (días)",
+    "uturn_tolerance": "Tolerancia de monto del retorno",
+    "uturn_min_amount": "Monto mínimo del circuito",
+    "passthrough_window_h": "Ventana entrada-salida (horas)",
+    "passthrough_min_ratio": "Cobertura mínima de la salida",
+    "passthrough_min_amount": "Monto mínimo del ingreso",
+    "velocity_multiple": "Múltiplo sobre la mediana diaria",
+    "velocity_min_active_days": "Días activos mínimos (baseline)",
+    "velocity_min_peak": "Volumen mínimo del día pico",
 }
 
 # Umbrales que consume cada escenario (para mostrar su ficha completa).
@@ -94,6 +123,11 @@ RULE_THRESHOLDS: dict[str, list[str]] = {
     "R06": ["fanout_degree", "fanout_avg_max", "fanout_min_total"],
     "R07": ["agg_volume"],
     "R08": [],
+    "R09": ["burst_out_window_h", "burst_out_min_counterparties", "burst_out_min_total"],
+    "R10": ["burst_in_window_h", "burst_in_min_counterparties", "burst_in_min_total"],
+    "R11": ["uturn_window_days", "uturn_tolerance", "uturn_min_amount"],
+    "R12": ["passthrough_window_h", "passthrough_min_ratio", "passthrough_min_amount"],
+    "R13": ["velocity_multiple", "velocity_min_active_days", "velocity_min_peak"],
 }
 
 SEGMENTS = ["personal", "business", "merchant"]
@@ -113,7 +147,30 @@ def _thresholds(cfg: dict) -> dict:
     t = rules_engine._default_thresholds()
     if cfg and isinstance(cfg.get("rules"), dict):
         t = {**t, **cfg["rules"]}
-    return t
+    tt = rules_temporal._default_thresholds()
+    if cfg and isinstance(cfg.get("rules_temporal"), dict):
+        tt = {**tt, **cfg["rules_temporal"]}
+    # Un único diccionario de umbrales: los escenarios no comparten claves entre
+    # motores, así que la ficha y la calibración pueden tratarlos igual.
+    return {**t, **tt}
+
+
+def _split_cfg(t: dict, cfg: dict | None) -> dict:
+    """Reconstruye el cfg que espera cada motor a partir de los umbrales planos."""
+    agg = set(rules_engine._default_thresholds())
+    tmp = set(rules_temporal._default_thresholds())
+    return {
+        **(cfg or {}),
+        "rules": {k: v for k, v in t.items() if k in agg},
+        "rules_temporal": {k: v for k, v in t.items() if k in tmp},
+    }
+
+
+def _temporal_mask(rid: str, txn: pd.DataFrame, acc: pd.DataFrame,
+                   index: pd.Index, t: dict, cfg: dict) -> np.ndarray:
+    """Corre un escenario temporal aislado y lo alinea con el índice de cuentas."""
+    hits = rules_temporal.evaluate_rules(txn, acc, _split_cfg(t, cfg), only=[rid])
+    return index.isin(list(hits.get(rid, {})))
 
 
 def _scale(value, factor: float, entero: bool):
@@ -155,18 +212,35 @@ def _metrics(mask: np.ndarray, y: np.ndarray) -> dict:
 
 # ── construcción ──────────────────────────────────────────────────────────────
 
-def _calibration_curve(rid: str, feats: pd.DataFrame, y: np.ndarray, t: dict) -> dict | None:
-    """Re-evalúa el escenario con su umbral principal escalado (backtest what-if)."""
+def _calibration_curve(rid: str, feats: pd.DataFrame, y: np.ndarray, t: dict,
+                       txn: pd.DataFrame | None = None, acc: pd.DataFrame | None = None,
+                       cfg: dict | None = None) -> dict | None:
+    """
+    Re-evalúa el escenario con su umbral principal escalado (backtest what-if).
+
+    Los escenarios temporales se re-corren sobre el stream en cada punto de la
+    curva — más caro que re-aplicar una máscara vectorizada, pero es la única
+    forma honesta de medirlos: su disparo depende de la secuencia, no de un
+    agregado que se pueda recalcular con una comparación.
+    """
     spec = PRIMARY_PARAM.get(rid)
     if spec is None:
         return None
     clave, entero = spec["clave"], spec["entero"]
     actual = t[clave]
+    es_temporal = rid in TEMPORAL_IDS
+    if es_temporal and (txn is None or acc is None):
+        # Sin el stream no hay nada que backtestear: estos escenarios no se
+        # pueden recalcular desde las features agregadas.
+        return None
 
     puntos = []
     for factor in CALIBRATION_FACTORS:
         probe = {**t, clave: _scale(actual, factor, entero)}
-        mask = rules_engine._rule_masks(feats, probe)[rid].to_numpy()
+        if es_temporal:
+            mask = _temporal_mask(rid, txn, acc, feats.index, probe, cfg)
+        else:
+            mask = rules_engine._rule_masks(feats, probe)[rid].to_numpy()
         puntos.append({
             "factor": factor,
             "valor": _fmt(probe[clave], entero),
@@ -210,6 +284,11 @@ def build(config_path: str = "config/config.yaml") -> dict:
     masks = {rid: m.to_numpy() for rid, m in rules_engine._rule_masks(feats, t).items()}
     masks["R08"] = _r08_mask(feats, raw)
 
+    # Escenarios de ventana temporal: una sola pasada sobre el stream para los cinco.
+    temporal_hits = rules_temporal.evaluate_rules(txn, acc, _split_cfg(t, cfg))
+    for rid, hits in temporal_hits.items():
+        masks[rid] = feats.index.isin(list(hits))
+
     # Cuántos escenarios dispara cada cuenta (para medir el aporte exclusivo).
     stack = np.vstack([masks[r["id"]] for r in rules_engine.RULES])
     n_fired_per_account = stack.sum(axis=0)
@@ -239,21 +318,43 @@ def build(config_path: str = "config/config.yaml") -> dict:
             **rule,
             "estado": "activo",
             "calibrable": rid in PRIMARY_PARAM,
-            "fuente": "features transaccionales" if rid in PRIMARY_PARAM else "listas de sanciones",
+            "fuente": ("stream de transacciones (ventana móvil)" if rid in TEMPORAL_IDS
+                       else "features transaccionales" if rid in PRIMARY_PARAM
+                       else "listas de sanciones"),
+            "cita_evidencia": rid in TEMPORAL_IDS,
             "puntos_severidad": t["severity_points"][rule["severidad"]],
             "umbrales": umbrales,
             "metricas": _metrics(mask, y),
             "por_tipo": por_tipo,
             "aporte_exclusivo": exclusivo,
-            "calibracion": _calibration_curve(rid, feats, y, t),
+            "calibracion": _calibration_curve(rid, feats, y, t, txn, acc, cfg),
         })
 
     # ── motor completo + complementariedad con el GNN ─────────────────────────
     any_mask = stack.any(axis=0)
+
+    def _motor_mask(motor: str) -> np.ndarray:
+        ids = [r["id"] for r in rules_engine.RULES if r["motor"] == motor]
+        return np.vstack([masks[i] for i in ids]).any(axis=0)
+
+    agg_mask, tmp_mask = _motor_mask("agregado"), _motor_mask("temporal")
+    n_agg = sum(1 for r in rules_engine.RULES if r["motor"] == "agregado")
     resumen = {
         "escenarios": len(rules_engine.RULES),
         "activos": len(rules_engine.RULES),
         **_metrics(any_mask, y),
+        "por_motor": {
+            "agregado": {"escenarios": n_agg, **_metrics(agg_mask, y)},
+            "temporal": {"escenarios": len(rules_engine.RULES) - n_agg,
+                         **_metrics(tmp_mask, y)},
+        },
+        # Cuánto fraude ve el motor temporal que el agregado no ve, y al revés:
+        # la comparación interna que justifica sostener las dos familias.
+        "cruce_motores": {
+            "solo_agregado": int((agg_mask & ~tmp_mask & (y == 1)).sum()),
+            "solo_temporal": int((~agg_mask & tmp_mask & (y == 1)).sum()),
+            "ambos": int((agg_mask & tmp_mask & (y == 1)).sum()),
+        },
     }
 
     complementariedad = _complementarity(feats, y, any_mask, cfg)

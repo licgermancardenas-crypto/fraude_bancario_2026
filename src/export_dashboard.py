@@ -63,7 +63,7 @@ def _txn_meta(src: str, dst: str, amount: float, dst_type: str | None) -> dict:
             else _CONCEPTOS_BIZ if dst_type == "business"
             else _CONCEPTOS_PERSON)
     return {"canal": canal, "concepto": pool[h % len(pool)], "moneda": "ARS"}
-from src import rules_engine
+from src import rules_engine, rules_temporal
 
 # Ordered so the dashboard lists baselines before the GNNs.
 MODEL_SCORE_FILES = {
@@ -422,19 +422,54 @@ def export_cases(acc, txn, data, scores_all, cfg, out_dir, n_cases=80):
     )
 
     # ── rules engine: deterministic AML scenarios evaluated alongside the GNN ──
+    # Dos motores complementarios: el agregado (R01-R07) sobre las features de
+    # cuenta y el temporal (R09-R13) sobre el stream, que además cita las
+    # operaciones concretas que dispararon cada escenario.
     feats = build_node_features(acc, txn)
     rules_by_acc = rules_engine.evaluate(feats, cfg)
+    temporal_by_acc = rules_temporal.evaluate(txn, acc, cfg)
+
+    _txn_idx = txn.set_index("transaction_id")
+
+    def _evidence_txns(txn_ids):
+        """Operaciones citadas por un escenario, listas para mostrar en el ROS."""
+        out = []
+        for tid in txn_ids[:12]:   # tope: la evidencia es ilustrativa, no el extracto
+            if tid not in _txn_idx.index:
+                continue
+            r = _txn_idx.loc[tid]
+            out.append({
+                "transaction_id": tid,
+                "src": r.src, "dst": r.dst,
+                "amount": round(float(r.amount), 2),
+                "timestamp": int(r.timestamp),
+                "tipo": r.transaction_type,
+                "canal": r.get("canal", "") if _has_meta else "",
+                "glosa": r.get("glosa", "") if _has_meta else "",
+            })
+        return out
 
     def _rules(acc_id, screening):
-        """Fired rules for an account: transactional (R01-R07) + R08 (screening)."""
+        """Escenarios disparados: agregados (R01-R07), temporales (R09-R13) y R08."""
         ids = list(rules_by_acc.get(acc_id, {}).get("rules_fired", []))
         if screening.get("hit_directo") or screening.get("exposicion_indirecta"):
             ids.append("R08")  # sanctions/watchlist exposure
-        rules_fired = [
-            {k: rules_engine.RULES_BY_ID[rid][k]
-             for k in ("id", "nombre", "cita", "severidad", "descripcion")}
-            for rid in ids
-        ]
+        temporal = temporal_by_acc.get(acc_id, {})
+        ids += list(temporal.get("rules_fired", []))
+
+        evidencia = temporal.get("evidence", {})
+        rules_fired = []
+        for rid in ids:
+            meta = rules_engine.RULES_BY_ID[rid]
+            entry = {k: meta[k] for k in ("id", "nombre", "cita", "severidad",
+                                          "descripcion", "motor")}
+            if rid in evidencia:
+                ev = dict(evidencia[rid])
+                entry["evidencia"] = {
+                    **{k: v for k, v in ev.items() if k != "operaciones"},
+                    "operaciones": _evidence_txns(ev.get("operaciones", [])),
+                }
+            rules_fired.append(entry)
         return {"rules_fired": rules_fired,
                 "rule_score": rules_engine.score_from_ids(ids, cfg)}
 
@@ -723,7 +758,11 @@ def export_cases(acc, txn, data, scores_all, cfg, out_dir, n_cases=80):
     _save(rules_engine.catalogue(), f"{out_dir}/rules_catalog.json")
 
     n_with_rules = sum(1 for c in cases if c["rules_fired"])
-    print(f"  reglas AML: {n_with_rules}/{len(cases)} casos con >=1 regla disparada")
+    n_temporal = sum(1 for c in cases
+                     if any(r.get("motor") == "temporal" for r in c["rules_fired"]))
+    n_evid = sum(1 for c in cases if any("evidencia" in r for r in c["rules_fired"]))
+    print(f"  reglas AML: {n_with_rules}/{len(cases)} casos con >=1 escenario disparado "
+          f"({n_temporal} con escenario temporal, {n_evid} con evidencia citada)")
 
 
 # ── master ────────────────────────────────────────────────────────────────────

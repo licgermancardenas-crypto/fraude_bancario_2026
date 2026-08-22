@@ -48,14 +48,20 @@ export interface ScenarioThreshold {
 
 export type Severidad = "alta" | "media" | "baja";
 
+/** Motor que evalúa el escenario: agregados de cuenta, o el stream de operaciones. */
+export type ScenarioEngine = "agregado" | "temporal";
+
 export interface Scenario {
   id: string;
   nombre: string;
   descripcion: string;
   cita: string;
   severidad: Severidad;
+  motor: ScenarioEngine;
   estado: string;
   calibrable: boolean;
+  /** Los escenarios temporales citan las operaciones que los dispararon. */
+  cita_evidencia?: boolean;
   fuente: string;
   puntos_severidad: number;
   umbrales: ScenarioThreshold[];
@@ -78,7 +84,14 @@ export interface Complementarity {
 export interface ScenariosData {
   generated_at: string;
   poblacion: { cuentas: number; fraude: number; legitimas: number; tasa_base: number };
-  resumen: ScenarioMetrics & { escenarios: number; activos: number };
+  resumen: ScenarioMetrics & {
+    escenarios: number;
+    activos: number;
+    /** Rendimiento de cada familia de escenarios por separado. */
+    por_motor?: Record<ScenarioEngine, ScenarioMetrics & { escenarios: number }>;
+    /** Reparto del fraude entre los dos motores de reglas. */
+    cruce_motores?: { solo_agregado: number; solo_temporal: number; ambos: number };
+  };
   complementariedad: Complementarity;
   factores_calibracion: number[];
   escenarios: Scenario[];

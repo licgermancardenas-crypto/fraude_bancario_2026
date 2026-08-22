@@ -43,7 +43,7 @@ def test_metrics_sin_disparos_no_divide_por_cero():
 def _feats(n=200) -> pd.DataFrame:
     """Frame mínimo con las columnas que consumen las máscaras del motor."""
     rng = np.random.default_rng(42)
-    return pd.DataFrame({
+    return pd.DataFrame(index=pd.Index([f"ACC{i:05d}" for i in range(n)], name="account_id"), data={
         "account_type": ["personal"] * n,
         "is_fraud": rng.integers(0, 2, n),
         "degree_in": rng.integers(0, 40, n),
@@ -63,13 +63,36 @@ def _feats(n=200) -> pd.DataFrame:
     })
 
 
+def _stream(feats: pd.DataFrame) -> tuple[pd.DataFrame, pd.DataFrame]:
+    """
+    Stream mínimo alineado con `_feats`, con un caso de cada familia temporal:
+    una ráfaga de dispersión, una de agregación, un circuito y un tránsito.
+    Alcanza para que la curva de calibración de los escenarios temporales tenga
+    puntos que medir en ambos sentidos del umbral.
+    """
+    ids = list(feats.index)
+    t0, filas = 1_700_000_000, []
+    filas += [(ids[0], ids[10 + i], 4_000, i * 3_600) for i in range(5)]            # R09
+    filas += [(ids[20 + i], ids[1], 4_000, i * 3_600) for i in range(5)]            # R10
+    filas += [(ids[2], ids[30], 120_000, 0), (ids[31], ids[2], 118_000, 5 * 86_400)]  # R11
+    filas += [(ids[40], ids[3], 30_000, 0), (ids[3], ids[41], 28_000, 6 * 3_600)]     # R12
+    txn = pd.DataFrame([
+        {"transaction_id": f"TXN{i:05d}", "src": s, "dst": d, "amount": float(a),
+         "timestamp": t0 + off, "transaction_type": "transfer"}
+        for i, (s, d, a, off) in enumerate(filas)
+    ])
+    acc = pd.DataFrame({"account_id": ids, "account_type": "personal"})
+    return txn, acc
+
+
 @pytest.mark.parametrize("rid", sorted(PRIMARY_PARAM))
 def test_curva_de_calibracion_cubre_todos_los_factores(rid):
     from src.export_scenarios import _thresholds
 
     feats = _feats()
     y = feats["is_fraud"].to_numpy()
-    cal = _calibration_curve(rid, feats, y, _thresholds({}))
+    txn, acc = _stream(feats)
+    cal = _calibration_curve(rid, feats, y, _thresholds({}), txn, acc, {})
 
     assert cal is not None
     assert [p["factor"] for p in cal["puntos"]] == CALIBRATION_FACTORS
@@ -95,3 +118,12 @@ def test_r08_no_es_calibrable():
     """El escenario de sanciones no tiene umbral numérico que mover."""
     assert "R08" not in PRIMARY_PARAM
     assert _calibration_curve("R08", _feats(), np.zeros(200), {}) is None
+
+
+def test_calibracion_temporal_requiere_el_stream():
+    """Sin transacciones no se puede backtestear un escenario de ventana."""
+    from src.export_scenarios import _thresholds
+
+    feats = _feats()
+    y = feats["is_fraud"].to_numpy()
+    assert _calibration_curve("R12", feats, y, _thresholds({})) is None

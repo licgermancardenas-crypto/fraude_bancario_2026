@@ -116,3 +116,37 @@ rules:
     alta: 40
     media: 25
     baja: 15
+
+# ── escenarios de ventana temporal (rules_temporal.py, R09-R13) ──────────────
+# Se evalúan sobre el stream de transacciones, no sobre las features agregadas.
+# Calibrados contra is_fraud sobre este dataset (precisión / recall medidos):
+#   R09 147 flags  100,0% / 6,9%    R10  68 flags 100,0% / 3,2%
+#   R11  30 flags  100,0% / 1,4%    R12 1291 flags 93,4% / 56,4%
+#   R13 695 flags   70,8% / 23,0%
+rules_temporal:
+  # R09 — dispersión en ráfaga (pitufeo): N destinatarios distintos en la ventana
+  burst_out_window_h: 48
+  burst_out_min_counterparties: 4
+  burst_out_min_total:        # segmentado: la nómina de una empresa es fan-out lícito
+    personal: 8000
+    business: 80000
+    merchant: 80000
+  # R10 — agregación en ráfaga: N remitentes distintos en la ventana
+  burst_in_window_h: 72
+  burst_in_min_counterparties: 4
+  burst_in_min_total:
+    personal: 8000
+    business: 80000
+    merchant: 160000         # el fan-in de clientes es la operatoria normal del comercio
+  # R11 — operación circular (U-turn): salida y retorno equivalente por otra contraparte
+  uturn_window_days: 30
+  uturn_tolerance: 0.15      # ±15% cubre las "comisiones/rendimientos" del retorno
+  uturn_min_amount: 50000    # por debajo de esto el emparejamiento es coincidencia
+  # R12 — tránsito emparejado: ingreso y reenvío casi total dentro de la ventana
+  passthrough_window_h: 72
+  passthrough_min_ratio: 0.80   # la salida cubre ≥80% de la entrada
+  passthrough_min_amount: 5000
+  # R13 — desvío del perfil: día pico contra la mediana diaria de la propia cuenta
+  velocity_multiple: 20
+  velocity_min_active_days: 4   # sin historia mínima no hay baseline contra la cual comparar
+  velocity_min_peak: 30000

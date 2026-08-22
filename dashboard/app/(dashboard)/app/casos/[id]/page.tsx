@@ -12,6 +12,7 @@ import { relatedCases } from "@/lib/relatedCases";
 import { getSession, setSessionRole, can, type Session, type Role } from "@/lib/session";
 import { appendAudit, getAuditLog, verifyIntegrity, type AuditEvent } from "@/lib/auditLog";
 import SessionSwitcher from "@/components/SessionSwitcher";
+import RuleEvidence from "@/components/RuleEvidence";
 import { buildDetectionInsight } from "@/lib/insight";
 import PageHeader from "@/components/PageHeader";
 import CaseTraceability from "@/components/CaseTraceability";
@@ -461,18 +462,33 @@ export default function CaseDetailPage() {
                 {caseData.rules_fired.map((r) => {
                   const col = r.severidad === "alta" ? "#EF4444"
                             : r.severidad === "media" ? "#F59E0B" : "#8B93A7";
+                  const temporal = r.motor === "temporal";
                   return (
                     <div key={r.id} className="rounded-lg px-3 py-2" style={{ backgroundColor: "#12161F" }}>
-                      <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-2 flex-wrap">
                         <span className="text-[10px] font-mono px-1.5 py-0.5 rounded" style={{ backgroundColor: `${col}22`, color: col }}>{r.id}</span>
                         <span className="text-sm font-semibold" style={{ color: "#EDEAE6" }}>{r.nombre}</span>
+                        {temporal && (
+                          <span className="text-[9px] uppercase tracking-wide px-1.5 py-0.5 rounded"
+                                style={{ backgroundColor: "#1E2430", color: "#8B93A7" }}
+                                title="Escenario evaluado sobre la secuencia de operaciones en una ventana móvil, no sobre agregados de la cuenta">
+                            ventana temporal
+                          </span>
+                        )}
                         <span className="text-[10px] uppercase ml-auto" style={{ color: col }}>{r.severidad}</span>
                       </div>
                       <p className="text-[11px] mt-1 leading-relaxed" style={{ color: "#5A6478" }}>{r.descripcion}</p>
                       <p className="text-[10px] mt-1 font-mono" style={{ color: "#8B93A7" }}>{r.cita}</p>
+                      {r.evidencia && <RuleEvidence evidencia={r.evidencia} cuenta={caseData.account_id} />}
                     </div>
                   );
                 })}
+                {caseData.rules_fired.some((r) => r.motor === "temporal") && (
+                  <p className="text-[10px] leading-relaxed pt-0.5" style={{ color: "#5A6478" }}>
+                    Los escenarios de ventana temporal citan las operaciones que los dispararon:
+                    son las que se transcriben en el ROS como fundamento de la sospecha.
+                  </p>
+                )}
               </div>
             )}
           </div>

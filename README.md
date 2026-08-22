@@ -75,7 +75,7 @@ en `/`, `app/(dashboard)` es la herramienta real bajo `/app/*`.
 | `/app/origen` | Grafo dirigido del anillo + tabla de perpetradores identificados |
 | `/app/cuentas` | Ranking de riesgo top 200, filtrable y ordenable |
 | `/app/metodologia` | Documentación técnica del sistema |
-| `/app/escenarios` | **Gestión de escenarios** — catálogo del motor de reglas con norma de respaldo, performance medida por escenario y segmento KYC, simulador what-if de umbrales (backtest sobre la cartera) y cambio de calibración con aprobación de cuatro ojos |
+| `/app/escenarios` | **Gestión de escenarios** — catálogo de los dos motores de reglas (agregado y de ventana temporal) con norma de respaldo, performance medida por escenario y segmento KYC, simulador what-if de umbrales (backtest sobre la cartera) y cambio de calibración con aprobación de cuatro ojos |
 | `/app/casos` | **Cola de alertas** con 80 casos pre-generados, filtros, KPIs, gestión de estado |
 | `/app/entidades` | **Red de entidades** (personas, empresas, PEPs, shell companies) en Cytoscape.js |
 | `/app/casos/[id]/ros` | **Formulario ROS** (Reporte de Operación Sospechosa) pre-completado, narrativa automática, control de cuatro ojos, referencia a Ley 25.246 / UIF |
@@ -179,7 +179,8 @@ fraud-gnn/
 │   ├── analysis.py            # comparativa, ablation, error analysis
 │   ├── eda.py                 # análisis exploratorio del grafo
 │   ├── export_dashboard.py    # JSONs para el dashboard (cuentas, anillos, casos, entidades)
-│   ├── rules_engine.py        # motor de 8 escenarios ALD deterministas con cita regulatoria
+│   ├── rules_engine.py        # motor agregado: 8 escenarios ALD sobre features de cuenta
+│   ├── rules_temporal.py      # motor temporal: 5 escenarios de ventana móvil sobre el stream
 │   ├── export_scenarios.py    # gestión de escenarios: performance por regla + curva de calibración
 │   ├── generate_entities.py   # empresas, shell companies, PEPs, directores
 │   ├── enrich_personas.py     # identidades sintéticas argentinas (DNI, CUIL, AFIP)
@@ -219,6 +220,52 @@ fraud-gnn/
 
 ---
 
+
+## Los dos motores de reglas
+
+El programa corre **13 escenarios ALD deterministas** repartidos en dos motores que
+miran los mismos datos de forma distinta.
+
+El **motor agregado** (`src/rules_engine.py`, R01–R08) evalúa features de cuenta:
+totales, grados, promedios y ratios calculados sobre todo el período. Es barato y
+cubre los red flags clásicos, pero es estructuralmente ciego a la dimensión que
+define media tipología ALD — *cuándo* pasaron las cosas. Diez transferencias a diez
+destinatarios distintos son operatoria normal en un año y son pitufeo en cuarenta y
+ocho horas: el agregado no distingue los dos casos.
+
+El **motor temporal** (`src/rules_temporal.py`, R09–R13) evalúa la secuencia de
+operaciones dentro de ventanas móviles sobre el stream de transacciones, que es como
+razona un sistema de monitoreo transaccional real. Cubre dispersión en ráfaga
+(pitufeo), agregación en ráfaga, operación circular (U-turn), tránsito emparejado
+entrada-salida y desvío contra la baseline de la propia cuenta.
+
+| Motor | Escenarios | Cuentas marcadas | Precisión | Recall | Lift |
+|---|---|---|---|---|---|
+| Agregado (features de cuenta) | 8 | 3.885 | 35,8% | 65,0% | 12,5× |
+| **Temporal (ventana sobre el stream)** | 5 | **1.797** | **84,0%** | **70,5%** | **29,4×** |
+
+El motor temporal marca **menos de la mitad de cuentas** que el agregado y aun así
+detecta más fraude, con una precisión más del doble. **325 fraudes los ve sólo el
+motor temporal** (206 sólo el agregado, 1.184 los dos). Combinados, el recall del
+motor de reglas sube de 65% a 80,1%.
+
+Cada escenario temporal además **cita las operaciones concretas que lo dispararon** —
+visibles en el detalle del caso y transcribibles al ROS. Un reporte de operación
+sospechosa se sostiene con las operaciones citadas, no con el nombre de una regla.
+
+**Dos salvedades honestas.** (1) La complementariedad con el GNN sigue dando
+`solo_reglas = 0`: el modelo está saturado sobre este dataset sintético (detecta 2.134
+de 2.140 fraudes), así que ninguna regla puede aportarle cobertura. El valor de las
+reglas acá es la defendibilidad regulatoria — determinista, citable, auditable — no
+la cobertura. (2) No hay escenario de umbral de efectivo: en este dataset las 60.250
+extracciones son todas legítimas, así que una regla de efectivo sería un generador
+puro de falsos positivos. El dataset no modela colocación en efectivo.
+
+Los umbrales viven en `config/config.yaml` (`rules:` y `rules_temporal:`),
+segmentados por tipo de cuenta donde el comportamiento comercial legítimo —nómina,
+cobros de comercio— produce el mismo patrón por motivos lícitos.
+
+
 ## Reproducir
 
 ```bash
@@ -240,7 +287,7 @@ python -m src.evaluate_temporal     # evaluación temporal
 python -m src.analysis              # comparativa + figuras
 python -m src.generate_entities     # empresas, PEPs, shell companies
 python -m src.export_dashboard      # JSONs para dashboard
-python -m src.export_scenarios      # backtest de calibración de escenarios ALD
+python -m src.export_scenarios      # backtest de calibración de los 13 escenarios ALD
 python -m src.enrich_personas       # identidades sintéticas
 python -m src.generate_report       # informe PDF
 

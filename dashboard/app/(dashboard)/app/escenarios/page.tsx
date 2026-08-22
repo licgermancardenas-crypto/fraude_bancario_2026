@@ -135,6 +135,83 @@ export default function EscenariosPage() {
         ))}
       </div>
 
+      {/* ── los dos motores de reglas ─────────────────────────────────────── */}
+      {data.resumen.por_motor && data.resumen.cruce_motores && (() => {
+        const pm = data.resumen.por_motor!;
+        const cx = data.resumen.cruce_motores!;
+        return (
+          <div className="rounded-xl p-5" style={{ background: PANEL, border: `1px solid ${LINE}` }}>
+            <h2 className="text-sm font-bold mb-1" style={{ color: BONE }}>Dos motores, dos formas de mirar</h2>
+            <p className="text-xs mb-4" style={{ color: MUTED }}>
+              Los escenarios <b style={{ color: BONE }}>agregados</b> evalúan totales y promedios de la cuenta
+              sobre todo el período. Los <b style={{ color: BONE }}>temporales</b> evalúan la secuencia de
+              operaciones dentro de una ventana móvil — la diferencia entre &ldquo;diez transferencias a diez
+              destinatarios&rdquo; en un año, que es normal, y las mismas diez en cuarenta y ocho horas, que es pitufeo.
+            </p>
+
+            <div className="overflow-x-auto">
+              <table className="w-full text-xs">
+                <thead>
+                  <tr style={{ color: MUTED }}>
+                    <th className="text-left font-medium px-3 py-2">Motor</th>
+                    <th className="text-right font-medium px-3 py-2">Escenarios</th>
+                    <th className="text-right font-medium px-3 py-2">Cuentas marcadas</th>
+                    <th className="text-right font-medium px-3 py-2">Precisión</th>
+                    <th className="text-right font-medium px-3 py-2">Recall</th>
+                    <th className="text-right font-medium px-3 py-2">Lift</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {([
+                    ["agregado", "Agregado (features de cuenta)"],
+                    ["temporal", "Temporal (ventana sobre el stream)"],
+                  ] as const).map(([k, label]) => {
+                    const m = pm[k];
+                    if (!m) return null;
+                    const destaca = k === "temporal";
+                    return (
+                      <tr key={k} className="border-t" style={{ borderColor: LINE }}>
+                        <td className="px-3 py-2" style={{ color: destaca ? BONE : "rgba(237,234,230,0.75)" }}>
+                          {label}
+                        </td>
+                        <td className="px-3 py-2 text-right font-mono" style={{ color: MUTED }}>{m.escenarios}</td>
+                        <td className="px-3 py-2 text-right font-mono" style={{ color: BLUE }}>{num(m.disparos)}</td>
+                        <td className="px-3 py-2 text-right font-mono font-bold" style={{ color: destaca ? GREEN : MUTED }}>{pct(m.precision)}</td>
+                        <td className="px-3 py-2 text-right font-mono" style={{ color: AMBER }}>{pct(m.recall)}</td>
+                        <td className="px-3 py-2 text-right font-mono" style={{ color: MUTED }}>{m.lift}×</td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+
+            <div className="grid grid-cols-3 gap-3 mt-4">
+              {[
+                { label: "Fraude que sólo ve el motor agregado", value: cx.solo_agregado, color: MUTED },
+                { label: "Fraude que sólo ve el motor temporal", value: cx.solo_temporal, color: GREEN },
+                { label: "Visto por los dos motores", value: cx.ambos, color: BLUE },
+              ].map(k => (
+                <div key={k.label} className="rounded-lg p-3" style={{ background: "#07090F", border: `1px solid ${LINE}` }}>
+                  <div className="text-xl font-bold" style={{ color: k.color }}>{num(k.value)}</div>
+                  <div className="text-[11px] mt-1" style={{ color: MUTED }}>{k.label}</div>
+                </div>
+              ))}
+            </div>
+
+            <div className="rounded-lg p-3 mt-3 text-[11px] leading-relaxed" style={{ background: "rgba(34,197,94,0.07)", border: "1px solid rgba(34,197,94,0.25)", color: "rgba(237,234,230,0.82)" }}>
+              <b style={{ color: GREEN }}>Qué cambió al agregar la ventana:</b> el motor temporal marca
+              menos de la mitad de cuentas que el agregado y aun así detecta más fraude
+              ({pct(pm.temporal.recall)} contra {pct(pm.agregado.recall)}), con una precisión de
+              {" "}{pct(pm.temporal.precision)} frente a {pct(pm.agregado.precision)}. Son
+              {" "}{num(cx.solo_temporal)} casos que ningún escenario agregado alcanza: dependen de
+              <i> cuándo</i> ocurrieron las operaciones, y un promedio anual no conserva esa información.
+              Además citan las operaciones que los dispararon, que es lo que se transcribe en el ROS.
+            </div>
+          </div>
+        );
+      })()}
+
       {/* ── complementariedad reglas ↔ modelo ─────────────────────────────── */}
       {comp?.fraude_total ? (
         <div className="rounded-xl p-5" style={{ background: PANEL, border: `1px solid ${LINE}` }}>
@@ -253,6 +330,10 @@ export default function EscenariosPage() {
                       <div className="flex items-baseline gap-2">
                         <span className="font-mono" style={{ color: BLUE }}>{e.id}</span>
                         <span style={{ color: BONE }}>{e.nombre}</span>
+                        {e.motor === "temporal" && (
+                          <span className="text-[10px] rounded px-1.5 py-0.5" style={{ background: "rgba(34,197,94,0.12)", color: GREEN }}
+                            title="Evaluado sobre la secuencia de operaciones en una ventana móvil">ventana</span>
+                        )}
                         {pendingFor(proposals, e.id) && (
                           <span className="text-[10px] rounded px-1.5 py-0.5" style={{ background: "rgba(245,158,11,0.14)", color: AMBER }}>cambio pendiente</span>
                         )}
@@ -292,6 +373,13 @@ export default function EscenariosPage() {
               Norma de respaldo: <b style={{ color: BONE }}>{sel.cita}</b> · Fuente: {sel.fuente} ·
               Marca en exclusiva {num(sel.aporte_exclusivo)} cuentas que ningún otro escenario detecta
             </p>
+            {sel.cita_evidencia && (
+              <p className="text-[11px] mt-1.5" style={{ color: MUTED }}>
+                Escenario de <b style={{ color: GREEN }}>ventana temporal</b>: en cada alerta adjunta las
+                operaciones concretas que lo dispararon, disponibles en el detalle del caso para
+                transcribirlas al ROS.
+              </p>
+            )}
           </div>
 
           {/* umbrales vigentes */}
