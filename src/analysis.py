@@ -492,6 +492,11 @@ def run_analysis(config_path="config/config.yaml"):
     # 4. Ablation
     print("\n── 4. Ablation (solo topología) ─────────────────────────")
     abl_prauc, _ = run_ablation(data, model, cfg, figures_dir)
+    # Se publica como artefacto: el informe cita este número y hasta ahora sólo
+    # existía dentro del texto de insights.md, así que quedaba desincronizado.
+    abl_path = Path(cfg["paths"]["reports_dir"]) / "ablation.json"
+    abl_path.write_text(json.dumps({"topology_only_pr_auc": float(abl_prauc)}, indent=2))
+    print(f"  → {abl_path}")
 
     # 5. Error analysis
     error_df = error_analysis(data, acc, txn, scores_gnn_full, figures_dir)

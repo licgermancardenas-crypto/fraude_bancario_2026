@@ -4,6 +4,7 @@ Generates figures to reports/figures/ and returns stats dict.
 Called by notebooks/01_eda.ipynb and can also be run standalone.
 """
 
+import json
 from pathlib import Path
 import warnings
 import numpy as np
@@ -29,6 +30,25 @@ GRID_COLOR   = "#E0E0E0"
 FIG_DPI = 150
 
 
+def _jsonable(obj):
+    """numpy/pandas → tipos nativos, para que el dict de stats serialice."""
+    if isinstance(obj, dict):
+        return {str(k): _jsonable(v) for k, v in obj.items()}
+    if isinstance(obj, (list, tuple)):
+        return [_jsonable(v) for v in obj]
+    if isinstance(obj, (np.integer,)):
+        return int(obj)
+    if isinstance(obj, (np.floating,)):
+        return float(obj)
+    if isinstance(obj, (np.bool_,)):
+        return bool(obj)
+    if isinstance(obj, np.ndarray):
+        return _jsonable(obj.tolist())
+    if isinstance(obj, (pd.Series, pd.Index)):
+        return _jsonable(obj.tolist())
+    return obj
+
+
 def load_config(path="config/config.yaml"):
     with open(path) as f:
         return yaml.safe_load(f)
@@ -42,20 +62,40 @@ def load_data(cfg):
 
 
 def build_nx_graph(acc: pd.DataFrame, txn: pd.DataFrame) -> nx.DiGraph:
-    G = nx.DiGraph()
+    """Grafo de relaciones: un nodo por cuenta, una arista por par (src,dst).
+
+    Se construye vectorizado. La versión anterior recorría el libro con
+    `txn.iterrows()`, que sobre 11,2M operaciones tarda más de un cuarto de hora
+    (y ya había matado a export_dashboard por memoria). Agregando primero, el
+    groupby trabaja sobre 1,5M de filas y `from_pandas_edgelist` las carga de una.
+
+    El DiGraph colapsaba las aristas paralelas de todos modos —al repetirse un
+    par, la última fila pisaba a la anterior— así que acá la agregación se hace
+    explícita: `amount` es el flujo total de la relación, `is_fraud` es "alguna
+    operación marcada" y `timestamp` la más reciente. `n_txns` es nuevo. Los
+    conteos de nodos, aristas, grados y componentes no cambian.
+    """
     fraud_ids = set(acc.loc[acc.is_fraud == 1, "account_id"])
-    for _, row in acc.iterrows():
-        G.add_node(row.account_id,
-                   is_fraud=int(row.is_fraud),
-                   balance=row.balance,
-                   risk_score=row.risk_score,
-                   account_type=row.account_type)
-    for _, row in txn.iterrows():
-        G.add_edge(row.src, row.dst,
-                   amount=row.amount,
-                   timestamp=row.timestamp,
-                   is_fraud=int(row.is_fraud),
-                   transaction_type=row.transaction_type)
+
+    edges = (txn.groupby(["src", "dst"], observed=True, sort=False)
+                .agg(amount=("amount", "sum"),
+                     timestamp=("timestamp", "max"),
+                     is_fraud=("is_fraud", "max"),
+                     n_txns=("amount", "size"),
+                     transaction_type=("transaction_type", "last"))
+                .reset_index())
+
+    G = nx.from_pandas_edgelist(
+        edges, source="src", target="dst",
+        edge_attr=["amount", "timestamp", "is_fraud", "n_txns", "transaction_type"],
+        create_using=nx.DiGraph,
+    )
+    # Las cuentas sin ninguna operación también son nodos del grafo.
+    G.add_nodes_from(acc["account_id"])
+    nx.set_node_attributes(G, acc.set_index("account_id")["is_fraud"].astype(int).to_dict(), "is_fraud")
+    nx.set_node_attributes(G, acc.set_index("account_id")["balance"].to_dict(), "balance")
+    nx.set_node_attributes(G, acc.set_index("account_id")["risk_score"].to_dict(), "risk_score")
+    nx.set_node_attributes(G, acc.set_index("account_id")["account_type"].to_dict(), "account_type")
     return G, fraud_ids
 
 
@@ -567,6 +607,15 @@ def run_eda(config_path: str = "config/config.yaml") -> dict:
     ring_stats = section_rings(G, acc, txn, figures_dir)
     all_stats.update(ring_stats)
     all_stats.update(section_account_types(acc, figures_dir))
+
+    # Las cifras del EDA se publican como artefacto. Antes vivían sólo en el
+    # stdout de este script y había que transcribirlas a mano a insights.md y al
+    # informe — que es exactamente por lo que el informe terminó citando la
+    # homofilia y el Cohen d de una corrida vieja.
+    stats_path = Path(cfg["paths"]["reports_dir"]) / "eda_stats.json"
+    stats_path.write_text(
+        json.dumps(_jsonable(all_stats), ensure_ascii=False, indent=2), encoding="utf-8")
+    print(f"\n  → {stats_path}")
 
     print("\n" + "=" * 60)
     print("  EDA completado.")

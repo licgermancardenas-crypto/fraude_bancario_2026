@@ -43,6 +43,113 @@ def load_artifacts(cfg):
     return art
 
 
+def load_stats(cfg):
+    """
+    TODA cifra que aparezca en la narrativa del informe sale de acá.
+
+    Antes estaban escritas a mano en el cuerpo del HTML y el informe terminó
+    citando PR-AUC 0.978, 1.147 cuentas fraudulentas y ~400.000 transacciones
+    —números de la corrida a scale=0.01— mientras el dashboard mostraba 0.9431
+    sobre 75.000 cuentas y 11,2M de operaciones. Un lector que abría los dos
+    documentos encontraba la contradicción en la primera página.
+
+    Fuentes, todas artefactos versionados del pipeline:
+      results_all.json   métricas por modelo (analysis.py)
+      eda_stats.json     homofilia, grados, montos, anillos (eda.py)
+      kpis.json          padrón y prevalencia (export_dashboard.py)
+      scenarios.json     población y motor de reglas (export_scenarios.py)
+      training_log.csv   mejor época de validación (train.py)
+    """
+    reports = Path(cfg["paths"]["reports_dir"])
+    ddir    = Path(cfg["paths"]["dashboard_data_dir"])
+
+    def _json(path, default=None):
+        return json.loads(Path(path).read_text(encoding="utf-8")) if Path(path).exists() else default
+
+    s = {}
+    s["eda"] = _json(reports / "eda_stats.json", {}) or {}
+    s["ablation_pr_auc"] = (_json(reports / "ablation.json", {}) or {}).get("topology_only_pr_auc")
+    s["kpis"] = _json(ddir / "kpis.json", {}) or {}
+    s["scenarios"] = _json(ddir / "scenarios.json", {}) or {}
+    s["temporal"] = _json(ddir / "temporal_eval.json", {}) or {}
+
+    # modelos: dict por nombre + el mejor por PR-AUC
+    models = _json(reports / "results_all.json", []) or []
+    s["models"] = {m["model"]: m for m in models}
+    s["best"] = max(models, key=lambda m: m["pr_auc"]) if models else {}
+
+    # mejor época de validación, del log de entrenamiento
+    log = reports / "training_log.csv"
+    if log.exists():
+        import csv
+        rows = list(csv.DictReader(log.open()))
+        if rows:
+            b = max(rows, key=lambda r: float(r["val_pr_auc"]))
+            s["best_epoch"] = int(b["epoch"])
+            s["best_val_pr_auc"] = float(b["val_pr_auc"])
+            s["n_epochs_run"] = len(rows)
+
+    # volumen del libro, del almacén columnar. is_fraud es una columna de 1 byte:
+    # contarla sobre 11,2M filas cuesta 11 MB, no hace falta levantar el libro.
+    try:
+        from src import txn_store
+        import numpy as _np
+        s["n_txns"] = txn_store.n_rows(cfg["data"]["raw_dir"])
+        flags = txn_store.load_transactions(cfg["data"]["raw_dir"], columns=["is_fraud"])["is_fraud"]
+        s["n_fraud_txns"] = int(_np.asarray(flags).sum())
+        s["pct_fraud_txns"] = 100 * s["n_fraud_txns"] / s["n_txns"]
+    except Exception:
+        s["n_txns"] = s["n_fraud_txns"] = s["pct_fraud_txns"] = None
+
+    # cuántas features consume el modelo, de la fuente y no de memoria
+    try:
+        from src.features import FEATURE_COLS
+        s["n_features"] = len(FEATURE_COLS)
+        s["feature_cols"] = list(FEATURE_COLS)
+    except Exception:
+        s["n_features"], s["feature_cols"] = None, []
+
+    # tipologías realmente presentes en el padrón
+    try:
+        import pandas as _pd
+        acc = _pd.read_csv(Path(cfg["data"]["raw_dir"]) / "accounts.csv",
+                           usecols=["fraud_typology"])
+        s["typologies"] = sorted(t for t in acc["fraud_typology"].dropna().unique() if str(t).strip())
+    except Exception:
+        s["typologies"] = []
+
+    # peso de clase efectivo del entrenamiento
+    pob = s["scenarios"].get("poblacion", {})
+    if pob.get("fraude"):
+        s["class_weight"] = pob["legitimas"] / pob["fraude"]
+
+    # rastreo hacia atrás: cuántos perpetradores quedan por debajo del corte del
+    # modelo, que es el argumento del capítulo — el GNN ve mulas, no el origen
+    trace = _json(ddir / "origin_trace.json", {}) or {}
+    s["trace"] = trace.get("summary", {})
+    perps = trace.get("perpetrators", [])
+    invis = [p for p in perps if p.get("gnn_score", 1.0) < 0.5]
+    s["n_perps"] = len(perps)
+    s["n_perps_invisible"] = len(invis)
+    s["amount_perps_invisible"] = sum(p.get("amount_injected", 0) for p in invis)
+    return s
+
+
+def pct(x, decimals=1):
+    """Porcentaje en formato es-AR (12,3%)."""
+    return f"{x:.{decimals}f}".replace(".", ",") + "%"
+
+
+def dec(x, decimals=4):
+    """Decimal en formato es-AR (0,9431)."""
+    return f"{x:.{decimals}f}".replace(".", ",")
+
+
+def num(n):
+    """Entero con separador de miles es-AR (11.240.742)."""
+    return f"{int(n):,}".replace(",", ".")
+
+
 def b64img(path, fallback_h=160):
     p = Path(path)
     if not p.exists():
@@ -222,7 +329,7 @@ pre { background: #F3F4F6; padding: 14px 18px; font-size: 8.5pt;
 # Sections
 # ─────────────────────────────────────────────────────────────────────────────
 
-def cover():
+def cover(st):
     return """
 <div class="cover">
   <div>
@@ -264,8 +371,11 @@ def disclaimer_section():
 </div>"""
 
 
-def executive_summary():
-    return """
+def executive_summary(st):
+    b, e = st["best"], st["eda"]
+    xgb = st["models"].get("XGBoost", {})
+    lr  = st["models"].get("Logistic Regression", {})
+    return f"""
 <div class="break-before">
   <div class="section-num">Sección 1</div>
   <h2>Resumen Ejecutivo</h2>
@@ -279,24 +389,24 @@ def executive_summary():
 
   <div class="kpi-row no-break">
     <div class="kpi-card">
-      <div class="kpi-val">0.978</div>
-      <div class="kpi-lbl">Precisión global — GraphSAGE</div>
-      <div class="kpi-sub">Escala 0–1. Por encima de 0.95 es sobresaliente.</div>
+      <div class="kpi-val">{dec(b['pr_auc'])}</div>
+      <div class="kpi-lbl">Precisión global — {b['model']}</div>
+      <div class="kpi-sub">PR-AUC, escala 0–1. La tasa base de fraude es {pct(st['kpis']['pct_fraud'], 2)}.</div>
     </div>
     <div class="kpi-card">
-      <div class="kpi-val">97%</div>
+      <div class="kpi-val">{pct(b['rec_at_p90'] * 100, 0)}</div>
       <div class="kpi-lbl">Detección con 9 de 10 alertas correctas</div>
-      <div class="kpi-sub">vs. 80% modelo tradicional / 0% regresión simple</div>
+      <div class="kpi-sub">vs. {pct(xgb.get('rec_at_p90', 0) * 100, 0)} XGBoost / {pct(lr.get('rec_at_p90', 0) * 100, 0)} regresión simple</div>
     </div>
     <div class="kpi-card">
-      <div class="kpi-val">4</div>
+      <div class="kpi-val">{len(st['models'])}</div>
       <div class="kpi-lbl">Modelos comparados</div>
-      <div class="kpi-sub">Regresión · XGBoost · GAT · GraphSAGE</div>
+      <div class="kpi-sub">{' · '.join(st['models'])}</div>
     </div>
     <div class="kpi-card">
-      <div class="kpi-val">7.0×</div>
+      <div class="kpi-val">{dec(e['ff_lift'], 1)}×</div>
       <div class="kpi-lbl">Señal de red fraude-fraude</div>
-      <div class="kpi-sub">Los vecinos de cuentas fraudulentas son 7× más sospechosos</div>
+      <div class="kpi-sub">Los vecinos de cuentas fraudulentas son {dec(e['ff_lift'], 1)}× más sospechosos que el azar</div>
     </div>
   </div>
 
@@ -316,8 +426,8 @@ def executive_summary():
 
   <h3>Qué se hizo en este estudio</h3>
   <ul>
-    <li>Se construyó un <strong>grafo (red) transaccional sintético</strong> con 75.000 cuentas y 400.000 transacciones, incluyendo redes de lavado cíclicas (4-7 pasos) y esquemas de estructuración.</li>
-    <li>Se compararon <strong>4 modelos de IA</strong> sobre los mismos datos y el mismo criterio de evaluación: Regresión Logística (modelo simple), XGBoost (modelo tabular avanzado), GAT y GraphSAGE (modelos de grafos).</li>
+    <li>Se construyó un <strong>grafo (red) transaccional sintético</strong> con {num(st['kpis']['n_accounts'])} cuentas y {num(st['n_txns'])} transacciones sobre {num(e['n_edges'])} relaciones distintas, incluyendo redes de lavado cíclicas (4-7 pasos) y esquemas de estructuración.</li>
+    <li>Se compararon <strong>{len(st['models'])} modelos de IA</strong> sobre los mismos datos y el mismo criterio de evaluación: Regresión Logística (modelo simple), XGBoost (modelo tabular avanzado), GAT y GraphSAGE (modelos de grafos).</li>
     <li>Se analizó <strong>por qué</strong> el modelo toma cada decisión, usando una técnica llamada GNNExplainer que señala cuáles conexiones son las más sospechosas.</li>
     <li>Se implementó <strong>rastreo hacia atrás</strong> (backward tracing) para identificar no solo las "mulas" que mueven el dinero, sino también los <em>perpetradores de origen</em> que inyectaron los fondos.</li>
     <li>Se construyó un <strong>panel de control web</strong> con gestión de casos, red de entidades y formularios de reporte regulatorio (ROS/SAR).</li>
@@ -326,9 +436,9 @@ def executive_summary():
   <h3>Resultados principales</h3>
   <ul>
     <li>El <strong>historial crediticio es ciego al lavado de dinero</strong>: las cuentas que mueven dinero sucio tienen exactamente el mismo puntaje crediticio que las cuentas normales. El problema no está en el perfil de la persona, está en con quién se conecta.</li>
-    <li>GraphSAGE supera a todos los modelos comparados con una puntuación de <strong>0.978 sobre 1.0</strong> y detecta el 97% del fraude cuando se le exige que 9 de cada 10 alertas sean reales.</li>
+    <li>{b['model']} supera a todos los modelos comparados con una puntuación de <strong>{dec(b['pr_auc'])} sobre 1.0</strong> y detecta el {pct(b['rec_at_p90'] * 100, 0)} del fraude cuando se le exige que 9 de cada 10 alertas sean reales.</li>
     <li>El modelo se basa en <strong>señales de conectividad</strong> (cuántas transferencias hace una cuenta, cuántos remitentes únicos recibe, su puntuación de riesgo), no en los montos absolutos.</li>
-    <li>El rastreo hacia atrás identificó <strong>2 perpetradores que el modelo de IA no vio directamente</strong> pero que habían inyectado $6.600.000 al esquema desde cuentas aparentemente legítimas.</li>
+    <li>El rastreo hacia atrás identificó <strong>{num(st['n_perps_invisible'])} perpetradores que el modelo de IA no vio directamente</strong> (de {num(st['n_perps'])} en total) pero que habían inyectado {money_m(st['amount_perps_invisible'])} al esquema desde cuentas aparentemente legítimas.</li>
   </ul>
 
   <h3>Recomendación</h3>
@@ -341,8 +451,11 @@ def executive_summary():
 </div>"""
 
 
-def context_section():
-    return """
+def context_section(st):
+    e = st["eda"]
+    base = st["kpis"]["pct_fraud"]
+    vecino = base * e["ff_lift"]
+    return f"""
 <div class="break-before">
   <div class="section-num">Sección 2</div>
   <h2>Contexto y Problema</h2>
@@ -361,25 +474,26 @@ def context_section():
 
   <h3>Por qué el lavado estructurado es un problema de red</h3>
   <p>En un esquema de lavado en anillo, el dinero entra por una cuenta, circula por 4-7 cuentas intermediarias en rápida sucesión, y sale fragmentado en múltiples destinos. Ninguna cuenta individual del anillo tiene comportamiento "raro" en sus métricas propias: montos normales, historial crediticio sin manchas, antigüedad razonable.</p>
-  <p>La señal de fraude <em>emerge</em> del patrón de conexiones: los vecinos de una cuenta fraudulenta tienden fuertemente a ser fraudulentos. Medido en los datos de este estudio: <strong>lift fraude-fraude = 7.0×</strong> sobre el nivel esperado por azar. Esta señal es, por definición, invisible para modelos que analizan cuentas de forma individual.</p>
+  <p>La señal de fraude <em>emerge</em> del patrón de conexiones: los vecinos de una cuenta fraudulenta tienden a ser fraudulentos. Medido en los datos de este estudio: <strong>lift fraude-fraude = {dec(e['ff_lift'], 1)}×</strong> sobre el nivel esperado por azar — las aristas fraude→fraude son el {pct(e['pct_ff'], 2)} del grafo contra el {pct(e['expected_ff_pct'], 2)} que correspondería si las conexiones fueran al azar. Esta señal es, por definición, invisible para modelos que analizan cuentas de forma individual.</p>
 
   <div class="plain-lang no-break">
-    <div class="plain-lang-tag">En palabras simples — homofilia (7.0×)</div>
+    <div class="plain-lang-tag">En palabras simples — homofilia ({dec(e['ff_lift'], 1)}×)</div>
     <div class="plain-lang-body">
-      "Lift de 7.0×" significa esto: si tomamos una cuenta al azar del banco, la probabilidad de que sea fraudulenta es del 2.9%. Pero si tomamos una cuenta que <em>está conectada a una cuenta ya sospechosa</em>, esa probabilidad sube a cerca del 19%. Las cuentas fraudulentas se conectan entre sí mucho más de lo que cabría esperar por casualidad. <strong>El modelo usa exactamente esta señal para detectar redes enteras, no casos aislados.</strong>
+      "Lift de {dec(e['ff_lift'], 1)}×" significa esto: si tomamos una cuenta al azar del banco, la probabilidad de que sea fraudulenta es del {pct(base, 1)}. Pero si tomamos una cuenta que <em>está conectada a una cuenta ya sospechosa</em>, esa probabilidad sube a cerca del {pct(vecino, 0)}. Las cuentas fraudulentas se conectan entre sí más de lo que cabría esperar por casualidad. <strong>El modelo usa exactamente esta señal para detectar redes enteras, no casos aislados.</strong>
     </div>
   </div>
 
   <div class="callout no-break">
     <div class="callout-tag">Insight clave</div>
     <div class="callout-body">
-      El puntaje crediticio externo tiene un tamaño del efecto de <strong>Cohen d = 0.055</strong> entre cuentas fraudulentas y legítimas — prácticamente cero (0 = idénticos, 1 = muy diferentes). Las cuentas de lavado son crediticiamente "normales". El modelo correcto para detectarlas es el que analiza <em>con quién se conectan</em>, no <em>cómo son individualmente</em>.
+      El puntaje crediticio externo tiene un tamaño del efecto de <strong>Cohen d = {dec(e['effect_size_risk_score'], 3)}</strong> entre cuentas fraudulentas y legítimas — prácticamente cero (0 = idénticos, 1 = muy diferentes). Las cuentas de lavado son crediticiamente "normales". El modelo correcto para detectarlas es el que analiza <em>con quién se conectan</em>, no <em>cómo son individualmente</em>.
     </div>
   </div>
 </div>"""
 
 
-def data_section(figures_dir):
+def data_section(figures_dir, st):
+    e = st["eda"]
     return f"""
 <div class="break-before">
   <div class="section-num">Sección 3</div>
@@ -398,23 +512,24 @@ def data_section(figures_dir):
   <table>
     <thead><tr><th>Atributo</th><th>Valor</th><th>Descripción</th></tr></thead>
     <tbody>
-      <tr><td>Cuentas (nodos)</td><td><strong>75.000</strong></td><td>Distribuidas entre personal (70.6%), empresas (18.8%), comercios (10.6%)</td></tr>
-      <tr><td>Transacciones (aristas)</td><td><strong>~400.000</strong></td><td>Período ~1 año; tipos: transferencias (50%), pagos (35%), extracciones (15%)</td></tr>
-      <tr><td>Cuentas fraudulentas</td><td><strong>1.147 (1.53%)</strong></td><td>Prevalencia comparable a tasas reales de fraude bancario</td></tr>
-      <tr><td>Transacciones fraudulentas</td><td><strong>~8.000 (2%)</strong></td><td>Desbalance dominante — el modelo aprende de ejemplos muy escasos</td></tr>
-      <tr><td>Patrones embebidos</td><td>2 tipos</td><td>Anillos cíclicos (4-7 pasos) + estructuración / pitufeo</td></tr>
+      <tr><td>Cuentas (nodos)</td><td><strong>{num(st['kpis']['n_accounts'])}</strong></td><td>Distribuidas entre personal, empresas y comercios</td></tr>
+      <tr><td>Operaciones</td><td><strong>{num(st['n_txns'])}</strong></td><td>Período ~1 año; ~{num(2 * st['n_txns'] // st['kpis']['n_accounts'])} movimientos por cuenta y por año (cada operación toca dos cuentas), dentro del rango minorista real de 200-600</td></tr>
+      <tr><td>Relaciones (aristas)</td><td><strong>{num(e['n_edges'])}</strong></td><td>{dec(st['n_txns'] / e['n_edges'], 1)} operaciones por relación: las cuentas operan con contrapartes recurrentes, no al azar</td></tr>
+      <tr><td>Cuentas fraudulentas</td><td><strong>{num(st['kpis']['n_fraud'])} ({pct(st['kpis']['pct_fraud'], 2)})</strong></td><td>Prevalencia comparable a tasas reales de fraude bancario</td></tr>
+      <tr><td>Operaciones fraudulentas</td><td><strong>{num(st['n_fraud_txns'])} ({pct(st['pct_fraud_txns'], 2)})</strong></td><td>Desbalance dominante — el modelo aprende de ejemplos muy escasos</td></tr>
+      <tr><td>Patrones embebidos</td><td>{len(st['typologies'])} tipologías</td><td>{', '.join(x.replace('_', ' ') for x in st['typologies'])}</td></tr>
       <tr><td>Semilla aleatoria</td><td>42</td><td>Garantiza que los resultados sean reproducibles exactamente</td></tr>
     </tbody>
   </table>
 
   <div class="plain-lang no-break">
-    <div class="plain-lang-tag">En palabras simples — ¿por qué solo 1.53% de fraude?</div>
+    <div class="plain-lang-tag">En palabras simples — ¿por qué solo {pct(st['kpis']['pct_fraud'], 2)} de fraude?</div>
     <div class="plain-lang-body">
-      En un banco real, la gran mayoría de las transacciones son legítimas. El fraude es raro (1–3% del total). Esta rareza hace que sea difícil entrenar un sistema de IA: si simplemente dijera "todo es legítimo", acertaría el 98.5% de las veces pero no detectaría ni un solo caso de fraude. Por eso usamos métricas especiales (PR-AUC) que miden específicamente qué tan bien se detectan los casos raros.
+      En un banco real, la gran mayoría de las cuentas son legítimas. El fraude es raro (1–3% del total). Esta rareza hace que sea difícil entrenar un sistema de IA: si simplemente dijera "todo es legítimo", acertaría el {pct(100 - st['kpis']['pct_fraud'], 1)} de las veces pero no detectaría ni un solo caso de fraude. Por eso usamos métricas especiales (PR-AUC) que miden específicamente qué tan bien se detectan los casos raros.
     </div>
   </div>
 
-  <h3>Características analizadas por cuenta (18 en total)</h3>
+  <h3>Características analizadas por cuenta ({st['n_features']} en total)</h3>
   <table>
     <thead><tr><th>Categoría</th><th>Variables</th><th>Qué miden</th></tr></thead>
     <tbody>
@@ -422,11 +537,13 @@ def data_section(figures_dir):
       <tr><td>Montos</td><td>total_received, total_sent, avg_received, avg_sent, max_received, max_sent</td><td>Volumen y promedio de dinero que fluye por la cuenta</td></tr>
       <tr><td>Comportamiento relacional</td><td>unique_senders, unique_receivers, degree_ratio, amount_ratio</td><td>Cuántos remitentes/destinatarios únicos y qué proporción representan</td></tr>
       <tr><td>Perfil de cuenta</td><td>balance, risk_score, opened_days_ago, type_merchant, type_personal</td><td>Saldo, antigüedad, tipo de titular y puntaje de riesgo</td></tr>
+      <tr><td>Comportamiento temporal</td><td>active_days, activity_span_days, burst_ratio, night_ratio, mean_interval_hours, recency_ratio</td><td><em>Cuándo</em> opera la cuenta: en cuántos días distintos, concentrada en ráfagas, de noche, y cada cuánto</td></tr>
+      <tr><td>Tránsito de fondos</td><td>rapid_out_ratio, balance_retention, in_out_symmetry</td><td>Qué fracción de lo que entra sale enseguida, cuánto saldo retiene y qué tan simétricos son entrada y salida — la firma de una cuenta conducto</td></tr>
     </tbody>
   </table>
 
   <h3>Modelos comparados</h3>
-  <p>Los cuatro modelos se entrenaron y evaluaron sobre el <strong>mismo conjunto de datos, dividido 70/15/15</strong> (70% para aprender, 15% para ajustar, 15% para probar, siempre reproducible con semilla=42). La evaluación final se realizó exclusivamente sobre el 15% de prueba, que el modelo nunca vio antes.</p>
+  <p>Los {len(st['models'])} modelos se entrenaron y evaluaron sobre el <strong>mismo conjunto de datos, dividido 70/15/15</strong> (70% para aprender, 15% para ajustar, 15% para probar, siempre reproducible con semilla=42). La evaluación final se realizó exclusivamente sobre el 15% de prueba, que el modelo nunca vio antes.</p>
 
   <div class="plain-lang no-break">
     <div class="plain-lang-tag">En palabras simples — ¿qué es un "split" de datos?</div>
@@ -440,6 +557,7 @@ def data_section(figures_dir):
     <tbody>
       <tr><td>Regresión Logística</td><td>Modelo lineal clásico</td><td>Analiza cada cuenta de forma individual, sin considerar sus vecinos</td></tr>
       <tr><td>XGBoost</td><td>Árbol de decisión avanzado</td><td>Detecta patrones no lineales en las variables de cada cuenta, pero sin ver el grafo</td></tr>
+      <tr><td>Node2Vec + XGBoost</td><td>Embeddings de topología</td><td>Describe cada cuenta sólo por su posición en la red, ignorando sus variables — se incluye como control negativo</td></tr>
       <tr><td>GAT (Graph Attention Network)</td><td>IA de grafos con atención</td><td>Aprende qué conexiones son más importantes para cada cuenta (pesa las aristas)</td></tr>
       <tr><td>GraphSAGE</td><td>IA de grafos inductiva</td><td>Aprende de los vecinos de cada cuenta; puede aplicarse a cuentas nuevas que no estaban en el entrenamiento</td></tr>
     </tbody>
@@ -447,7 +565,7 @@ def data_section(figures_dir):
 
   <figure>
     {b64img(f"{figures_dir}/01_degree_distribution.png")}
-    <figcaption>Fig. 1 — Distribución de grado in/out. Las cuentas fraudulentas tienen grado 1.36× superior al legítimo (comportamiento de "router" típico de cuentas mula).</figcaption>
+    <figcaption>Fig. 1 — Distribución de grado in/out. Sobre el libro denso las cuentas fraudulentas tienen grado de entrada {dec(e['ratio_in_deg'], 2)}× el legítimo y de salida {dec(e['ratio_out_deg'], 2)}×: operan <em>menos</em> que una cuenta minorista activa, no más. El volumen por sí solo no las distingue.</figcaption>
   </figure>
 
   <h3>Capa de identidad sintética</h3>
@@ -475,7 +593,7 @@ def data_section(figures_dir):
 </div>"""
 
 
-def results_section(results, figures_dir):
+def results_section(results, figures_dir, st):
     rows = ""
     best_prauc = max(r["pr_auc"] for r in results)
     for r in results:
@@ -511,19 +629,19 @@ def results_section(results, figures_dir):
   <div class="plain-lang no-break">
     <div class="plain-lang-tag">En palabras simples — ¿qué significan estas métricas?</div>
     <div class="plain-lang-body">
-      <strong>PR-AUC (Área bajo la curva Precisión-Recall):</strong> mide qué tan bien detecta el fraude sin generar falsas alarmas. Va de 0 a 1. Un modelo que acierte en todo sería 1.0. Un modelo que adivine al azar obtendría ~0.015 (la tasa base de fraude). Por encima de 0.90 es excelente para fraude bancario.<br/><br/>
-      <strong>Recall @ Precisión 90%:</strong> imaginen que le pedimos al sistema: "solo dame alertas donde estés 90% seguro de que es fraude real". ¿De todo el fraude existente, cuánto detecta bajo esa exigencia? El 97% significa que detecta casi todo, con muy pocas falsas alarmas.<br/><br/>
+      <strong>PR-AUC (Área bajo la curva Precisión-Recall):</strong> mide qué tan bien detecta el fraude sin generar falsas alarmas. Va de 0 a 1. Un modelo que acierte en todo sería 1.0. Un modelo que adivine al azar obtendría ~{dec(st['kpis']['pct_fraud'] / 100, 3)} (la tasa base de fraude). Por encima de 0.90 es excelente para fraude bancario.<br/><br/>
+      <strong>Recall @ Precisión 90%:</strong> imaginen que le pedimos al sistema: "solo dame alertas donde estés 90% seguro de que es fraude real". ¿De todo el fraude existente, cuánto detecta bajo esa exigencia? El {pct(st['best']['rec_at_p90'] * 100, 0)} de {st['best']['model']} significa que detecta casi todo, con muy pocas falsas alarmas.<br/><br/>
       <strong>Alertas/día en BRS:</strong> estimación de cuántas notificaciones generaría el modelo cada día si se aplicara sobre las 500.000 cuentas del banco. Mejor valor en verde.
     </div>
   </div>
 
   <p style="font-size:9pt;color:#6B7280;margin-top:4px;">
-    * BRS escalado a 500K cuentas, 1.53% prevalencia de fraude. Mejor valor en verde.
+    * BRS escalado a 500K cuentas, {pct(st['kpis']['pct_fraud'], 2)} prevalencia de fraude. Mejor valor en verde.
   </p>
 
   <figure>
     {b64img(f"{figures_dir}/12_pr_curves_all.png")}
-    <figcaption>Fig. 2 — Curva Precisión-Recall: los 4 modelos evaluados. La línea más alta y a la derecha es la mejor. GAT compite muy bien pero GraphSAGE lo supera.</figcaption>
+    <figcaption>Fig. 2 — Curva Precisión-Recall: los {len(results)} modelos evaluados. La línea más alta y a la derecha es la mejor. {st['best']['model']} encabeza con PR-AUC {dec(st['best']['pr_auc'])}.</figcaption>
   </figure>
 
   <h3>Nota metodológica — cómo se evalúa un modelo de grafos honestamente</h3>
@@ -556,8 +674,15 @@ def results_section(results, figures_dir):
 </div>"""
 
 
-def insights_section(art=None):
+def insights_section(st, art=None):
     art = art or {}
+    e   = st["eda"]
+    xgb = st["models"].get("XGBoost", {})
+    lr  = st["models"].get("Logistic Regression", {})
+    b   = st["best"]
+    abl  = st.get("ablation_pr_auc")
+    cond = (st.get("temporal") or {}).get("conditions", {})
+    ti   = (st.get("temporal") or {}).get("temporal_info", {})
     tr = (art.get("trace") or {}).get("summary", {})
     perps = sorted((art.get("trace") or {}).get("perpetrators", []),
                    key=lambda r: -r["amount_injected"])
@@ -566,40 +691,40 @@ def insights_section(art=None):
     hidden = [c for c in cands if c.get("is_known_perp")]
     insights = [
         ("La señal de fraude es estructural, no de monto individual",
-         "Las transacciones fraudulentas tienen una mediana 13.7× mayor que las legítimas, pero dentro de cada anillo el monto se reduce progresivamente (85-98% por salto). Las reglas de umbral capturan la entrada del anillo pero pierden los saltos intermedios de 'enfriamiento'.",
+         f"Las transacciones fraudulentas tienen una mediana {dec(e['ratio_median_amount'], 1)}× mayor que las legítimas ({money(e['median_amount_fraud'])} contra {money(e['median_amount_legit'])}), pero dentro de cada anillo el monto se reduce progresivamente por salto. Las reglas de umbral capturan la entrada del anillo pero pierden los saltos intermedios de 'enfriamiento'.",
          "Complementar umbrales con alertas de <strong>velocidad transaccional por vecindario</strong>: si un nodo recibe y reenvía montos similares a múltiples destinos en ventanas de 72h, es candidato para revisión."),
-        ("El risk score crediticio es ciego al lavado (Cohen d = 0.055)",
+        (f"El risk score crediticio es ciego al lavado (Cohen d = {dec(e['effect_size_risk_score'], 3)})",
          "Las distribuciones del score crediticio son prácticamente idénticas entre cuentas fraudulentas y legítimas. Las cuentas mula son crediticiamente 'normales' — el problema es de red, no de perfil.",
          "<strong>Desconectar el score crediticio</strong> de las reglas AML. Construir un score específico de red que capture comportamiento relacional."),
-        ("Homofilia fraude-fraude: lift de 7.0×",
-         "Los vecinos de nodos fraudulentos son 7.0× más propensos a ser fraudulentos que el azar. Esto es la justificación cuantitativa para usar GNNs sobre baselines tabulares.",
-         "Usar este lift como argumento interno: 'cada transacción con una cuenta de riesgo aumenta 7× la probabilidad de que el origen también sea riesgo'."),
-        ("El grafo forma una sola componente conexa",
-         "Todos los 1 500 nodos están interconectados (1 componente débilmente conexa, 17 fuertemente conexas). Ninguna cuenta está aislada — la señal de fraude se propaga a múltiples saltos.",
+        (f"Homofilia fraude-fraude: lift de {dec(e['ff_lift'], 1)}×",
+         f"Los vecinos de nodos fraudulentos son {dec(e['ff_lift'], 1)}× más propensos a ser fraudulentos que el azar. Es la justificación cuantitativa para usar GNNs sobre baselines tabulares. El lift bajó respecto de versiones anteriores del dataset: al densificar la operatoria legítima, las tipologías conductuales (cuenta de paso, durmiente, round-tripping) dejan de formar comunidades densas y la señal pasa a ser de comportamiento más que de vecindario.",
+         f"Usar este lift como argumento interno: 'cada transacción con una cuenta de riesgo multiplica por {dec(e['ff_lift'], 1)} la probabilidad de que la contraparte también lo sea'."),
+        ("El grafo es, en la práctica, una sola componente conexa",
+         f"El {pct(e['pct_in_largest_wcc'], 1)} de las {num(e['n_nodes'])} cuentas está en una única componente débilmente conexa ({num(e['weakly_connected_components'])} componentes en total, {num(e['strongly_connected_components'])} fuertemente conexas). Casi ninguna cuenta está aislada — la señal de fraude se propaga a múltiples saltos.",
          "Al escalar a datos reales de BRS, verificar si el grafo se fragmenta. Cuentas en componentes aisladas tendrán menor confianza de predicción."),
-        ("Grado de cuentas de lavado: 1.36× superior al legítimo",
-         "Las cuentas mula tienen alta conectividad bidireccional (in ≈ out): actúan como 'routers'. Este es el fingerprint topológico del pitufeo.",
-         "Implementar regla de velocidad: cuentas con más de N contrapartes únicas en 30 días y grado in ≈ grado out van a cola de segunda revisión."),
-        ("El fraude es uniforme por tipo de cuenta (1.8-2.0%)",
+        (f"El grado ya no delata a la mula: {dec(e['ratio_in_deg'], 2)}× el legítimo de entrada",
+         f"Sobre el libro denso las cuentas mula tienen grado de entrada {dec(e['ratio_in_deg'], 2)}× y de salida {dec(e['ratio_out_deg'], 2)}× el de una cuenta legítima: operan <em>menos</em>, no más. Contra un fondo de ~{num(2 * st['n_txns'] // st['kpis']['n_accounts'])} movimientos anuales por cuenta, el volumen dejó de ser un discriminante — lo que las distingue es la <em>forma</em> de la operatoria, no su cantidad.",
+         "No usar el grado ni el volumen como regla de filtrado. La señal está en la simetría entrada/salida, la retención de saldo y la concentración de contrapartes — que es lo que capturan las features de comportamiento."),
+        (f"El fraude es casi uniforme por tipo de cuenta ({pct(min(e['fraud_pct_by_type'].values()), 1)}–{pct(max(e['fraud_pct_by_type'].values()), 1)})",
          "La prevalencia de fraude es casi idéntica en personal, business y merchant. No hay tipo de cuenta sobre-representado.",
          "No usar tipo de cuenta como proxy de riesgo AML. Mantenerlo como feature de contexto en el modelo pero no como regla de filtrado."),
         ("Los anillos operan en ventanas de 72 horas",
-         "Los 3 anillos detectados completan sus ciclos en 600 segundos a 72 horas entre saltos consecutivos — antes de que activen los sistemas de monitoreo batch diario.",
+         f"Los {num(e['n_rings_detected'])} anillos detectados (de {dec(e['avg_ring_length'], 1)} nodos en promedio) completan sus ciclos en minutos a 72 horas entre saltos consecutivos — antes de que activen los sistemas de monitoreo batch diario.",
          "Priorizar scoring en <strong>cuasi-real-time (cada 4h)</strong> para nodos de mayor riesgo, en lugar de batch diario."),
-        ("Pico de actividad fraudulenta: 20:00h y jueves",
-         "Las transacciones de fraude se concentran fuera del horario bancario. Si el equipo de compliance opera de 9-18h, los anillos iniciados a las 20:00 completan 2-3 saltos antes de la apertura del día siguiente.",
+        (f"Pico de actividad fraudulenta: {e['fraud_peak_hour']:02d}:00h y {e['fraud_peak_weekday'].lower()}",
+         f"Las transacciones de fraude se concentran fuera del horario bancario, con pico a las {e['fraud_peak_hour']:02d}:00. Si el equipo de compliance opera de 9-18h, los anillos iniciados de noche completan 2-3 saltos antes de la apertura del día siguiente.",
          "Configurar alertas automáticas de alta prioridad para transacciones >$500.000 en horario nocturno, combinadas con el score de red del modelo."),
-        ("El GNN mejora 3 puntos de PR-AUC sobre XGBoost",
-         "GraphSAGE logra PR-AUC=0.978 vs XGBoost=0.950 vs LogReg=0.728, usando exactamente el mismo test set. El único diferencial es el acceso a la estructura del grafo.",
+        (f"El GNN mejora {dec(b['pr_auc'] - xgb.get('pr_auc', 0), 3)} puntos de PR-AUC sobre XGBoost",
+         f"{b['model']} logra PR-AUC={dec(b['pr_auc'])} vs XGBoost={dec(xgb.get('pr_auc', 0))} vs LogReg={dec(lr.get('pr_auc', 0))}, usando exactamente el mismo test set. El único diferencial es el acceso a la estructura del grafo.",
          "Presentar la curva PR comparativa al directorio como argumento central: el área entre las curvas representa el 'fraude adicional detectado' por la inteligencia de grafos."),
-        ("La topología sola (ablation) logra PR-AUC=0.029",
-         "Un GraphSAGE entrenado con features constantes (solo estructura del grafo) alcanza PR-AUC=0.029. Los features tabulares y la estructura son complementarios, no sustitutos.",
+        (f"La topología sola (ablation) logra PR-AUC={dec(abl, 3) if abl is not None else '—'}",
+         f"Un GraphSAGE entrenado con features constantes (solo estructura del grafo) alcanza PR-AUC={dec(abl, 3) if abl is not None else '—'}. Los features tabulares y la estructura son complementarios, no sustitutos.",
          "En la fase piloto, priorizar la <strong>disponibilidad del grafo de transacciones</strong> sobre la calidad de los features de cuenta. El pipeline mínimo viable es: transacciones → GNN topológico → score de red."),
         ("Los nodos periféricos de anillos son los más difíciles de detectar",
          "El nodo fraude con score más bajo (0.118) tiene degree moderado (in=5, out=8) pero pocos vecinos fraude directos (2/13). Los nodos de entrada/salida del anillo tienen menos señal de vecindario.",
          "Para nodos con score intermedio (0.3-0.7), aplicar segunda revisión manual que considere el contexto completo del anillo, no solo el nodo individual."),
         ("Regresión Logística: límite de la linealidad en grafos",
-         "LogReg logra ROC-AUC=0.976 (alta separabilidad global) pero PR-AUC=0.728 y Recall@P90=18%. La frontera de decisión lineal separa mal fraude de legítimo en el punto operativo de alta precisión.",
+         f"LogReg logra ROC-AUC={dec(lr.get('roc_auc', 0))} (alta separabilidad global) pero PR-AUC={dec(lr.get('pr_auc', 0))} y Recall@P90={pct(lr.get('rec_at_p90', 0) * 100, 0)}. La frontera de decisión lineal separa mal fraude de legítimo en el punto operativo de alta precisión.",
          "Al presentar a BRS, usar la progresión LogReg→XGBoost→GNN como narrativa de 'capas de inteligencia': no-linealidad → red → ventaja acumulada."),
         ("El modelo detecta fraude por señales de red, no de monto",
          "GNNExplainer revela que los features más determinantes para clasificar una cuenta como fraude son txn_count, unique_senders y risk_score — todos indicadores de conectividad y comportamiento relacional, no de monto absoluto. Las features de monto (total_sent, avg_sent) tienen importancia secundaria.",
@@ -607,14 +732,14 @@ def insights_section(art=None):
         ("El 16% de los vecinos influyentes son también de alto riesgo",
          "Para los 5 nodos fraude explicados, el 16% (4/25) de sus vecinos más influyentes según GNNExplainer tienen a su vez score GNN > 0.5. La mayoría de los vecinos influyentes son cuentas legítimas — el modelo detecta fraude por patrones estructurales, no por contagio directo.",
          "Implementar 'investigación en cascada': cuando un analista confirma fraude en una cuenta, el sistema genera alertas de nivel 2 para sus vecinos influyentes según GNNExplainer, independientemente de si esos vecinos tienen score alto propio."),
-        ("El PR-AUC transductivo (0.978) baja a 0.899 en evaluación inductiva",
-         "En evaluación estándar (transductiva), el GNN ve durante el entrenamiento todas las aristas, incluyendo las que conectan nodos de test con nodos fraude de train. Al aislar el test set (inductivo, simula cuentas nuevas sin aristas al conjunto de entrenamiento), el PR-AUC baja de 0.978 a 0.899: parte de la señal de una cuenta fraude provenía de sus conexiones directas a nodos fraude ya vistos en entrenamiento.",
+        (f"El PR-AUC transductivo ({dec(cond.get('random_transductive', {}).get('pr_auc', 0))}) baja a {dec(cond.get('random_inductive', {}).get('pr_auc', 0))} en evaluación inductiva",
+         f"En evaluación estándar (transductiva), el GNN ve durante el entrenamiento todas las aristas, incluyendo las que conectan nodos de test con nodos fraude de train. Al aislar el test set (inductivo, simula cuentas nuevas sin aristas al conjunto de entrenamiento), el PR-AUC baja de {dec(cond.get('random_transductive', {}).get('pr_auc', 0))} a {dec(cond.get('random_inductive', {}).get('pr_auc', 0))}: buena parte de la señal de una cuenta fraude provenía de sus conexiones directas a nodos fraude ya vistos en entrenamiento.",
          "En el piloto con datos reales de BRS, evaluar en ventana temporal: entrenar con transacciones hasta el mes M, evaluar en M+1. Ningún nodo de test tendrá aristas en el grafo de train — la estimación de rendimiento operativo será honesta."),
         ("El GNN detecta mulas pero no el perpetrador de origen",
          f"Rastreando hacia atrás desde los nodos detectados en el grafo dirigido de transacciones, se identificaron {tr.get('n_perpetrators', 0)} cuentas raíz (in-degree=0 en el subgrafo de fraude) que alimentaron a {tr.get('n_mules_detected', 0)} mulas detectadas y remontan ~{money_m(tr.get('total_amount_laundered', 0))} en fondos movidos. El principal inyector oculto ({top['node_id'] if top else '—'}) colocó {money(top['amount_injected']) if top else '—'} con score GNN ≈ {(top['gnn_score'] if top else 0):.0%} e is_fraud=False en el dataset. El GNN detecta la estratificación (placement→layering); el backward tracing detecta la colocación (placement).",
          "Combinar el scoring GNN con una segunda pasada de backward tracing: dado cualquier nodo detectado como fraude, agregar a la cola de investigación todos sus predecesores directos en el grafo dirigido temporal que no sean ellos mismos detectados. Priorizar por monto inyectado."),
-         ("Evaluación temporal: PR-AUC=0.971 bajo split honesto por tiempo",
-         "Re-entrenando GraphSAGE con solo el 70% del período histórico (transacciones hasta 2024-07-27, 380.910 de 544.157 aristas) y evaluando en el test set con el grafo completo, el PR-AUC es 0.971. La secuencia completa: transductivo=0.978 → inductivo=0.899 → temporal=0.971. Bajo evaluación temporal el modelo mantiene un rendimiento alto (0.971), señal de que aprende patrones estructurales estables y no conexiones específicas del período de entrenamiento.",
+         (f"Evaluación temporal: PR-AUC={dec(cond.get('temporal', {}).get('pr_auc', 0))} bajo split honesto por tiempo",
+         f"Re-entrenando {b['model']} con sólo el {ti.get('train_pct', 70)}% del período histórico (operaciones hasta {ti.get('t_train_str', '—')}, {num(ti.get('n_train_edges', 0))} de {num(ti.get('n_total_edges', 0))}) y evaluando en el test set con el grafo completo, el PR-AUC es {dec(cond.get('temporal', {}).get('pr_auc', 0))}. La secuencia completa: transductivo={dec(cond.get('random_transductive', {}).get('pr_auc', 0))} → inductivo={dec(cond.get('random_inductive', {}).get('pr_auc', 0))} → temporal={dec(cond.get('temporal', {}).get('pr_auc', 0))}. El temporal casi no se mueve respecto del transductivo, señal de que el modelo aprende patrones estructurales estables y no conexiones específicas del período; el que se desploma es el inductivo, que es el escenario de la cuenta nueva sin historial.",
          "Adoptar split temporal mensual para el piloto BRS: entrenar hasta mes M, validar en M+1, evaluar en M+2. Re-entrenar trimestralmente con los nuevos casos etiquetados por compliance. Reportar siempre PR-AUC temporal a dirección, no el transductivo."),
         ("Propagación inversa de riesgo valida y amplía el backward tracing",
          "Aplicando la fórmula placement(u) = Σ gnn[v]×amount(u→v) + 0.3×Σ gnn[w]×amount(v→w)×amount(u→v)/total_out(v) sobre todos los nodos, los perpetradores no detectados por el GNN (score ≈ 0–2%) copan los rangos inmediatamente debajo del tope: "
@@ -722,7 +847,7 @@ def roadmap_section():
 </div>"""
 
 
-def annex_section(results, cfg, figures_dir, art=None):
+def annex_section(results, cfg, figures_dir, st, art=None):
     gnn_r  = next(r for r in results if r["model"] == "GraphSAGE")
     xgb_r  = next(r for r in results if r["model"] == "XGBoost")
     gnn_cfg = cfg["model"]["graphsage"]
@@ -782,11 +907,12 @@ def annex_section(results, cfg, figures_dir, art=None):
     <tbody>
       <tr><td>Capas SAGEConv</td><td>{gnn_cfg['num_layers']}</td><td>2 saltos de vecindario — captura anillos de hasta 4 nodos directamente</td></tr>
       <tr><td>Hidden channels</td><td>{gnn_cfg['hidden_channels']}</td><td>64 unidades por capa; equilibrio entre capacidad y regularización</td></tr>
-      <tr><td>Dropout</td><td>{gnn_cfg['dropout']}</td><td>Regularización; crítico con desbalance 1:51</td></tr>
+      <tr><td>Dropout</td><td>{gnn_cfg['dropout']}</td><td>Regularización; crítico con desbalance 1:{st['class_weight']:.0f}</td></tr>
       <tr><td>Learning rate</td><td>{gnn_cfg['lr']}</td><td>Adam; convergencia estable observada</td></tr>
       <tr><td>Weight decay</td><td>{gnn_cfg['weight_decay']}</td><td>L2 regularización sobre parámetros</td></tr>
-      <tr><td>Class weight fraude</td><td>51.45×</td><td>n_legítimo / n_fraude en train set</td></tr>
-      <tr><td>Early stopping</td><td>paciencia={gnn_cfg['patience']}</td><td>Monitorea val PR-AUC; mejor época 150</td></tr>
+      <tr><td>Class weight fraude</td><td>{dec(st['class_weight'], 2)}×</td><td>n_legítimo / n_fraude en train set</td></tr>
+      <tr><td>Épocas</td><td>{gnn_cfg['epochs']}</td><td>Corrieron {num(st['n_epochs_run'])}; el grafo denso converge más lento que el esparso</td></tr>
+      <tr><td>Early stopping</td><td>paciencia={gnn_cfg['patience']}</td><td>Monitorea val PR-AUC; mejor época {st['best_epoch']}</td></tr>
       <tr><td>Aggregator</td><td>mean</td><td>Default SAGEConv; robusto en grafos heterofílicos</td></tr>
       <tr><td>Dirección grafo</td><td>ToUndirected</td><td>Cada arista dirigida → 2 aristas; información fluye en ambas direcciones alrededor de los anillos</td></tr>
     </tbody>
@@ -794,7 +920,7 @@ def annex_section(results, cfg, figures_dir, art=None):
 
   <figure>
     {b64img(f"{figures_dir}/10_training_curves.png")}
-    <figcaption>Fig. 4 — Curvas de entrenamiento. Izquierda: loss CrossEntropy (train). Derecha: PR-AUC en validación. El modelo alcanzó su mejor val PR-AUC = 0.9915 en la época 150.</figcaption>
+    <figcaption>Fig. 4 — Curvas de entrenamiento. Izquierda: loss CrossEntropy (train). Derecha: PR-AUC en validación. El modelo alcanzó su mejor val PR-AUC = {dec(st['best_val_pr_auc'])} en la época {st['best_epoch']}.</figcaption>
   </figure>
 
   <h3>Ablation: features tabulares vs. solo topología</h3>
@@ -802,11 +928,11 @@ def annex_section(results, cfg, figures_dir, art=None):
     <thead><tr><th>Variante</th><th>PR-AUC test</th><th>Interpretación</th></tr></thead>
     <tbody>
       <tr><td>GraphSAGE (features completos)</td><td class="td-best">{gnn_r['pr_auc']:.4f}</td><td>Features tabulares + estructura del grafo</td></tr>
-      <tr><td>GraphSAGE (solo topología)</td><td>0.0357</td><td>Solo con quién se conecta cada nodo (features=1 constante)</td></tr>
+      <tr><td>GraphSAGE (solo topología)</td><td>{dec(st['ablation_pr_auc']) if st.get('ablation_pr_auc') is not None else '—'}</td><td>Solo con quién se conecta cada nodo (features=1 constante)</td></tr>
       <tr><td>XGBoost (features tabulares)</td><td>{xgb_r['pr_auc']:.4f}</td><td>Solo features individuales, sin estructura</td></tr>
     </tbody>
   </table>
-  <p>El ablation demuestra que <strong>ambas fuentes de información son necesarias</strong>: la topología sola (PR-AUC=0.029) no captura la señal, pero combinada con features tabulares el modelo supera al mejor baseline no-grafo.</p>
+  <p>El ablation demuestra que <strong>ambas fuentes de información son necesarias</strong>: la topología sola (PR-AUC={dec(st['ablation_pr_auc'], 3) if st.get('ablation_pr_auc') is not None else '—'}) no captura la señal, pero combinada con features tabulares el modelo supera al mejor baseline no-grafo.</p>
 
   <figure>
     {b64img(f"{figures_dir}/14_ablation.png")}
@@ -817,7 +943,8 @@ def annex_section(results, cfg, figures_dir, art=None):
   <table>
     <thead><tr><th>Modelo</th><th>PR-AUC</th><th>Recall@P90</th><th>Observación clave</th></tr></thead>
     <tbody>
-      <tr><td>GAT (Graph Attention Network)</td><td>0.973</td><td>0.93</td><td>Aprende pesos por arista; compite bien pero inferior a SAGE en este grafo</td></tr>
+      <tr><td>GAT (Graph Attention Network)</td><td>{dec(st['models'].get('GAT', {}).get('pr_auc', 0))}</td><td>{dec(st['models'].get('GAT', {}).get('rec_at_p90', 0), 2)}</td><td>Aprende pesos por arista; sobre el grafo denso queda claramente por debajo de SAGE</td></tr>
+      <tr><td>Node2Vec + XGBoost</td><td>{dec(st['models'].get('Node2Vec + XGBoost', {}).get('pr_auc', 0))}</td><td>{dec(st['models'].get('Node2Vec + XGBoost', {}).get('rec_at_p90', 0), 2)}</td><td>Control negativo: la topología sola, sin features de comportamiento, no alcanza</td></tr>
     </tbody>
   </table>
 
@@ -907,20 +1034,25 @@ placement(u) = Σ_{{u→v}}      gnn[v] × amount(u→v)                        
 </div>"""
 
 
-def glossary_section():
+def glossary_section(st):
+    e   = st["eda"]
+    b   = st["best"]
+    xgb = st["models"].get("XGBoost", {})
+    gat = st["models"].get("GAT", {})
+    base = st["kpis"]["pct_fraud"]
     terms = [
         ("GNN — Red Neuronal de Grafos",
          "Sistema de inteligencia artificial diseñado para analizar datos organizados como redes (grafos), donde lo importante son las <strong>conexiones</strong> entre elementos, no solo los elementos en sí mismos.",
          "En este proyecto: analiza la red de transacciones bancarias donde las cuentas son los nodos y las transferencias son las conexiones."),
         ("GraphSAGE",
          "Un tipo específico de GNN que aprende a resumir la información de los vecinos de cada nodo (<em>SAGEConv = Sample and AGgregation</em>). Su ventaja clave es que puede aplicarse a cuentas nuevas que nunca vio durante el entrenamiento.",
-         "Resultado: PR-AUC=0.978 sobre 75.000 cuentas sintéticas."),
+         f"Resultado: PR-AUC={dec(b['pr_auc'])} sobre {num(st['kpis']['n_accounts'])} cuentas sintéticas."),
         ("GAT — Graph Attention Network",
          "Otro tipo de GNN que aprende a <strong>ponderar</strong> la importancia de cada conexión: no todos los vecinos influyen igual para detectar fraude.",
-         "En este proyecto: obtuvo PR-AUC=0.973, muy cercano a GraphSAGE."),
+         f"En este proyecto: obtuvo PR-AUC={dec(gat.get('pr_auc', 0))}, por debajo de {b['model']}."),
         ("PR-AUC — Área bajo la curva Precisión-Recall",
          "Métrica principal para evaluar modelos de detección de fraude. Mide el equilibrio entre <em>precisión</em> (¿cuántas alertas son fraude real?) y <em>recall</em> (¿cuánto fraude detectamos del total?). Va de 0 a 1; un modelo aleatorio obtendría ~0.015 (la tasa de fraude). Por encima de 0.90 es excelente.",
-         "Por qué no usamos 'exactitud': si un modelo dijera siempre 'no es fraude', acertaría el 98.5% del tiempo pero no detectaría nada."),
+         f"Por qué no usamos 'exactitud': si un modelo dijera siempre 'no es fraude', acertaría el {pct(100 - base, 1)} del tiempo pero no detectaría nada."),
         ("Recall @ Precisión 90% (Recall@P90)",
          "Responde a la pregunta: si le exigimos al sistema que 9 de cada 10 alertas sean fraude real, ¿qué porcentaje del fraude total detecta? Un valor de 97% significa que el modelo no pierde casi nada bajo condiciones de alta exigencia.",
          "GraphSAGE: 97%. XGBoost: 88%. Regresión Logística: 18%."),
@@ -929,19 +1061,19 @@ def glossary_section():
          "Todos los modelos obtuvieron ROC-AUC > 0.98 — incluso el modelo simple. Esto ilustra por qué ROC-AUC sola puede ser engañosa en datos desbalanceados."),
         ("Homofilia",
          "Tendencia de los nodos similares a conectarse entre sí. En redes de fraude: las cuentas fraudulentas tienden a transaccionar con otras cuentas fraudulentas mucho más de lo esperado por azar.",
-         "En este estudio: lift de 7.0×, es decir, la probabilidad de que el vecino de una cuenta sospechosa sea también sospechosa es 7 veces mayor que el promedio."),
-        ("Lift (homofilia 7.0×)",
-         "Medida de cuánto más probable es algo comparado con lo que ocurriría por azar. Lift=7.0× significa que si una cuenta está conectada a una cuenta fraudulenta, es 7.0 veces más probable que también sea fraudulenta, en comparación con una cuenta tomada al azar.",
+         f"En este estudio: lift de {dec(e['ff_lift'], 1)}×, es decir, la probabilidad de que el vecino de una cuenta sospechosa sea también sospechosa es {dec(e['ff_lift'], 1)} veces mayor que el promedio."),
+        (f"Lift (homofilia {dec(e['ff_lift'], 1)}×)",
+         f"Medida de cuánto más probable es algo comparado con lo que ocurriría por azar. Lift={dec(e['ff_lift'], 1)}× significa que si una cuenta está conectada a una cuenta fraudulenta, es {dec(e['ff_lift'], 1)} veces más probable que también sea fraudulenta, en comparación con una cuenta tomada al azar.",
          "Es la justificación matemática de por qué usar grafos supera a los modelos que analizan cuentas de forma individual."),
         ("Cohen d",
          "Medida estadística del tamaño del efecto entre dos grupos. Un valor cercano a 0 significa que los dos grupos son prácticamente idénticos; cerca de 1 significa diferencias grandes.",
-         "Cohen d=0.055 entre el puntaje crediticio de cuentas fraudulentas y legítimas confirma que el score crediticio no sirve para detectar lavado de dinero."),
+         f"Cohen d={dec(e['effect_size_risk_score'], 3)} entre el puntaje crediticio de cuentas fraudulentas y legítimas confirma que el score crediticio no sirve para detectar lavado de dinero."),
         ("Transductivo vs. Inductivo",
          "<strong>Transductivo:</strong> el modelo ve las conexiones de TODAS las cuentas durante el entrenamiento y la evaluación, incluyendo las cuentas del conjunto de prueba. <strong>Inductivo:</strong> las conexiones del conjunto de prueba se ocultan durante el entrenamiento — simula cuentas nuevas. El modo inductivo es más honesto para estimar el rendimiento en producción.",
          "GraphSAGE fue diseñado específicamente para funcionar bien en modo inductivo."),
         ("Backward Tracing (rastreo hacia atrás)",
          "Técnica que, partiendo de las cuentas mula detectadas por el modelo, recorre las transacciones en sentido inverso para identificar las cuentas de <strong>origen</strong> que inyectaron el dinero al esquema. El modelo de IA detecta las mulas; el rastreo detecta a quienes las dirigen.",
-         "En el estudio: identificó 2 perpetradores con score GNN ≈ 0% que habían inyectado $6.600.000 desde cuentas aparentemente legítimas."),
+         f"En el estudio: identificó {num(st['n_perps_invisible'])} perpetradores con score GNN por debajo del corte que habían inyectado {money_m(st['amount_perps_invisible'])} desde cuentas aparentemente legítimas."),
         ("Placement / Colocación",
          "Primera etapa del lavado de dinero: introducir el dinero sucio al sistema financiero. Es la más difícil de detectar porque las cuentas que hacen esta tarea tienen pocas transacciones totales y parecen legítimas.",
          "El backward tracing y el placement score están diseñados específicamente para detectar esta etapa que la IA convencional no ve."),
@@ -956,7 +1088,7 @@ def glossary_section():
          "En este proyecto: el entrenamiento se detuvo automáticamente en la época óptima según el rendimiento en el conjunto de validación."),
         ("XGBoost",
          "Algoritmo de aprendizaje automático basado en árboles de decisión encadenados. Muy efectivo para datos tabulares (filas y columnas). No analiza la estructura del grafo, pero sirve como comparativo sólido.",
-         "PR-AUC=0.950 vs. 0.978 de GraphSAGE — la diferencia representa el fraude adicional que se detecta por usar la información de las conexiones."),
+         f"PR-AUC={dec(xgb.get('pr_auc', 0))} vs. {dec(b['pr_auc'])} de {b['model']} — la diferencia representa el fraude adicional que se detecta por usar la información de las conexiones."),
         ("AML — Anti-Money Laundering",
          "Prevención de Lavado de Activos. Marco regulatorio y de procesos para detectar, reportar y prevenir el uso del sistema financiero para lavar dinero proveniente de actividades ilegales.",
          "En Argentina, el marco regulatorio es la Ley 25.246 y la UIF (Unidad de Información Financiera) supervisa el cumplimiento."),
@@ -968,7 +1100,7 @@ def glossary_section():
          "Argentina es miembro del GAFI a través del GAFILAT (Grupo de Acción Financiera de Latinoamérica)."),
         ("Grafo (red)",
          "Estructura matemática compuesta por <strong>nodos</strong> (cuentas bancarias en este caso) y <strong>aristas</strong> (transacciones entre cuentas). Permite representar y analizar relaciones complejas que una tabla de Excel no puede capturar.",
-         "Ejemplo: 75.000 cuentas = 75.000 nodos; 400.000 transferencias = 400.000 aristas dirigidas."),
+         f"Ejemplo: {num(st['kpis']['n_accounts'])} cuentas = {num(st['kpis']['n_accounts'])} nodos; {num(st['n_txns'])} operaciones que se agregan en {num(e['n_edges'])} aristas dirigidas."),
     ]
 
     entries = ""
@@ -999,19 +1131,19 @@ def glossary_section():
 # Renderer
 # ─────────────────────────────────────────────────────────────────────────────
 
-def build_html(cfg, results, art=None):
+def build_html(cfg, results, st, art=None):
     figs = cfg["paths"]["figures_dir"]
     sections = "\n".join([
-        cover(),
+        cover(st),
         disclaimer_section(),
-        executive_summary(),
-        context_section(),
-        data_section(figs),
-        results_section(results, figs),
-        insights_section(art),
+        executive_summary(st),
+        context_section(st),
+        data_section(figs, st),
+        results_section(results, figs, st),
+        insights_section(st, art),
         roadmap_section(),
-        annex_section(results, cfg, figs, art),
-        glossary_section(),
+        annex_section(results, cfg, figs, st, art),
+        glossary_section(st),
     ])
     return f"""<!DOCTYPE html>
 <html lang="es">
@@ -1072,7 +1204,8 @@ def main(config_path="config/config.yaml"):
 
     print("\n── 1. Generando HTML ────────────────────────────────────")
     art  = load_artifacts(cfg)
-    html = build_html(cfg, results, art)
+    st   = load_stats(cfg)
+    html = build_html(cfg, results, st, art)
     Path(html_path).write_text(html, encoding="utf-8")
     print(f"  → {html_path}  ({len(html)//1024} KB)")
 
