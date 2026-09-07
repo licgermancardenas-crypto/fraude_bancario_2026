@@ -41,15 +41,15 @@
   "n_rings_detected": 10,
   "ring_lengths": [
     4,
-    4,
-    4,
-    4,
-    5,
-    5,
     5,
     6,
     4,
-    6
+    4,
+    4,
+    4,
+    4,
+    5,
+    7
   ],
   "avg_ring_length": 4.7,
   "fraud_pct_by_type": {

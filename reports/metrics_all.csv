@@ -1,6 +1,6 @@
 Modelo,PR-AUC,ROC-AUC,Recall@P90,F1-óptimo,Alertas/día (BRS),Fraude detectado/día (BRS),% Fraude no detectado
 Logistic Regression,0.4713,0.9284,0.1062,0.5007,29,14,47.2
 XGBoost,0.8824,0.9862,0.7758,0.8419,23,21,20.6
-Node2Vec + XGBoost,0.2352,0.7111,0.0354,0.3083,16,7,75.2
+Node2Vec,0.2352,0.7111,0.0354,0.3083,16,7,75.2
 GAT,0.795,0.9816,0.5634,0.7345,26,19,26.5
 GraphSAGE,0.9431,0.9957,0.8997,0.9063,24,23,13.0

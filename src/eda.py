@@ -5,6 +5,8 @@ Called by notebooks/01_eda.ipynb and can also be run standalone.
 """
 
 import json
+import re
+from datetime import datetime
 from pathlib import Path
 import warnings
 import numpy as np
@@ -47,6 +49,146 @@ def _jsonable(obj):
     if isinstance(obj, (pd.Series, pd.Index)):
         return _jsonable(obj.tolist())
     return obj
+
+
+def _money(n, decimals=0):
+    """Monto en formato es-AR ($1.234.567)."""
+    txt = f"{n:,.{decimals}f}"
+    return "$" + txt.replace(",", "­").replace(".", ",").replace("­", ".")
+
+
+def _num(n):
+    return f"{int(n):,}".replace(",", ".")
+
+
+def _dec(x, d=2):
+    return f"{x:.{d}f}".replace(".", ",")
+
+
+def append_eda_insights(s: dict, cfg: dict) -> None:
+    """
+    Reescribe los insights 1-8 de reports/insights.md desde las cifras medidas.
+
+    Hasta ahora la cabecera de ese archivo decía que "los insights 1-8 (EDA) se
+    reescriben a mano después de correr src/eda.py". Nadie los reescribió tras
+    densificar el libro, así que quedaron publicando una homofilia de 7,3x y una
+    mediana de monto pre-reescalado monetario mientras los datos decían otra
+    cosa — y el informe los citaba. Se generan igual que los insights 9-12 de
+    analysis.py: sección delimitada y reemplazada en cada corrida.
+    """
+    tipos = ", ".join(f"{k} {_dec(v, 1)}%" for k, v in sorted(s["fraud_pct_by_type"].items()))
+    lo = min(s["fraud_pct_by_type"].values())
+    hi = max(s["fraud_pct_by_type"].values())
+    anillos = ", ".join(f"{n} nodos" for n in sorted(set(s["ring_lengths"])))
+
+    sec = f"""## Fase C — Análisis Exploratorio del Grafo
+
+---
+
+### Insight 1 — La señal de fraude es de forma, no de monto individual
+
+> **Hallazgo:** Las transacciones fraudulentas tienen una mediana de {_money(s['median_amount_fraud'])} contra {_money(s['median_amount_legit'])} de las legítimas (ratio {_dec(s['ratio_median_amount'], 1)}x), y una media de {_money(s['mean_amount_fraud'])} contra {_money(s['mean_amount_legit'])}. Pero dentro de cada anillo el monto se reduce en cada salto y se fragmenta al cerrar el ciclo, de modo que las transferencias intermedias caen dentro del rango cotidiano aunque la entrada al anillo sea grande.
+
+> **Implicancia para BRS:** El umbral de monto sigue sirviendo para capturar la *entrada* del dinero al anillo, pero no los saltos intermedios ni el fan-out de salida, que es donde el esquema se vuelve invisible. Como señal única deja pasar la mayor parte del recorrido.
+
+> **Acción sugerida:** Complementar los umbrales con alertas de *velocidad transaccional por vecindario*: un nodo que recibe y reenvía montos similares a múltiples destinos en ventanas de 72 h es candidato a revisión, sin importar el monto individual.
+
+---
+
+### Insight 2 — El score de riesgo crediticio externo no detecta lavado (d ≈ 0)
+
+> **Hallazgo:** El risk score externo (crediticio) tiene un tamaño del efecto de Cohen d = {_dec(s['effect_size_risk_score'], 3)} entre cuentas fraudulentas y legítimas — indistinguible de cero. Las medias son {_dec(s['mean_risk_score_fraud'], 4)} y {_dec(s['mean_risk_score_legit'], 4)}.
+
+> **Implicancia para BRS:** Si el sistema de alertas usa el score crediticio como señal AML, está priorizando mal. Las cuentas de lavado no son crediticiamente riesgosas: son cuentas normales usadas instrumentalmente. El problema es de *red*, no de *perfil individual*. El resultado se mantiene entre corridas a distinta escala y densidad, así que no es ruido de muestra chica.
+
+> **Acción sugerida:** Desconectar el score crediticio de las reglas de detección de lavado y construir un score específico de red, como el que produce el GNN de este proyecto.
+
+---
+
+### Insight 3 — Homofilia {_dec(s['ff_lift'], 1)}x: los vecinos del fraude tienden a ser fraude
+
+> **Hallazgo:** Las aristas fraude→fraude son el {_dec(s['pct_ff'], 3)}% del grafo contra el {_dec(s['expected_ff_pct'], 3)}% esperado bajo distribución aleatoria — un lift de **{_dec(s['ff_lift'], 1)}x**. El coeficiente de homofilia global es h = {_dec(s['homophily_h'], 3)}.
+
+> **Implicancia para BRS:** La señal existe en el vecindario, no en la cuenta. Pero el lift bajó fuerte respecto de versiones anteriores del dataset (era 7,3x sobre el libro esparso): al densificar la operatoria legítima y sumar tipologías conductuales —cuenta de paso, durmiente reactivada, round-tripping— el fraude deja de formar comunidades densas y pasa a esconderse *dentro* del tráfico normal. La señal de vecindario sigue siendo real y sigue justificando el uso de GNNs, pero ya no es el argumento dominante que era.
+
+> **Acción sugerida:** No apoyar la comunicación interna sólo en el lift de homofilia. El argumento fuerte pasó a ser la brecha medida entre el GNN y los baselines tabulares sobre el mismo test set.
+
+---
+
+### Insight 4 — El grafo es, en la práctica, una sola componente conexa
+
+> **Hallazgo:** El {_dec(s['pct_in_largest_wcc'], 1)}% de las {_num(s['n_nodes'])} cuentas está en una única componente débilmente conexa ({_num(s['weakly_connected_components'])} componentes en total, {_num(s['strongly_connected_components'])} fuertemente conexas). La densidad del grafo es {s['density']:.2e}.
+
+> **Implicancia para BRS:** Casi ninguna cuenta está aislada, así que la señal se propaga a varios saltos y un GNN de 2 capas alcanza un vecindario informativo para casi todo el padrón.
+
+> **Acción sugerida:** Al escalar a datos reales, verificar si el grafo se fragmenta. Las cuentas que queden en componentes chicas van a tener menos señal de vecindario y merecen menor confianza de predicción.
+
+---
+
+### Insight 5 — El grado ya no delata a la mula: {_dec(s['ratio_in_deg'], 2)}x de entrada
+
+> **Hallazgo:** Las cuentas de lavado tienen grado de entrada {_dec(s['ratio_in_deg'], 2)}x y de salida {_dec(s['ratio_out_deg'], 2)}x el de una cuenta legítima ({_dec(s['mean_in_deg_fraud'], 1)} contra {_dec(s['mean_in_deg_legit'], 1)} de entrada). Operan **menos** que una cuenta minorista activa, no más.
+
+> **Implicancia para BRS:** Es una inversión respecto de lo que este mismo análisis reportaba sobre el libro esparso (1,36x superior, el clásico "comportamiento de router"). Contra un fondo realista de cientos de movimientos anuales por cuenta, el volumen dejó de discriminar: una mula que mueve dinero treinta veces al año parece menos activa que un comercio. Cualquier regla de velocidad calibrada sobre volumen bruto va a marcar comercios y dejar pasar mulas.
+
+> **Acción sugerida:** No usar grado ni volumen como regla de filtrado. Lo que distingue a la mula es la *forma* de la operatoria — simetría entrada/salida, retención de saldo cercana a cero, concentración de contrapartes — que es lo que capturan las features de comportamiento del modelo.
+
+---
+
+### Insight 6 — El fraude se distribuye casi uniforme por tipo de cuenta ({_dec(lo, 1)}–{_dec(hi, 1)}%)
+
+> **Hallazgo:** La prevalencia por tipo es {tipos}. Ningún tipo está marcadamente sobre-representado.
+
+> **Implicancia para BRS:** El tipo de cuenta no sirve como proxy de riesgo AML. Segmentar la cola de alertas por tipo de titular no concentra fraude.
+
+> **Acción sugerida:** Mantener el tipo de cuenta como feature de contexto del modelo y como eje de segmentación de *umbrales* (el comportamiento comercial legítimo difiere del minorista), pero no como regla de filtrado de riesgo.
+
+---
+
+### Insight 7 — Los anillos son cortos y cerrados: {_num(s['n_rings_detected'])} detectados, {_dec(s['avg_ring_length'], 1)} nodos promedio
+
+> **Hallazgo:** Se detectaron {_num(s['n_rings_detected'])} anillos de lavado de hasta 8 saltos, con tamaños de {anillos} y un promedio de {_dec(s['avg_ring_length'], 1)} nodos. Las aristas fraude→fraude son el {_dec(s['pct_fraud_edges'], 2)}% del total de relaciones del grafo.
+
+> **Implicancia para BRS:** Los ciclos son cortos, así que un GNN de 2 capas cubre buena parte del anillo desde cualquiera de sus nodos. Pero también significa que el dinero completa el circuito rápido: si el monitoreo es batch diario, el ciclo se cierra antes de la alerta.
+
+> **Acción sugerida:** Priorizar scoring en cuasi-real-time (cada 4 h) para los nodos de mayor riesgo, en lugar de batch diario.
+
+---
+
+### Insight 8 — Pico horario de fraude a las {s['fraud_peak_hour']:02d}:00, día {s['fraud_peak_weekday']}
+
+> **Hallazgo:** La actividad fraudulenta se concentra a las {s['fraud_peak_hour']:02d}:00 y el día de mayor volumen es {s['fraud_peak_weekday']}.
+
+> **Implicancia para BRS:** El pico cae fuera del horario bancario. Si compliance opera de 9 a 18, un anillo iniciado de madrugada completa varios saltos antes de la apertura. **Salvedad metodológica:** este patrón lo introduce deliberadamente el generador sintético; no es un hallazgo empírico sobre conducta real de lavado y no debe presentarse como tal.
+
+> **Acción sugerida:** Verificar el patrón horario sobre datos reales de BRS antes de construir cualquier regla que dependa de él. Sobre este dataset sirve para demostrar la capacidad, no para calibrar.
+
+---
+
+"""
+
+    path = Path(cfg["paths"]["reports_dir"]) / "insights.md"
+    previo = path.read_text(encoding="utf-8") if path.exists() else ""
+    # la cabecera lleva la fecha del documento: se sella acá porque esta función
+    # es la que reescribe el contenido medido
+    previo = re.sub(r"\*\*Fecha:\*\* .*",
+                    f"**Fecha:** {datetime.now():%Y-%m-%d}", previo, count=1)
+    marker = "## Fase C — Análisis Exploratorio del Grafo"
+    if marker in previo:
+        ini = previo.index(marker)
+        # la sección termina donde arranca el primer insight que no es de EDA
+        resto = previo[ini + len(marker):]
+        m = re.search(r"\n### Insight (\d+)", resto)
+        fin = len(previo)
+        for m in re.finditer(r"\n(### Insight (\d+)|## )", resto):
+            if m.group(2) is None or int(m.group(2)) > 8:
+                fin = ini + len(marker) + m.start() + 1
+                break
+        previo = previo[:ini] + sec + previo[fin:]
+    else:
+        previo = previo + "\n" + sec
+    path.write_text(previo, encoding="utf-8")
+    print(f"  → {path} (insights 1-8 regenerados)")
 
 
 def load_config(path="config/config.yaml"):
@@ -616,6 +758,7 @@ def run_eda(config_path: str = "config/config.yaml") -> dict:
     stats_path.write_text(
         json.dumps(_jsonable(all_stats), ensure_ascii=False, indent=2), encoding="utf-8")
     print(f"\n  → {stats_path}")
+    append_eda_insights(_jsonable(all_stats), cfg)
 
     print("\n" + "=" * 60)
     print("  EDA completado.")

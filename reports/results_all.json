@@ -46,7 +46,7 @@
     "biz_scale_factor": 28.5
   },
   {
-    "model": "Node2Vec + XGBoost",
+    "model": "Node2Vec",
     "pr_auc": 0.2352,
     "roc_auc": 0.7111,
     "rec_at_p90": 0.0354,
