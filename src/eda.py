@@ -15,6 +15,8 @@ import matplotlib.pyplot as plt
 import matplotlib.patches as mpatches
 import yaml
 
+from src import txn_store
+
 warnings.filterwarnings("ignore")
 
 # ── palette ──────────────────────────────────────────────────────────────────
@@ -35,7 +37,7 @@ def load_config(path="config/config.yaml"):
 def load_data(cfg):
     raw = cfg["data"]["raw_dir"]
     acc = pd.read_csv(f"{raw}/accounts.csv")
-    txn = pd.read_csv(f"{raw}/transactions.csv")
+    txn = txn_store.load_transactions(raw, columns=["src", "dst", "amount", "timestamp", "transaction_type", "is_fraud"])
     return acc, txn
 
 

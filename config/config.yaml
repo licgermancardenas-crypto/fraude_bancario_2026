@@ -29,9 +29,14 @@ model:
     dropout: 0.3
     lr: 0.005
     weight_decay: 0.0005
-    epochs: 200
+    epochs: 400       # el grafo denso converge más lento: con 200 la validación
+                      # todavía subía (0,9478 en la última época)
     patience: 20
-    batch_size: null  # null = full-batch (para scale 0.01)
+    # null = full-batch. Sigue siendo viable con 11,2M transacciones porque
+    # build_graph agrega las aristas paralelas: 1,52M aristas únicas → 3,04M tras
+    # ToUndirected, ~3,7 s por época y 1,5 GB de pico. Sin esa agregación harían
+    # falta 22,5M de aristas y un NeighborLoader.
+    batch_size: null
 
   gat:
     hidden_channels: 64
@@ -44,10 +49,20 @@ model:
     patience: 20
 
   node2vec:
+    # Presupuesto de caminatas REDUCIDO respecto de la versión anterior
+    # (walk_length 30, walks_per_node 15). Sobre el grafo denso —1,52M aristas
+    # únicas y grado medio 81 contra 29— generar el corpus completo superaba los
+    # 2,4 GB de RSS y no entraba en la máquina de trabajo (5,2 GB). Con este
+    # presupuesto el corpus baja de ~34M a ~9M de pasos.
+    # CONSECUENCIA A DECLARAR: el PR-AUC de Node2Vec sobre el grafo denso es un
+    # PISO, no un resultado ajustado. Su papel acá es de control negativo —
+    # mostrar que la topología sola no alcanza— y esa conclusión ya estaba
+    # establecida sobre el grafo anterior, donde corrió con el presupuesto completo
+    # y obtuvo 0,046.
     embedding_dim: 64
-    walk_length: 30
+    walk_length: 20
     context_size: 10
-    walks_per_node: 15
+    walks_per_node: 6
     p: 1.0
     q: 0.5          # < 1 → DFS, explora comunidades (anillos de lavado)
     w2v_epochs: 10
@@ -91,53 +106,75 @@ dashboard:
 # en efectivo es de 40 SMVM. Los umbrales de abajo se anotan en SMVM para que
 # sean auditables contra la norma en vez de ser números sueltos.
 #
-# LIMITACIÓN DECLARADA: el dataset tiene ~14,5 movimientos por cuenta por año,
-# contra 200-600 de una cuenta minorista real. Por eso los montos individuales
-# quedan plausibles pero el volumen anual por cuenta queda por debajo de lo real:
-# falta densidad transaccional, no escala. Ver README.
+# DENSIDAD (saldada): el generador produce ~300 movimientos por cuenta y por año
+# —dentro del rango minorista real de 200-600— con 7,4 transacciones por arista,
+# sobre círculos de contrapartes recurrentes. La versión anterior tenía 14,5
+# movimientos anuales y 1,09 transacciones por arista. Ver src/economy.py.
 monetary:
   currency: ARS
   scale: 100
   smvm: 376600              # SMVM agosto 2026 — unidad de referencia de los umbrales
   smvm_ref: "agosto 2026"
   uif_efectivo_smvm: 40     # Res. UIF 78/2025 — umbral de reporte sistemático de
-                            # efectivo. NINGÚN escenario lo usa: las 60.250
+                            # efectivo. NINGÚN escenario lo usa: las 973.375
                             # extracciones del dataset son todas legítimas.
 
-# Motor de reglas AML determinista (corre en paralelo al GNN).
-# Umbrales calibrados sobre la distribución legítima del dataset sintético
-# (legítimo P95: monto ~$330.000, avg_sent ~$80.000, degree ~9).
+# ── motor de reglas AML determinista (corre en paralelo al GNN) ──────────────
+# RECALIBRADO sobre el dataset denso. Los umbrales salen del percentil ~99 de la
+# población LEGÍTIMA de cada segmento —que es lo calibrable sin etiquetas en
+# producción—; la precisión y el recall de abajo son la CONSECUENCIA medida, no
+# el criterio de ajuste. Están anotados en múltiplos del SMVM ($376.600, agosto
+# 2026) para que sean auditables contra la norma en vez de números sueltos.
+#
+# HALLAZGO al densificar: los escenarios AGREGADOS pierden casi todo su poder
+# discriminante contra un fondo realista. Con 300 movimientos anuales por cuenta,
+# el fan-in y el fan-out anuales de una cuenta de fraude son indistinguibles de
+# los de una cuenta legítima activa (R05/R06 quedan en ~6% de precisión y ~0,2%
+# de recall). El motor completo rinde 3.481 disparos, 22,2% de precisión, 34,3%
+# de recall y lift 7,4× — contra 51,2% / 48,1% / 17,0× del motor temporal, que
+# mira ventanas móviles. Es la razón por la que un sistema ALD real monitorea
+# ventanas y no agregados anuales, y acá queda medido en vez de afirmado.
 rules:
   high_amount:              # R02: transferencia individual atípica (segmentado)
-    personal: 1500000       # ≈ 4,0 SMVM · legítimo personal P95 ~$330.000
-    business: 5000000       # ≈ 13,3 SMVM · proveedores hasta ~$3,6M (P99)
-    merchant: 5000000       # ≈ 13,3 SMVM
+    personal: 4000000       # ≈ 10,6 SMVM · legítimo personal P99 $2,3M
+    business: 20000000      # ≈ 53,1 SMVM · legítimo business P99 $14,9M
+    merchant: 20000000      # ≈ 53,1 SMVM · legítimo merchant P99 $8,3M
   conduit_symmetry: 0.15    # R01: |entrada-salida|/total por debajo de esto = conducto
-  conduit_retention: 1.0    # R01: saldo/entradas por debajo de esto = no retiene
-  conduit_min_flow: 500000  # R01: flujo mínimo para considerar la cuenta activa
-  rapid_out_ratio: 0.50     # R03: fracción de entradas reenviadas en <24h
-  rapid_symmetry: 0.25      # R03: además debe pasar el dinero (baja simetría)
+  conduit_retention: 0.05   # R01: saldo/entradas por debajo de esto = no retiene
+  conduit_min_flow: 30000000    # R01: ≈ 79,7 SMVM · flujo mínimo (legítimo personal P50)
+  rapid_out_ratio: 0.70     # R03: fracción de entradas reenviadas en <24h (legítimo P90 0,61)
+  rapid_symmetry: 0.15      # R03: además debe pasar el dinero (baja simetría)
   dormant_days: 1095        # R04: antigüedad mínima (3 años) para "durmiente"
-  dormant_active_days: 10   # R04: días activos máximos
-  dormant_min_amount: 1200000   # R04: ráfaga de reactivación (≈ 3,2 SMVM)
-  fanin_min_flow: 1000000   # R05: flujo recibido mínimo (evita legítimas activas)
-  fanout_avg_max: 400000    # R06: monto promedio máximo por chunk
-  fanout_min_total: 1500000 # R06: total distribuido mínimo (chunks chicos que suman alto)
-  # Umbrales SEGMENTADOS por tipo de cuenta (KYC segmentation): para R05/R06/R07
-  # las empresas y comercios tienen umbrales mucho más altos porque el fan-in de
-  # clientes, la nómina y el alto volumen son comportamiento comercial esperable.
-  fanin_degree:             # R05: grado de entrada mínimo
-    personal: 12
-    business: 40
-    merchant: 70            # el fan-in de clientes es la operatoria normal de un comercio
+  dormant_active_days: 25   # R04: días activos máximos (durmiente-fraude P90 = 22)
+  dormant_min_amount: 2000000   # R04: ráfaga de reactivación (≈ 5,3 SMVM; quietas legítimas P95 $819K)
+  fanin_min_flow: 30000000  # R05: ≈ 79,7 SMVM · flujo recibido mínimo
+  fanout_avg_max: 120000    # R06: monto promedio máximo por chunk (legítimo personal P50 $50,7K)
+  fanout_min_total: 30000000    # R06: ≈ 79,7 SMVM · total distribuido mínimo
+  # CONTRAPARTES DISTINTAS vs. GRADO. Desde que el generador modela contrapartes
+  # recurrentes los dos números divergen: una cuenta personal legítima recibe 42
+  # movimientos de sólo 8 remitentes distintos. Antes eran casi iguales y R05/R06
+  # usaban un único umbral para ambos. Fan-in y fan-out significan muchas
+  # CONTRAPARTES; el grado queda como condición de actividad mínima.
+  fanin_counterparties:     # R05: remitentes distintos (legítimo P99,9 por segmento)
+    personal: 34
+    business: 61
+    merchant: 337           # el fan-in de clientes es la operatoria normal de un comercio
+  fanin_degree:             # R05: grado de entrada mínimo (actividad, no dispersión)
+    personal: 40
+    business: 60
+    merchant: 300
+  fanout_counterparties:    # R06: destinatarios distintos (legítimo P99,9 por segmento)
+    personal: 89
+    business: 53            # la nómina es fan-out esperable
+    merchant: 12
   fanout_degree:            # R06: grado de salida mínimo
-    personal: 12
-    business: 45            # la nómina es fan-out esperable
-    merchant: 40
-  agg_volume:               # R07: volumen agregado (entrada+salida) atípico
-    personal: 5000000       # ≈ 13,3 SMVM · legítimo personal P95 ~$800.000
-    business: 50000000      # ≈ 133 SMVM
-    merchant: 50000000
+    personal: 40
+    business: 40
+    merchant: 20
+  agg_volume:               # R07: volumen agregado (entrada+salida) atípico, legítimo P99
+    personal: 123000000     # ≈ 327 SMVM
+    business: 478000000     # ≈ 1.269 SMVM
+    merchant: 245000000     # ≈ 651 SMVM
   severity_points:          # aporte al rule_score (0-100) por severidad
     alta: 40
     media: 25
@@ -145,34 +182,35 @@ rules:
 
 # ── escenarios de ventana temporal (rules_temporal.py, R09-R13) ──────────────
 # Se evalúan sobre el stream de transacciones, no sobre las features agregadas.
-# Calibrados contra is_fraud sobre este dataset (precisión / recall medidos):
-#   R09 147 flags  100,0% / 6,9%    R10  68 flags 100,0% / 3,2%
-#   R11  30 flags  100,0% / 1,4%    R12 1291 flags 93,4% / 56,4%
-#   R13 695 flags   70,8% / 23,0%
+# RECALIBRADOS sobre el dataset denso; precisión / recall medidos:
+#   R09  332 disparos  75,9% / 11,2%    R10  194 disparos 37,1% /  3,2%
+#   R11  478 disparos  71,5% / 15,2%    R12 1423 disparos 63,7% / 40,2%
+#   R13  514 disparos  52,5% / 12,0%
+#   motor completo: 2.121 disparos, 51,2% precisión, 48,1% recall, lift 17,0×
 rules_temporal:
   # R09 — dispersión en ráfaga (pitufeo): N destinatarios distintos en la ventana
   burst_out_window_h: 48
-  burst_out_min_counterparties: 4
+  burst_out_min_counterparties: 6
   burst_out_min_total:        # segmentado: la nómina de una empresa es fan-out lícito
-    personal: 800000          # ≈ 2,1 SMVM
-    business: 8000000         # ≈ 21 SMVM
-    merchant: 8000000
+    personal: 2500000         # ≈ 6,6 SMVM
+    business: 18000000        # ≈ 47,8 SMVM
+    merchant: 18000000
   # R10 — agregación en ráfaga: N remitentes distintos en la ventana
   burst_in_window_h: 72
-  burst_in_min_counterparties: 4
+  burst_in_min_counterparties: 7
   burst_in_min_total:
-    personal: 800000          # ≈ 2,1 SMVM
-    business: 8000000
-    merchant: 16000000        # el fan-in de clientes es la operatoria normal del comercio
+    personal: 3500000         # ≈ 9,3 SMVM
+    business: 20000000        # ≈ 53,1 SMVM
+    merchant: 45000000        # ≈ 120 SMVM · el fan-in de clientes es la operatoria del comercio
   # R11 — operación circular (U-turn): salida y retorno equivalente por otra contraparte
   uturn_window_days: 30
   uturn_tolerance: 0.15       # ±15% cubre las "comisiones/rendimientos" del retorno
   uturn_min_amount: 5000000   # ≈ 13,3 SMVM · por debajo el emparejamiento es coincidencia
   # R12 — tránsito emparejado: ingreso y reenvío casi total dentro de la ventana
   passthrough_window_h: 72
-  passthrough_min_ratio: 0.80   # la salida cubre ≥80% de la entrada
-  passthrough_min_amount: 500000    # ≈ 1,3 SMVM
+  passthrough_min_ratio: 0.88   # la salida cubre ≥88% de la entrada
+  passthrough_min_amount: 1800000   # ≈ 4,8 SMVM
   # R13 — desvío del perfil: día pico contra la mediana diaria de la propia cuenta
-  velocity_multiple: 20
+  velocity_multiple: 22
   velocity_min_active_days: 4   # sin historia mínima no hay baseline contra la cual comparar
-  velocity_min_peak: 3000000    # ≈ 8,0 SMVM
+  velocity_min_peak: 5500000    # ≈ 14,6 SMVM

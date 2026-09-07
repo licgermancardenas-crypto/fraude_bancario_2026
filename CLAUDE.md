@@ -31,7 +31,7 @@ Entregables finales: dashboard en Vercel + informe PDF institucional.
 
 ## Comandos frecuentes
 - source venv/bin/activate
-- python -m src.generate --scale 0.01
+- python -m src.generate            # escala en config.yaml (scale_factor 0.5)
 - python -m src.build_graph
 - python -m src.train
 - python -m src.evaluate
@@ -65,8 +65,9 @@ existía `components/PhantomMark.tsx`, ahora movido a `brand-kit/react/`):
 
 ## Estado actual
 [2026-07-24] Las 8 fases del roadmap original (A-H) están completas, más extensiones:
-5 modelos entrenados (mejor: GraphSAGE, PR-AUC 0.977), explicabilidad (GNNExplainer),
-backward tracing de perpetradores, placement scoring, dashboard de 9 páginas + módulo
+5 modelos entrenados (mejor: GraphSAGE, PR-AUC 0.9431 sobre el libro denso),
+explicabilidad (GNNExplainer), backward tracing de perpetradores, placement
+scoring, dashboard de 9 páginas + módulo
 Compliance (casos/entidades/ROS), informe PDF institucional, API FastAPI (api/) con
 11 endpoints deployada en Render (confirmada viva en https://phantom-rcs9.onrender.com),
 y landing de marketing en `/` (`app/(marketing)/`, réplica fiel de
@@ -253,13 +254,29 @@ exclusivo (cuentas que sólo ese escenario marca) y una **curva de calibración*
 (sanciones) no tiene, se dispone a mano en el workbench de screening.
 
 **Hallazgo honesto que quedó expuesto en la página:** la complementariedad
-reglas ↔ GNN da `solo_reglas = 0` — el modelo detecta todo lo que detectan las
-reglas, y 744 fraudes más. El valor de las reglas no es cobertura sino
-defendibilidad regulatoria (escenario determinista, citable, auditable,
-versionable). La página lo dice así, no lo esconde. La comparación lleva su
-salvedad: los scores del GNN se calculan sobre el grafo completo (incluye nodos
-de entrenamiento), así que la cobertura del modelo está sobreestimada; la
-lectura válida es relativa.
+reglas ↔ GNN da `solo_reglas = 11` sobre 2.255 fraudes (era 0 sobre el libro
+esparso) — el modelo detecta 2.213 y las reglas apenas le agregan once casos. El
+valor de las reglas no es cobertura sino defendibilidad regulatoria (escenario
+determinista, citable, auditable, versionable). La página lo dice así, no lo
+esconde. La comparación lleva su salvedad: los scores del GNN se calculan sobre
+el grafo completo (incluye nodos de entrenamiento), así que la cobertura del
+modelo está sobreestimada; la lectura válida es relativa.
+
+**[2026-09-06] El motor agregado se cayó al densificar — es hallazgo, no deuda.**
+Los umbrales YA están recalibrados sobre el libro denso (percentil ~99 de la
+población legítima por segmento; ver el comentario de `config/config.yaml`, que
+lo explica en detalle). Contra un fondo de ~300 movimientos anuales, el fan-in y
+el fan-out anuales de una cuenta de fraude no se distinguen de los de una cuenta
+legítima activa: **R05 6,4% de precisión, R06 6,2%**, contra una tasa base de
+3,01%. El temporal no se movió (51,2%, lift 17,0×) porque mira ventanas móviles.
+No "arreglar" esto tocando umbrales: el punto es que el agregado anual no
+discrimina, y así está contado en el README.
+
+**Ojo con el conteo del motor agregado:** `rules_engine.evaluate()` devuelve
+R01–R07 (3.481 disparos); el 3.950 de la tabla del README incluye R08
+(sanciones), que lo agrega el llamador. Las dos cifras son correctas y miden
+cosas distintas — ya hubo confusión con esto antes (3.432 vs 3.885 en la corrida
+esparsa).
 
 **Flujo de cambio de umbral (cuatro ojos), en `dashboard/lib/scenarios.ts`:** el
 analista mueve el slider, ve el impacto backtesteado y eleva una propuesta con
@@ -285,7 +302,29 @@ pandas, seguir el mismo criterio.
 Tests: `tests/test_export_scenarios.py` (13 casos: escalado de umbrales
 segmentados, métricas sin división por cero, monotonía de la curva) y
 `dashboard/lib/__tests__/scenarios.test.ts` (11 casos: impacto de calibración,
-control de cuatro ojos). Total del repo: 26 pytest + 28 vitest.
+control de cuatro ojos). Total del repo: 59 pytest + 28 vitest.
+
+## La capa de export sobre el libro denso [2026-09-06]
+Con 11,2M de transacciones los exports que recorrían el libro fila por fila
+dejaron de ser viables. `src/export_dashboard.py` tiene ahora dos piezas que hay
+que respetar si se agrega un export nuevo:
+
+- **`_RelGraph`** — aristas agregadas por par (src,dst) con numpy; vecindarios
+  por `searchsorted`. Reemplaza los tres `nx.DiGraph` que se armaban con
+  `for _, row in txn.iterrows()` (18 y 16 minutos cada uno, y el tercero moría
+  por memoria). Tarda 3,5 s para 1,52M de relaciones. **No volver a armar un
+  DiGraph sobre el libro entero**: networkx queda sólo para `simple_cycles` sobre
+  el subgrafo fraudulento, que son unas pocas miles de aristas.
+  Ojo con la semántica: `amount` es el flujo total de la relación, no el de una
+  transacción suelta como dejaba el colapso de aristas paralelas del DiGraph.
+- **`_TxnTexture`** — canal/glosa/estado/moneda de las filas que se muestran, vía
+  `txn_store.hydrate()` con caché por fila. El almacén columnar no guarda las
+  columnas derivadas (a 11,2M filas serían ~700 MB por columna), así que todo
+  export que muestre operaciones tiene que hidratar el subconjunto.
+
+Mismo criterio en `src/export_transactions.py`: elegir la muestra sobre una sola
+columna y traer esas filas con `load_transactions(rows=...)`, nunca levantar el
+libro completo para después muestrear.
 
 ## Pendientes
 - Setear NEXT_PUBLIC_API_URL=https://phantom-rcs9.onrender.com en las env vars del

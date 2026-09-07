@@ -186,3 +186,37 @@ def get_feature_matrix(feats: pd.DataFrame) -> tuple[np.ndarray, np.ndarray, lis
     X = feats[present_cols].values.astype(np.float32)
     y = feats["is_fraud"].values.astype(np.int32)
     return X, y, present_cols
+
+
+# ── caché de features ────────────────────────────────────────────────────────
+# Construir las features cuesta ~1,5 min y ~2,4 GB de pico porque agrega sobre
+# los 11,7M de movimientos del libro. El pipeline las reconstruía en cada uno de
+# sus once pasos. El caché las calcula una vez y se invalida solo si el almacén
+# de transacciones es más nuevo que el archivo.
+
+FEATURES_CACHE = "node_features.pkl"
+
+
+def load_or_build_features(cfg: dict, force: bool = False) -> pd.DataFrame:
+    """Devuelve las features de nodo, reusando el caché si sigue vigente."""
+    from pathlib import Path
+
+    from src import txn_store
+
+    raw = cfg["data"]["raw_dir"]
+    processed = Path(cfg["data"]["processed_dir"])
+    cache = processed / FEATURES_CACHE
+    store_meta = txn_store.store_path(raw) / "_meta.json"
+
+    if not force and cache.exists() and store_meta.exists() \
+            and cache.stat().st_mtime >= store_meta.stat().st_mtime:
+        return pd.read_pickle(cache)
+
+    acc = pd.read_csv(f"{raw}/accounts.csv")
+    txn = txn_store.load_transactions(
+        raw, columns=["src", "dst", "amount", "timestamp"]
+    )
+    feats = build_node_features(acc, txn)
+    processed.mkdir(parents=True, exist_ok=True)
+    feats.to_pickle(cache)
+    return feats

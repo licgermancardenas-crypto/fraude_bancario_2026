@@ -65,6 +65,8 @@ def _txn_meta(src: str, dst: str, amount: float, dst_type: str | None) -> dict:
     return {"canal": canal, "concepto": pool[h % len(pool)], "moneda": "ARS"}
 from src import rules_engine, rules_temporal
 
+from src import txn_store
+
 # Ordered so the dashboard lists baselines before the GNNs.
 MODEL_SCORE_FILES = {
     "Logistic Regression": "scores_logreg.npy",
@@ -83,7 +85,7 @@ def load_config(path="config/config.yaml"):
 def _save(obj, path):
     Path(path).parent.mkdir(parents=True, exist_ok=True)
     with open(path, "w") as f:
-        json.dump(obj, f, separators=(",", ":"))
+        json.dump(obj, f, separators=(",", ":"), default=txn_store.json_default)
     kb = Path(path).stat().st_size / 1024
     print(f"  -> {path}  ({kb:.1f} KB)")
 
@@ -106,12 +108,205 @@ def _load_entity_tables(raw: str):
     )
 
 
+# ── grafo de relaciones agregado ─────────────────────────────────────────────
+# POR QUÉ EXISTE. Las tres vistas de red de este módulo —anillos, degrees del
+# ranking de cuentas y vecindario de un caso— construían cada una su propio
+# nx.DiGraph con `for _, row in txn.iterrows()`. A 544K transacciones el bucle
+# costaba medio minuto; con el libro denso de 11,2M filas tardó 18 y 16 minutos
+# los dos primeros, y el tercero —siete atributos por arista— agotó la memoria
+# de la máquina: 1,5M de aristas en networkx con atributos son ~2 GB, sobre un
+# equipo de 5,2 GB que ya tiene cargados el libro, el grafo PyG y el modelo.
+#
+# QUÉ CAMBIA EN LA SEMÁNTICA. El DiGraph ya colapsaba las aristas paralelas: al
+# repetirse un par (src,dst) la última fila pisaba a la anterior, así que "el
+# monto" de una relación era el de una transacción arbitraria. Sobre el libro
+# denso, donde cada relación tiene 7,4 operaciones en promedio, eso pasó de ser
+# un detalle a ser una cifra engañosa. Acá la agregación es explícita:
+#
+#     amount  = flujo total de la relación      is_fraud  = alguna marcada
+#     timestamp = la operación más reciente     n_txns    = cuántas la componen
+#
+# Los degrees NO cambian: colapsar y agregar dan el mismo conjunto de aristas
+# únicas, así que in_degree/out_degree siguen contando contrapartes distintas.
+# `row` conserva la última operación del par, que es la fila que el DiGraph
+# dejaba viva — de ahí salen canal/glosa/estado para la capa de presentación.
+#
+# No se materializa ningún objeto de grafo: todo son arrays de numpy sobre los
+# códigos del Categorical, y el vecindario se resuelve con searchsorted.
+
+class _RelGraph:
+    """Aristas agregadas por par (src,dst), con búsqueda de vecindario O(log n)."""
+
+    def __init__(self, txn):
+        self.cats = txn["src"].cat.categories
+        self._pos = {a: i for i, a in enumerate(self.cats)}
+        n = len(self.cats)
+
+        src = txn["src"].cat.codes.to_numpy()
+        dst = txn["dst"].cat.codes.to_numpy()
+        key = src.astype(np.int64) * n + dst
+        del src, dst
+
+        order = np.argsort(key, kind="stable")
+        k = key[order]
+        del key
+        starts = np.flatnonzero(np.concatenate(([True], k[1:] != k[:-1])))
+        ends   = np.concatenate((starts[1:], [len(k)]))
+
+        self.e_key = k[starts]
+        del k
+        self.e_src = (self.e_key // n).astype(np.int32)
+        self.e_dst = (self.e_key % n).astype(np.int32)
+        self.e_amount = np.add.reduceat(
+            txn["amount"].to_numpy(np.float64)[order], starts)
+        self.e_ts     = np.maximum.reduceat(txn["timestamp"].to_numpy()[order], starts)
+        self.e_fraud  = np.maximum.reduceat(txn["is_fraud"].to_numpy()[order], starts)
+        self.e_n      = (ends - starts).astype(np.int32)
+        # fila representativa = la última del par, que es la que el DiGraph dejaba
+        self.e_row    = order[ends - 1].astype(np.int64)
+        del order, starts, ends
+
+        # e_src queda ordenado por construcción (key = src*n + dst) → los
+        # sucesores de un nodo son un rango contiguo. Los predecesores piden un
+        # segundo orden por dst.
+        self._by_dst = np.argsort(self.e_dst, kind="stable")
+        self._dst_sorted = self.e_dst[self._by_dst]
+
+        self._out_deg = np.bincount(self.e_src, minlength=n)
+        self._in_deg  = np.bincount(self.e_dst, minlength=n)
+
+    # ── consultas por account_id ──────────────────────────────────────────────
+
+    def code(self, a):
+        """Índice de la cuenta en el padrón (el mismo que usan src/dst)."""
+        return self._pos.get(a)
+
+    def __contains__(self, a):
+        i = self._pos.get(a)
+        return i is not None and (self._out_deg[i] or self._in_deg[i])
+
+    def out_degree(self, a):
+        i = self._pos.get(a)
+        return int(self._out_deg[i]) if i is not None else 0
+
+    def in_degree(self, a):
+        i = self._pos.get(a)
+        return int(self._in_deg[i]) if i is not None else 0
+
+    def _edge_pos(self, a, b):
+        i, j = self._pos.get(a), self._pos.get(b)
+        if i is None or j is None:
+            return None
+        want = np.int64(i) * len(self.cats) + j
+        p = int(np.searchsorted(self.e_key, want))
+        return p if p < len(self.e_key) and self.e_key[p] == want else None
+
+    def _rec(self, p):
+        return {
+            "amount":    float(self.e_amount[p]),
+            "timestamp": int(self.e_ts[p]),
+            "is_fraud":  int(self.e_fraud[p]),
+            "n_txns":    int(self.e_n[p]),
+            "row":       int(self.e_row[p]),
+        }
+
+    def has_edge(self, a, b):
+        return self._edge_pos(a, b) is not None
+
+    def edge(self, a, b):
+        p = self._edge_pos(a, b)
+        return self._rec(p) if p is not None else None
+
+    def successors(self, a):
+        i = self._pos.get(a)
+        if i is None:
+            return []
+        lo, hi = np.searchsorted(self.e_src, [i, i + 1])
+        return [self.cats[c] for c in self.e_dst[lo:hi]]
+
+    def predecessors(self, a):
+        i = self._pos.get(a)
+        if i is None:
+            return []
+        lo, hi = np.searchsorted(self._dst_sorted, [i, i + 1])
+        return [self.cats[c] for c in self.e_src[self._by_dst[lo:hi]]]
+
+    def out_edges(self, a):
+        """[(src, dst, rec)] salientes."""
+        i = self._pos.get(a)
+        if i is None:
+            return []
+        lo, hi = np.searchsorted(self.e_src, [i, i + 1])
+        return [(a, self.cats[self.e_dst[p]], self._rec(p)) for p in range(lo, hi)]
+
+    def in_edges(self, a):
+        """[(src, dst, rec)] entrantes."""
+        i = self._pos.get(a)
+        if i is None:
+            return []
+        lo, hi = np.searchsorted(self._dst_sorted, [i, i + 1])
+        return [(self.cats[self.e_src[p]], a, self._rec(p))
+                for p in self._by_dst[lo:hi]]
+
+    def subgraph(self, account_ids):
+        """nx.DiGraph sólo con las aristas internas al subconjunto.
+
+        Para detección de ciclos hace falta un grafo de verdad, pero sobre las
+        ~2K cuentas fraudulentas son unas pocas miles de aristas — nada que ver
+        con las 1,5M del libro completo.
+        """
+        idx = np.array(sorted(self._pos[a] for a in account_ids if a in self._pos),
+                       dtype=np.int32)
+        mask = np.isin(self.e_src, idx) & np.isin(self.e_dst, idx)
+        g = nx.DiGraph()
+        g.add_nodes_from(self.cats[i] for i in idx)
+        for p in np.flatnonzero(mask):
+            g.add_edge(self.cats[self.e_src[p]], self.cats[self.e_dst[p]],
+                       **self._rec(p))
+        return g
+
+
+class _TxnTexture:
+    """Columnas de presentación (canal, glosa, estado, moneda) por fila del libro.
+
+    El almacén columnar no guarda las derivables — a 11,2M filas serían ~700 MB
+    por columna — así que `txn_store.hydrate()` las reconstruye sobre el
+    subconjunto que se va a mostrar. Se memoiza por fila porque hydrate rearma el
+    padrón de CBUs (75K entradas) en cada llamada y los casos piden las mismas
+    filas varias veces.
+    """
+
+    def __init__(self, txn, acc):
+        self._txn, self._acc, self._cache = txn, acc, {}
+
+    def get(self, rows):
+        rows = [int(r) for r in rows]
+        missing = sorted({r for r in rows if r not in self._cache})
+        if missing:
+            sub = self._txn.iloc[missing]
+            hyd = txn_store.hydrate(sub, self._acc, row_ids=np.asarray(missing))
+            for r, rec in zip(missing, hyd.to_dict("records")):
+                self._cache[r] = rec
+        return [self._cache[r] for r in rows]
+
+    def one(self, row):
+        return self.get([row])[0]
+
+
 def load_all(cfg):
     raw       = cfg["data"]["raw_dir"]
     processed = cfg["data"]["processed_dir"]
 
     acc = pd.read_csv(f"{raw}/accounts.csv")
-    txn = pd.read_csv(f"{raw}/transactions.csv")
+    # canal/mcc/estado son categóricas de 1 byte por fila (11 MB cada una) y son
+    # lo que `_TxnTexture` necesita para reconstruir el extracto de un caso: sin
+    # ellas el legajo pierde canal, concepto y estado de cada operación.
+    txn = txn_store.load_transactions(
+        raw,
+        columns=["src", "dst", "amount", "timestamp", "transaction_type",
+                 "is_fraud", "canal", "mcc", "estado"],
+        with_row_id=True,
+    )
 
     data = torch.load(f"{processed}/graph.pt", weights_only=False)
 
@@ -198,20 +393,16 @@ def export_score_distribution(data, scores_all, out_dir, n_bins=40):
 
 # ── 4. rings.json ─────────────────────────────────────────────────────────────
 
-def export_rings(acc, txn, data, scores_all, out_dir, top_n=10):
+def export_rings(acc, rel, data, scores_all, out_dir, top_n=10):
     node_ids  = data.node_ids
     id2score  = {nid: float(scores_all[i]) for i, nid in enumerate(node_ids)}
     fraud_set = set(acc.loc[acc.is_fraud == 1, "account_id"])
+    acc_idx   = acc.set_index("account_id")
 
-    G = nx.DiGraph()
-    for _, row in acc.iterrows():
-        G.add_node(row.account_id, is_fraud=int(row.is_fraud),
-                   balance=row.balance, risk_score=row.risk_score)
-    for _, row in txn.iterrows():
-        G.add_edge(row.src, row.dst, amount=row.amount,
-                   timestamp=int(row.timestamp), is_fraud=int(row.is_fraud))
-
-    Gf = G.subgraph(fraud_set).copy()
+    # Los ciclos se buscan sólo sobre el subgrafo fraudulento, que es lo que el
+    # código hacía igual (G.subgraph(fraud_set)) pero después de haber armado el
+    # grafo entero. Acá se arma directamente el chico.
+    Gf = rel.subgraph(fraud_set)
     rings = []
     try:
         for cycle in nx.simple_cycles(Gf):
@@ -226,7 +417,7 @@ def export_rings(acc, txn, data, scores_all, out_dir, top_n=10):
     for i, ring in enumerate(rings):
         nodes_data = []
         for nid in ring:
-            row = acc[acc.account_id == nid].iloc[0]
+            row = acc_idx.loc[nid]
             nodes_data.append({
                 "id":           nid,
                 "gnn_score":    round(id2score.get(nid, 0.0), 4),
@@ -240,10 +431,11 @@ def export_rings(acc, txn, data, scores_all, out_dir, top_n=10):
         total_amount = 0.0
         for j in range(len(ring)):
             src, dst = ring[j], ring[(j+1) % len(ring)]
-            if G.has_edge(src, dst):
-                ed = G[src][dst]
-                amt = round(float(ed.get("amount", 0)), 2)
-                ring_edges.append({"src": src, "dst": dst, "amount": amt})
+            ed = rel.edge(src, dst)
+            if ed is not None:
+                amt = round(float(ed["amount"]), 2)
+                ring_edges.append({"src": src, "dst": dst, "amount": amt,
+                                   "n_txns": ed["n_txns"]})
                 total_amount += amt
 
         out_rings.append({
@@ -260,16 +452,12 @@ def export_rings(acc, txn, data, scores_all, out_dir, top_n=10):
 
 # ── 5. top_accounts.json ──────────────────────────────────────────────────────
 
-def export_top_accounts(acc, txn, data, scores_all, out_dir, top_n=200):
+def export_top_accounts(acc, feats, rel, data, scores_all, out_dir, top_n=200):
     node_ids = data.node_ids
-    feats    = build_node_features(acc, txn)
 
     fraud_set  = set(acc.loc[acc.is_fraud == 1, "account_id"])
     acc_idx    = acc.set_index("account_id")
     feats_idx  = feats.set_index("account_id")
-    G = nx.DiGraph()
-    for _, row in txn.iterrows():
-        G.add_edge(row.src, row.dst, amount=row.amount)
 
     records = []
     for i, nid in enumerate(node_ids):
@@ -282,8 +470,8 @@ def export_top_accounts(acc, txn, data, scores_all, out_dir, top_n=200):
             "balance":          round(float(row.balance), 2),
             "risk_score":       round(float(row.risk_score), 4),
             "account_type":     row.account_type,
-            "degree_in":        int(G.in_degree(nid)) if nid in G else 0,
-            "degree_out":       int(G.out_degree(nid)) if nid in G else 0,
+            "degree_in":        rel.in_degree(nid),
+            "degree_out":       rel.out_degree(nid),
             "total_sent":       round(float(f["total_sent"]) if f is not None else 0, 2),
             "total_received":   round(float(f["total_received"]) if f is not None else 0, 2),
             "in_ring":          nid in fraud_set,
@@ -394,7 +582,8 @@ def export_entities(acc, txn, data, scores_all, cfg, out_dir, top_n=300):
 
 # ── 7. cases.json ─────────────────────────────────────────────────────────────
 
-def export_cases(acc, txn, data, scores_all, cfg, out_dir, n_cases=80):
+def export_cases(acc, txn, feats, rel, texture, data, scores_all, cfg, out_dir,
+                 n_cases=80):
     """
     Pre-generate alert cases for the case management module.
     Takes top scored accounts + all confirmed fraud nodes.
@@ -425,27 +614,30 @@ def export_cases(acc, txn, data, scores_all, cfg, out_dir, n_cases=80):
     # Dos motores complementarios: el agregado (R01-R07) sobre las features de
     # cuenta y el temporal (R09-R13) sobre el stream, que además cita las
     # operaciones concretas que dispararon cada escenario.
-    feats = build_node_features(acc, txn)
     rules_by_acc = rules_engine.evaluate(feats, cfg)
     temporal_by_acc = rules_temporal.evaluate(txn, acc, cfg)
 
-    _txn_idx = txn.set_index("transaction_id")
+    n_txn_rows = len(txn)
 
     def _evidence_txns(txn_ids):
         """Operaciones citadas por un escenario, listas para mostrar en el ROS."""
+        # transaction_id ES la posición de la fila en el libro (ver txn_store):
+        # se accede por iloc en vez de indexar el frame de 11,2M filas por esa
+        # columna, que era lo que hacía `txn.set_index("transaction_id")`.
+        rows = [int(t) for t in txn_ids[:12]   # tope: evidencia ilustrativa, no el extracto
+                if 0 <= int(t) < n_txn_rows]
+        if not rows:
+            return []
         out = []
-        for tid in txn_ids[:12]:   # tope: la evidencia es ilustrativa, no el extracto
-            if tid not in _txn_idx.index:
-                continue
-            r = _txn_idx.loc[tid]
+        for r in texture.get(rows):
             out.append({
-                "transaction_id": tid,
-                "src": r.src, "dst": r.dst,
-                "amount": round(float(r.amount), 2),
-                "timestamp": int(r.timestamp),
-                "tipo": r.transaction_type,
-                "canal": r.get("canal", "") if _has_meta else "",
-                "glosa": r.get("glosa", "") if _has_meta else "",
+                "transaction_id": r["transaction_id"],
+                "src": str(r["src"]), "dst": str(r["dst"]),
+                "amount": round(float(r["amount"]), 2),
+                "timestamp": int(r["timestamp"]),
+                "tipo": str(r["transaction_type"]),
+                "canal": str(r["canal"]),
+                "glosa": str(r["glosa"]),
             })
         return out
 
@@ -473,17 +665,6 @@ def export_cases(acc, txn, data, scores_all, cfg, out_dir, n_cases=80):
         return {"rules_fired": rules_fired,
                 "rule_score": rules_engine.score_from_ids(ids, cfg)}
 
-    # transaction graph for neighbor lookups
-    _has_meta = "canal" in txn.columns
-    G = nx.DiGraph()
-    for _, row in txn.iterrows():
-        G.add_edge(row.src, row.dst, amount=float(row.amount),
-                   timestamp=int(row.timestamp), is_fraud=int(row.is_fraud),
-                   canal=(row.canal if _has_meta else None),
-                   glosa=(row.glosa if _has_meta else None),
-                   estado=(row.estado if _has_meta else None),
-                   moneda=(row.moneda if _has_meta else "ARS"))
-
     # candidate accounts: all fraud + top scored legit (high-risk alerts)
     fraud_ids = set(acc.loc[acc.is_fraud == 1, "account_id"])
     sorted_by_score = sorted(node_ids, key=lambda x: id2score.get(x, 0), reverse=True)
@@ -504,14 +685,14 @@ def export_cases(acc, txn, data, scores_all, cfg, out_dir, n_cases=80):
         if label:
             return label
         # fallback heuristic for high-scored accounts without a ground-truth label
-        nbrs = list(G.predecessors(acc_id)) + list(G.successors(acc_id))
+        nbrs = rel.predecessors(acc_id) + rel.successors(acc_id)
         nbr_fraud = sum(1 for n in nbrs if n in fraud_ids)
         if nbr_fraud >= 3:
             return "anillo_lavado"
-        out_txns = [G[acc_id][d]["amount"] for d in G.successors(acc_id)]
+        out_txns = [d["amount"] for _s, _d, d in rel.out_edges(acc_id)]
         if len(out_txns) >= 4 and max(out_txns, default=0) < 10000:
             return "estructuracion"
-        if G.in_degree(acc_id) >= 5:
+        if rel.in_degree(acc_id) >= 5:
             return "agregacion_fondos"
         return "transacciones_inusuales"
 
@@ -538,20 +719,20 @@ def export_cases(acc, txn, data, scores_all, cfg, out_dir, n_cases=80):
         }
 
     def _neighbors(acc_id, top_k=6):
-        nbrs = list(G.predecessors(acc_id)) + list(G.successors(acc_id))
-        nbrs = list(set(nbrs) - {acc_id})
+        preds = set(rel.predecessors(acc_id))
+        nbrs = list((preds | set(rel.successors(acc_id))) - {acc_id})
         nbrs.sort(key=lambda x: id2score.get(x, 0), reverse=True)
         result = []
         for n in nbrs[:top_k]:
-            direction = "entrada" if n in G.predecessors(acc_id) else "salida"
-            row = acc_idx.loc[n] if n in acc_idx.index else None
+            direction = "entrada" if n in preds else "salida"
+            ed = rel.edge(n, acc_id) if direction == "entrada" else rel.edge(acc_id, n)
             result.append({
                 "account_id": n,
                 "gnn_score":  round(id2score.get(n, 0), 4),
                 "is_fraud":   int(acc_idx.loc[n, "is_fraud"]) if n in acc_idx.index else 0,
                 "direction":  direction,
-                "amount":     round(G[n][acc_id]["amount"] if direction == "entrada" and G.has_edge(n, acc_id)
-                                    else G[acc_id][n]["amount"] if G.has_edge(acc_id, n) else 0, 2),
+                "amount":     round(ed["amount"] if ed else 0, 2),
+                "n_txns":     ed["n_txns"] if ed else 0,
             })
         return result
 
@@ -591,25 +772,54 @@ def export_cases(acc, txn, data, scores_all, cfg, out_dir, n_cases=80):
         return acc_idx.loc[dst, "account_type"] if dst in acc_idx.index else None
 
     def _edge_meta(d):
-        """Campos transaccionales reales tomados de la arista (dataset enriquecido)."""
+        """Campos de presentación de la operación representativa de la relación.
+
+        Una relación agregada no tiene un canal único —son 7,4 operaciones en
+        promedio— así que se muestra el de la última, que es exactamente la fila
+        que el DiGraph anterior dejaba viva al colapsar las aristas paralelas.
+        """
+        r = texture.one(d["row"])
         return {
-            "canal": d.get("canal") or "",
-            "concepto": d.get("glosa") or "",
-            "moneda": d.get("moneda") or "ARS",
-            "estado": d.get("estado") or "liquidada",
+            "canal":    str(r["canal"]),
+            "concepto": str(r["glosa"]),
+            "moneda":   str(r["moneda"]),
+            "estado":   str(r["estado"]),
         }
 
+    src_codes = np.asarray(txn["src"].cat.codes)
+    dst_codes = np.asarray(txn["dst"].cat.codes)
+    ts_all    = txn["timestamp"].to_numpy()
+
     def _recent_txns(acc_id, top_k=10):
+        """Últimos movimientos reales de la cuenta, no las relaciones agregadas.
+
+        Sobre el libro denso una cuenta tiene cientos de operaciones repartidas
+        entre unas pocas decenas de contrapartes recurrentes: listar las aristas
+        agregadas daría un extracto sin fechas propias, con una línea por
+        contraparte. El legajo quiere el movimiento, así que se filtra el libro
+        por la cuenta y se toman los más recientes.
+        """
+        i = rel.code(acc_id)
+        if i is None:
+            return []
+        hit = np.flatnonzero((src_codes == i) | (dst_codes == i))
+        if hit.size == 0:
+            return []
+        top = hit[np.argsort(ts_all[hit], kind="stable")[::-1][:top_k]]
         rows = []
-        for src, dst, d in list(G.in_edges(acc_id, data=True)) + list(G.out_edges(acc_id, data=True)):
-            direction = "entrada" if dst == acc_id else "salida"
-            row = {"src": src, "dst": dst, "amount": round(d["amount"], 2),
-                   "timestamp": d["timestamp"], "direction": direction,
-                   "is_fraud": d["is_fraud"]}
-            row.update(_edge_meta(d))
-            rows.append(row)
-        rows.sort(key=lambda x: x["timestamp"], reverse=True)
-        return rows[:top_k]
+        for r in texture.get(top):
+            rows.append({
+                "src": str(r["src"]), "dst": str(r["dst"]),
+                "amount":    round(float(r["amount"]), 2),
+                "timestamp": int(r["timestamp"]),
+                "direction": "salida" if str(r["src"]) == acc_id else "entrada",
+                "is_fraud":  int(r["is_fraud"]),
+                "canal":     str(r["canal"]),
+                "concepto":  str(r["glosa"]),
+                "moneda":    str(r["moneda"]),
+                "estado":    str(r["estado"]),
+            })
+        return rows
 
     # ── traceability: multi-hop money trail (upstream to origin + layering out) ──
     perp_set = set()
@@ -627,7 +837,7 @@ def export_cases(acc, txn, data, scores_all, cfg, out_dir, n_cases=80):
         return None
 
     def _hop(src, dst):
-        d = G[src][dst]
+        d = rel.edge(src, dst)
         hop = {
             "from": src, "to": dst,
             "amount": round(float(d["amount"]), 2),
@@ -648,7 +858,7 @@ def export_cases(acc, txn, data, scores_all, cfg, out_dir, n_cases=80):
         """
         upstream, visited, cur = [], {acc_id}, acc_id
         for _ in range(max_depth):
-            in_edges = [(s, G[s][cur]) for s in G.predecessors(cur) if s not in visited]
+            in_edges = [(s, d) for s, _t, d in rel.in_edges(cur) if s not in visited]
             fraud_in = [(s, d) for s, d in in_edges if d["is_fraud"] == 1]
             pool = fraud_in or [(s, d) for s, d in in_edges
                                 if s in fraud_ids or id2score.get(s, 0) > 0.5]
@@ -670,7 +880,7 @@ def export_cases(acc, txn, data, scores_all, cfg, out_dir, n_cases=80):
         upstream.reverse()  # origin first → case account last
 
         out_edges = sorted(
-            ((dst, G[acc_id][dst]) for dst in G.successors(acc_id)),
+            ((dst, d) for _s, dst, d in rel.out_edges(acc_id)),
             key=lambda x: x[1]["amount"], reverse=True,
         )
         downstream = []
@@ -778,13 +988,23 @@ def export_all(config_path="config/config.yaml"):
 
     acc, txn, data, scores_all, scores_by_model, scores_gnn, y_test = load_all(cfg)
 
+    # Las tres vistas de red comparten un solo índice de relaciones y las
+    # features de cuenta se calculan una vez: antes cada export rearmaba su
+    # propio nx.DiGraph sobre el libro entero (ver _RelGraph).
+    print("  construyendo índice de relaciones...")
+    rel     = _RelGraph(txn)
+    feats   = build_node_features(acc, txn)
+    texture = _TxnTexture(txn, acc)
+    print(f"  {len(rel.e_key):,} relaciones sobre {len(txn):,} operaciones "
+          f"({len(txn) / max(len(rel.e_key), 1):.1f} por relación)")
+
     export_kpis(acc, data, scores_gnn, y_test, out_dir)
     export_pr_curves(y_test, scores_by_model, out_dir)
     export_score_distribution(data, scores_all, out_dir)
-    export_rings(acc, txn, data, scores_all, out_dir)
-    export_top_accounts(acc, txn, data, scores_all, out_dir)
+    export_rings(acc, rel, data, scores_all, out_dir)
+    export_top_accounts(acc, feats, rel, data, scores_all, out_dir)
     export_entities(acc, txn, data, scores_all, cfg, out_dir)
-    export_cases(acc, txn, data, scores_all, cfg, out_dir)
+    export_cases(acc, txn, feats, rel, texture, data, scores_all, cfg, out_dir)
 
     # check total size
     total_kb = sum(p.stat().st_size for p in Path(out_dir).glob("*.json")) / 1024

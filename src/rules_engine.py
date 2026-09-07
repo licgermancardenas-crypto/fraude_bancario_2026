@@ -175,15 +175,17 @@ def _default_thresholds() -> dict:
     # Montos en PESOS (escala monetaria de config.yaml::monetary.scale). Deben
     # coincidir con config.yaml::rules — test_defaults_match_config lo verifica.
     return {
-        "high_amount": {"personal": 1_500_000, "business": 5_000_000, "merchant": 5_000_000},
-        "conduit_symmetry": 0.15, "conduit_retention": 1.0,
-        "conduit_min_flow": 500_000, "rapid_out_ratio": 0.50, "rapid_symmetry": 0.25,
-        "dormant_days": 1095, "dormant_active_days": 10, "dormant_min_amount": 1_200_000,
-        "fanin_min_flow": 1_000_000, "fanout_avg_max": 400_000, "fanout_min_total": 1_500_000,
+        "high_amount": {"personal": 4_000_000, "business": 20_000_000, "merchant": 20_000_000},
+        "conduit_symmetry": 0.15, "conduit_retention": 0.05,
+        "conduit_min_flow": 30_000_000, "rapid_out_ratio": 0.70, "rapid_symmetry": 0.15,
+        "dormant_days": 1095, "dormant_active_days": 25, "dormant_min_amount": 2_000_000,
+        "fanin_min_flow": 30_000_000, "fanout_avg_max": 120_000, "fanout_min_total": 30_000_000,
         # segmentado por tipo de cuenta (KYC segmentation)
-        "fanin_degree":  {"personal": 12, "business": 40, "merchant": 70},
-        "fanout_degree": {"personal": 12, "business": 45, "merchant": 40},
-        "agg_volume":    {"personal": 5_000_000, "business": 50_000_000, "merchant": 50_000_000},
+        "fanin_counterparties":  {"personal": 34, "business": 61, "merchant": 337},
+        "fanin_degree":          {"personal": 40, "business": 60, "merchant": 300},
+        "fanout_counterparties": {"personal": 89, "business": 53, "merchant": 12},
+        "fanout_degree":         {"personal": 40, "business": 40, "merchant": 20},
+        "agg_volume":    {"personal": 123_000_000, "business": 478_000_000, "merchant": 245_000_000},
         "severity_points": {"alta": 40, "media": 25, "baja": 15},
     }
 
@@ -204,8 +206,16 @@ def _rule_masks(feats: pd.DataFrame, t: dict) -> dict[str, pd.Series]:
     """Vectorised boolean mask per transactional rule, indexed like `feats`."""
     f = feats
     # segmented thresholds by account type (KYC segmentation) for R05/R06/R07
-    fanin_thr  = _by_type(f, t["fanin_degree"])
-    fanout_thr = _by_type(f, t["fanout_degree"])
+    # El grado y la cantidad de contrapartes DISTINTAS se separan desde que el
+    # generador modela contrapartes recurrentes: una cuenta personal legítima
+    # recibe 42 movimientos de sólo 8 remitentes distintos (antes ambos números
+    # eran casi iguales y un único umbral servía para los dos). Fan-in y fan-out
+    # significan muchas CONTRAPARTES, no muchas transacciones; el grado queda
+    # como condición de actividad mínima.
+    fanin_uniq   = _by_type(f, t["fanin_counterparties"])
+    fanin_deg    = _by_type(f, t["fanin_degree"])
+    fanout_uniq  = _by_type(f, t["fanout_counterparties"])
+    fanout_deg   = _by_type(f, t["fanout_degree"])
     agg_thr    = _by_type(f, t["agg_volume"])
     high_thr   = _by_type(f, t["high_amount"])
     return {
@@ -228,13 +238,13 @@ def _rule_masks(feats: pd.DataFrame, t: dict) -> dict[str, pd.Series]:
             & (f["max_received"] >= t["dormant_min_amount"])
         ),
         "R05": (
-            (f["degree_in"] >= fanin_thr)
-            & (f["unique_senders"] >= fanin_thr)
+            (f["unique_senders"] >= fanin_uniq)
+            & (f["degree_in"] >= fanin_deg)
             & (f["total_received"] >= t["fanin_min_flow"])
         ),
         "R06": (
-            (f["degree_out"] >= fanout_thr)
-            & (f["unique_receivers"] >= fanout_thr)
+            (f["unique_receivers"] >= fanout_uniq)
+            & (f["degree_out"] >= fanout_deg)
             & (f["avg_sent"] <= t["fanout_avg_max"])
             & (f["total_sent"] >= t["fanout_min_total"])
         ),

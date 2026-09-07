@@ -24,6 +24,8 @@ import yaml
 
 from src.models.graphsage import GraphSAGE
 
+from src import txn_store
+
 
 def load_config(path="config/config.yaml"):
     with open(path) as f:
@@ -42,7 +44,7 @@ def main(config_path="config/config.yaml"):
     print("=" * 55)
 
     acc = pd.read_csv(f"{raw_dir}/accounts.csv")
-    txn = pd.read_csv(f"{raw_dir}/transactions.csv")
+    txn = txn_store.load_transactions(raw_dir, columns=["src", "dst", "amount"])
 
     # Load personas if available
     persona_path = Path(f"{raw_dir}/personas.csv")
@@ -151,7 +153,7 @@ def main(config_path="config/config.yaml"):
 
     out = f"{data_dir}/communities.json"
     with open(out, "w") as f:
-        json.dump(obj, f, separators=(",", ":"))
+        json.dump(obj, f, separators=(",", ":"), default=txn_store.json_default)
     size_kb = Path(out).stat().st_size / 1024
     print(f"  → {out}  ({size_kb:.1f} KB)")
 

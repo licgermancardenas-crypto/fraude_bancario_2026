@@ -12,6 +12,8 @@ import pandas as pd
 
 from src.export_dashboard import load_config
 
+from src import txn_store
+
 ANALISTAS = ["Lic. Valentina Ibarra", "Lic. Tomás Ferreyra", "Lic. Camila Suárez",
              "Lic. Nicolás Paredes", "Lic. Agustina Domínguez"]
 
@@ -67,7 +69,7 @@ def build(config_path="config/config.yaml"):
     }
 
     json.dump({"summary": summary, "hits": hits},
-              open(f"{data_dir}/screening_hits.json", "w", encoding="utf-8"), ensure_ascii=False)
+              open(f"{data_dir}/screening_hits.json", "w", encoding="utf-8"), ensure_ascii=False, default=txn_store.json_default)
     print(f"  → screening_hits.json  ({len(hits)} coincidencias · "
           f"{summary['pendientes']} pendientes · {summary['confirmados']} confirmadas)")
 

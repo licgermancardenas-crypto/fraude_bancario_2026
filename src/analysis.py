@@ -31,6 +31,8 @@ from src.features import build_node_features, get_feature_matrix
 from src.models.graphsage import GraphSAGE
 from src.evaluate import evaluate_model, build_comparison_table, recall_at_precision
 
+from src import txn_store
+
 
 # ── palette ──────────────────────────────────────────────────────────────────
 NAVY   = "#0A1F44"
@@ -43,7 +45,7 @@ GRID   = "#E0E0E0"
 MODEL_COLORS = {
     "Logistic Regression": NAVY,
     "XGBoost":             GOLD,
-    "Node2Vec + XGBoost":  "#8E44AD",
+    "Node2Vec":            "#8E44AD",
     "GAT":                 "#2E86AB",
     "GraphSAGE":           RED,
     "GraphSAGE (ablation — solo topología)": TEAL,
@@ -53,7 +55,7 @@ MODEL_COLORS = {
 MODEL_SCORE_FILES = {
     "Logistic Regression": "scores_logreg.npy",
     "XGBoost":             "scores_xgboost.npy",
-    "Node2Vec + XGBoost":  "scores_node2vec.npy",
+    "Node2Vec":            "scores_node2vec.npy",
     "GAT":                 "scores_gat.npy",
     "GraphSAGE":           "scores_graphsage.npy",
 }
@@ -71,7 +73,7 @@ def load_all(cfg):
     processed = cfg["data"]["processed_dir"]
 
     acc = pd.read_csv(f"{raw}/accounts.csv")
-    txn = pd.read_csv(f"{raw}/transactions.csv")
+    txn = txn_store.load_transactions(raw, columns=["src", "dst", "amount", "timestamp", "transaction_type", "is_fraud"])
 
     data      = torch.load(f"{processed}/graph.pt", weights_only=False)
     test_mask = data.test_mask.numpy()
@@ -398,7 +400,7 @@ def append_model_insights(results_list, abl_prauc, error_df, cfg):
 
 > **Hallazgo:** GraphSAGE logra PR-AUC={gnn_r['pr_auc']:.3f} vs XGBoost={xgb_r['pr_auc']:.3f} vs LogReg={lr_r['pr_auc']:.3f}, usando exactamente el mismo test set y splits. El único diferencial es el acceso a la estructura del grafo.
 
-> **Implicancia para BRS:** Con XGBoost, los analistas de BRS revisarían ~21 alertas/día con 20% del fraude sin detectar. Con el GNN, las alertas bajan a ~26/día (ligeramente más amplias) pero el fraude no detectado cae a 0% en este dataset. El costo operativo es marginalmente mayor, el beneficio es material.
+> **Implicancia para BRS:** Con XGBoost los analistas revisarían ~{xgb_r['biz_daily_alerts']} alertas/día dejando el {xgb_r['biz_pct_fraud_missed']:.1f}% del fraude sin detectar; con el GNN, ~{gnn_r['biz_daily_alerts']} alertas/día y {gnn_r['biz_pct_fraud_missed']:.1f}% sin detectar. El costo operativo es comparable y el beneficio, material.
 
 > **Acción sugerida:** Presentar la curva PR comparativa al directorio como el argumento central del proyecto. El área entre la curva XGBoost y la curva GNN representa el "fraude adicional detectado" — traducirlo a montos evitados usando el ticket promedio de BRS.
 
@@ -426,16 +428,25 @@ def append_model_insights(results_list, abl_prauc, error_df, cfg):
 
 ### Insight 12 — Regresión Logística en grafos: el límite de la linealidad
 
-> **Hallazgo:** LogReg logra ROC-AUC={lr_r['roc_auc']:.3f} (alta separabilidad global) pero PR-AUC={lr_r['pr_auc']:.3f} (baja precisión en clases desbalanceadas) y Recall@P90=0. La frontera de decisión lineal no puede separar fraude de legítimo en el espacio de features en el punto operativo (90% precisión).
+> **Hallazgo:** LogReg logra ROC-AUC={lr_r['roc_auc']:.3f} (alta separabilidad global) pero PR-AUC={lr_r['pr_auc']:.3f} (baja precisión en clases desbalanceadas) y Recall@P90={lr_r['rec_at_p90']:.1%}. La frontera de decisión lineal no puede separar fraude de legítimo en el espacio de features en el punto operativo (90% precisión).
 
 > **Implicancia para BRS:** Muchos sistemas de compliance internos usan regresión logística o scorecards lineales como base. Este resultado muestra que incluso con features de red (grado, montos, contrapartes), la no-linealidad es fundamental. El salto a XGBoost ya aporta enormemente; el salto a GNN añade la señal de vecindario.
 
 > **Acción sugerida:** Al presentar el proyecto a BRS, usar la progresión LogReg → XGBoost → GNN como narrativa de "capas de inteligencia": cada capa agrega un tipo de información que la anterior no puede capturar (no-linealidad → estructura de red).
 """
 
-    insights_path = f"{reports}/insights.md"
-    with open(insights_path, "a", encoding="utf-8") as f:
-        f.write(new_section)
+    # Reemplazar la sección si ya existe en vez de apilar copias: analysis.py se
+    # re-corre en cada regeneración del pipeline y con `append` insights.md
+    # terminaba con la Fase F duplicada tantas veces como corridas hubo.
+    insights_path = Path(reports) / "insights.md"
+    marker = "## Fase F — Insights de Modelo"
+    previo = insights_path.read_text(encoding="utf-8") if insights_path.exists() else ""
+    if marker in previo:
+        corte = previo.index(marker)
+        # retroceder hasta el separador que abre la sección, si está
+        sep = previo.rfind("\n---\n", 0, corte)
+        previo = previo[: sep if sep != -1 else corte].rstrip() + "\n"
+    insights_path.write_text(previo + new_section, encoding="utf-8")
     print(f"  → {insights_path} actualizado con Insights 9-12")
 
 

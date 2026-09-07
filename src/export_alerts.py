@@ -20,6 +20,8 @@ from src.export_dashboard import load_all, load_config
 from src.features import build_node_features
 from src import rules_engine, rules_temporal
 
+from src import txn_store
+
 
 def build(config_path="config/config.yaml"):
     cfg = load_config(config_path)
@@ -150,7 +152,7 @@ def build(config_path="config/config.yaml"):
     }
 
     json.dump({"summary": summary, "alerts": alerts},
-              open(f"{data_dir}/alerts.json", "w", encoding="utf-8"), ensure_ascii=False)
+              open(f"{data_dir}/alerts.json", "w", encoding="utf-8"), ensure_ascii=False, default=txn_store.json_default)
     print(f"  → alerts.json  ({n} alertas · {summary['escaladas']} escaladas · "
           f"FP {summary['tasa_fp'] * 100:.0f}% · auto-cerradas {summary['auto_cerradas']})")
 

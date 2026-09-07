@@ -46,6 +46,8 @@ from src.models.graphsage import GraphSAGE
 from src.features import build_node_features, get_feature_matrix
 from src.evaluate import evaluate_model
 
+from src import txn_store
+
 
 BLUE   = "#1E3A8A"
 LIGHT  = "#2563EB"
@@ -387,7 +389,7 @@ def main(config_path="config/config.yaml"):
     print("=" * 58)
 
     # ── Load raw data ─────────────────────────────────────────────
-    txn  = pd.read_csv(f"{cfg['data']['raw_dir']}/transactions.csv")
+    txn  = txn_store.load_transactions(cfg['data']['raw_dir'], columns=["src", "dst", "amount", "timestamp", "transaction_type", "is_fraud"])
     acct = pd.read_csv(f"{cfg['data']['raw_dir']}/accounts.csv")
 
     # ── Load existing random-split graph ──────────────────────────

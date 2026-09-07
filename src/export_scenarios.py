@@ -40,6 +40,8 @@ import yaml
 from src import rules_engine, rules_temporal
 from src.features import build_node_features
 
+from src import txn_store
+
 # Factores aplicados al umbral principal de cada escenario para el backtest.
 CALIBRATION_FACTORS = [0.5, 0.6, 0.7, 0.8, 0.9, 1.0, 1.1, 1.25, 1.5, 2.0]
 
@@ -276,7 +278,8 @@ def build(config_path: str = "config/config.yaml") -> dict:
     out_dir = cfg["paths"]["dashboard_data_dir"]
 
     acc = pd.read_csv(f"{raw}/accounts.csv")
-    txn = pd.read_csv(f"{raw}/transactions.csv")
+    txn = txn_store.load_transactions(raw, columns=["src", "dst", "amount", "timestamp", "transaction_type", "is_fraud"],
+        with_row_id=True)
     feats = build_node_features(acc, txn).set_index("account_id")
     y = feats["is_fraud"].to_numpy().astype(int)
     t = _thresholds(cfg)
@@ -377,7 +380,7 @@ def build(config_path: str = "config/config.yaml") -> dict:
 
     Path(out_dir).mkdir(parents=True, exist_ok=True)
     with open(f"{out_dir}/scenarios.json", "w", encoding="utf-8") as f:
-        json.dump(obj, f, ensure_ascii=False, separators=(",", ":"))
+        json.dump(obj, f, ensure_ascii=False, separators=(",", ":"), default=txn_store.json_default)
     kb = Path(f"{out_dir}/scenarios.json").stat().st_size / 1024
     print(f"  -> {out_dir}/scenarios.json  ({kb:.1f} KB · {len(escenarios)} escenarios · "
           f"{resumen['disparos']} cuentas marcadas · precisión {resumen['precision']:.0%})")

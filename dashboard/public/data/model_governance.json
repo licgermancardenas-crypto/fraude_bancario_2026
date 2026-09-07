@@ -10,126 +10,126 @@
     "fecha_entrenamiento": "2026-07-30",
     "estado": "En producción — validado",
     "dataset": "75.000 cuentas · 544.157 transacciones · 8 tipologías AML",
-    "tasa_base_fraude": 2.85,
+    "tasa_base_fraude": 3.01,
     "features": 27
   },
   "umbral_operativo": {
     "objetivo_precision": 0.9,
-    "recall": 0.9688,
-    "threshold": 0.8172,
-    "alertas_dia": 27,
-    "fraude_no_detectado": 3.4,
+    "recall": 0.8997,
+    "threshold": 0.8737,
+    "alertas_dia": 24,
+    "fraude_no_detectado": 13.0,
     "fp_rate_estimada": 0.1
   },
   "champion_challenger": [
     {
       "modelo": "Logistic Regression",
       "rol": "Baseline lineal",
-      "pr_auc": 0.7281,
-      "roc_auc": 0.9759,
-      "recall_p90": 0.1776,
+      "pr_auc": 0.4713,
+      "roc_auc": 0.9284,
+      "recall_p90": 0.1062,
       "alertas_dia": 29,
-      "fraude_no_detectado": 22.4
+      "fraude_no_detectado": 47.2
     },
     {
       "modelo": "XGBoost",
       "rol": "Baseline tabular",
-      "pr_auc": 0.9502,
-      "roc_auc": 0.9956,
-      "recall_p90": 0.8816,
-      "alertas_dia": 26,
-      "fraude_no_detectado": 11.8
+      "pr_auc": 0.8824,
+      "roc_auc": 0.9862,
+      "recall_p90": 0.7758,
+      "alertas_dia": 23,
+      "fraude_no_detectado": 20.6
     },
     {
       "modelo": "Node2Vec + XGBoost",
       "rol": "Ablación (solo topología)",
-      "pr_auc": 0.0459,
-      "roc_auc": 0.6022,
-      "recall_p90": 0.0,
-      "alertas_dia": 142,
-      "fraude_no_detectado": 72.0
+      "pr_auc": 0.2352,
+      "roc_auc": 0.7111,
+      "recall_p90": 0.0354,
+      "alertas_dia": 16,
+      "fraude_no_detectado": 75.2
     },
     {
       "modelo": "GAT",
       "rol": "Retador",
-      "pr_auc": 0.9084,
-      "roc_auc": 0.997,
-      "recall_p90": 0.7664,
-      "alertas_dia": 28,
-      "fraude_no_detectado": 11.5
+      "pr_auc": 0.795,
+      "roc_auc": 0.9816,
+      "recall_p90": 0.5634,
+      "alertas_dia": 26,
+      "fraude_no_detectado": 26.5
     },
     {
       "modelo": "GraphSAGE",
       "rol": "Campeón (producción)",
-      "pr_auc": 0.9783,
-      "roc_auc": 0.9996,
-      "recall_p90": 0.9688,
-      "alertas_dia": 27,
-      "fraude_no_detectado": 3.4
+      "pr_auc": 0.9431,
+      "roc_auc": 0.9957,
+      "recall_p90": 0.8997,
+      "alertas_dia": 24,
+      "fraude_no_detectado": 13.0
     }
   ],
   "robustez_evaluacion": {
-    "transductivo": 0.9783,
-    "inductivo": 0.8985,
-    "temporal": 0.9711,
-    "n_early_fraud": 2139,
-    "n_late_fraud": 1,
-    "temporal_confiable": false,
-    "advertencia_temporal": "El período de test tiene sólo 1 caso(s) de fraude: el PR-AUC temporal NO es estadísticamente significativo. Requiere un dataset con fraude distribuido en el tiempo antes de reportarse como métrica operativa."
+    "transductivo": 0.9431,
+    "inductivo": 0.5106,
+    "temporal": 0.9419,
+    "n_early_fraud": 2213,
+    "n_late_fraud": 35,
+    "temporal_confiable": true,
+    "advertencia_temporal": null
   },
   "monitoreo_mensual": [
     {
       "mes": "2025-12",
-      "pr_auc": 0.9797,
+      "pr_auc": 0.9445,
       "alertas": 746,
       "fp_rate": 0.102,
       "psi": 0.02
     },
     {
       "mes": "2026-01",
-      "pr_auc": 0.9717,
+      "pr_auc": 0.9365,
       "alertas": 781,
       "fp_rate": 0.106,
       "psi": 0.03
     },
     {
       "mes": "2026-02",
-      "pr_auc": 0.9721,
+      "pr_auc": 0.9369,
       "alertas": 774,
       "fp_rate": 0.109,
       "psi": 0.04
     },
     {
       "mes": "2026-03",
-      "pr_auc": 0.9616,
+      "pr_auc": 0.9264,
       "alertas": 781,
       "fp_rate": 0.109,
       "psi": 0.05
     },
     {
       "mes": "2026-04",
-      "pr_auc": 0.9624,
+      "pr_auc": 0.9272,
       "alertas": 770,
       "fp_rate": 0.117,
       "psi": 0.06
     },
     {
       "mes": "2026-05",
-      "pr_auc": 0.9305,
+      "pr_auc": 0.8953,
       "alertas": 877,
       "fp_rate": 0.167,
       "psi": 0.19
     },
     {
       "mes": "2026-06",
-      "pr_auc": 0.9552,
+      "pr_auc": 0.92,
       "alertas": 777,
       "fp_rate": 0.127,
       "psi": 0.08
     },
     {
       "mes": "2026-07",
-      "pr_auc": 0.9469,
+      "pr_auc": 0.9117,
       "alertas": 890,
       "fp_rate": 0.126,
       "psi": 0.09
@@ -258,14 +258,14 @@
   },
   "disclaimer": "PRUEBA DE CONCEPTO sobre datos 100% sintéticos. No validado para uso en producción ni aprobado por ninguna autoridad. Las métricas de performance reflejan el dataset sintético y no constituyen garantía de resultados sobre datos reales.",
   "impacto_programa": {
-    "monto_ilicito_rastreado": 7884945387.0,
-    "perpetradores_origen": 392,
-    "mulas_detectadas": 2075,
+    "monto_ilicito_rastreado": 16075231521.75,
+    "perpetradores_origen": 346,
+    "mulas_detectadas": 2374,
     "tipologias_cubiertas": 8,
     "portfolio": 75000,
-    "cuentas_fraude": 2140,
-    "tasa_deteccion": 0.9688
+    "cuentas_fraude": 2255,
+    "tasa_deteccion": 0.8997
   },
   "_nota": "Métricas de modelo REALES (results_all.json / temporal_eval.json). La serie mensual de monitoreo y el PSI por feature son una SIMULACIÓN ilustrativa del seguimiento continuo (el dataset es sintético y estático).",
-  "generado": "2026-08-22"
+  "generado": "2026-09-06"
 }

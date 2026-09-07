@@ -15,6 +15,15 @@ H = 3_600
 D = 86_400
 T0 = 1_700_000_000
 
+# Los fixtures se dimensionan DESDE los umbrales vigentes en vez de fijar montos
+# a mano: así una recalibración no rompe tests que siguen verificando la misma
+# semántica (la secuencia y el intervalo, no el número concreto).
+_TH = rt._default_thresholds()
+N_OUT = int(_TH["burst_out_min_counterparties"])          # contrapartes de R09
+N_IN = int(_TH["burst_in_min_counterparties"])            # contrapartes de R10
+AMT_OUT = _TH["burst_out_min_total"]["personal"] / N_OUT * 1.5   # supera el mínimo
+AMT_IN = _TH["burst_in_min_total"]["personal"] / N_IN * 1.5
+
 
 def _acc(**tipos):
     """Cuentas con su tipo; por defecto todo personal."""
@@ -38,46 +47,46 @@ def _ids(res, rid):
 # ── R09 · dispersión en ráfaga ───────────────────────────────────────────────
 
 def test_r09_dispara_con_rafaga_concentrada():
-    txn = _txns([("ACC1", f"DST{i}", 300_000, i * H) for i in range(4)])
-    acc = _acc(ACC1="personal", **{f"DST{i}": "personal" for i in range(4)})
+    txn = _txns([("ACC1", f"DST{i}", AMT_OUT, i * H) for i in range(N_OUT)])
+    acc = _acc(ACC1="personal", **{f"DST{i}": "personal" for i in range(N_OUT)})
     res = rt.evaluate_rules(txn, acc, None, only=["R09"])
     assert "ACC1" in _ids(res, "R09")
     ev = res["R09"]["ACC1"]
-    assert ev["contrapartes"] == 4
-    assert ev["monto_total"] == pytest.approx(1_200_000.0)
-    assert len(ev["operaciones"]) == 4
+    assert ev["contrapartes"] == N_OUT
+    assert ev["monto_total"] == pytest.approx(AMT_OUT * N_OUT)
+    assert len(ev["operaciones"]) == N_OUT
 
 
 def test_r09_no_dispara_si_las_mismas_operaciones_se_reparten_en_el_tiempo():
     """Mismo total y mismas contrapartes, pero espaciadas: el agregado no
     distingue los dos casos y la ventana sí. Es la razón de ser del motor."""
-    txn = _txns([("ACC1", f"DST{i}", 300_000, i * 10 * D) for i in range(4)])
-    acc = _acc(ACC1="personal", **{f"DST{i}": "personal" for i in range(4)})
+    txn = _txns([("ACC1", f"DST{i}", AMT_OUT, i * 10 * D) for i in range(N_OUT)])
+    acc = _acc(ACC1="personal", **{f"DST{i}": "personal" for i in range(N_OUT)})
     assert _ids(rt.evaluate_rules(txn, acc, None, only=["R09"]), "R09") == set()
 
 
 def test_r09_no_dispara_con_contraparte_repetida():
     """Cuatro envíos al mismo destinatario no son dispersión."""
-    txn = _txns([("ACC1", "DST0", 300_000, i * H) for i in range(4)])
+    txn = _txns([("ACC1", "DST0", AMT_OUT, i * H) for i in range(N_OUT)])
     acc = _acc(ACC1="personal", DST0="personal")
     assert _ids(rt.evaluate_rules(txn, acc, None, only=["R09"]), "R09") == set()
 
 
 def test_r09_umbral_segmentado_por_tipo_de_cuenta():
     """La nómina de una empresa es fan-out lícito: umbral mucho más alto."""
-    filas = [("EMP", f"DST{i}", 300_000, i * H) for i in range(4)]
-    acc = _acc(EMP="business", **{f"DST{i}": "personal" for i in range(4)})
+    filas = [("EMP", f"DST{i}", AMT_OUT, i * H) for i in range(N_OUT)]
+    acc = _acc(EMP="business", **{f"DST{i}": "personal" for i in range(N_OUT)})
     assert _ids(rt.evaluate_rules(_txns(filas), acc, None, only=["R09"]), "R09") == set()
 
-    acc_p = _acc(EMP="personal", **{f"DST{i}": "personal" for i in range(4)})
+    acc_p = _acc(EMP="personal", **{f"DST{i}": "personal" for i in range(N_OUT)})
     assert "EMP" in _ids(rt.evaluate_rules(_txns(filas), acc_p, None, only=["R09"]), "R09")
 
 
 # ── R10 · agregación en ráfaga ───────────────────────────────────────────────
 
 def test_r10_dispara_con_fan_in_concentrado():
-    txn = _txns([(f"SRC{i}", "ACC1", 300_000, i * H) for i in range(4)])
-    acc = _acc(ACC1="personal", **{f"SRC{i}": "personal" for i in range(4)})
+    txn = _txns([(f"SRC{i}", "ACC1", AMT_IN, i * H) for i in range(N_IN)])
+    acc = _acc(ACC1="personal", **{f"SRC{i}": "personal" for i in range(N_IN)})
     assert "ACC1" in _ids(rt.evaluate_rules(txn, acc, None, only=["R10"]), "R10")
 
 

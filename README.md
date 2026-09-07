@@ -13,7 +13,7 @@
 **Dashboard en vivo → [fraude-bancario-2026.vercel.app](https://fraude-bancario-2026.vercel.app)**
 **API en vivo → [phantom-rcs9.onrender.com/docs](https://phantom-rcs9.onrender.com/docs)**
 
-Engagement simulado para *Banco Regional del Sur (BRS)*: prueba de concepto end-to-end de detección de redes de lavado de activos usando **Graph Neural Networks** sobre un grafo transaccional sintético de 75.000 cuentas y ~544.000 transacciones.
+Engagement simulado para *Banco Regional del Sur (BRS)*: prueba de concepto end-to-end de detección de redes de lavado de activos usando **Graph Neural Networks** sobre un grafo transaccional sintético de 75.000 cuentas y ~11,2 millones de transacciones.
 
 El sistema detecta **8 tipologías de lavado** alineadas con GAFI que los controles basados en reglas no pueden ver: **anillos cíclicos** (4–7 saltos), **estructuración / pitufeo**, **agregación de fondos**, **cuentas de paso** (flow-through), **sociedades pantalla**, **cuentas durmientes reactivadas**, **redes de mulas** y **round-tripping** (integración) — además de rastrear a los **perpetradores de origen** que inyectaron el dinero sin ser detectados por el modelo principal.
 
@@ -241,25 +241,38 @@ entrada-salida y desvío contra la baseline de la propia cuenta.
 
 | Motor | Escenarios | Cuentas marcadas | Precisión | Recall | Lift |
 |---|---|---|---|---|---|
-| Agregado (features de cuenta) | 8 | 3.885 | 35,8% | 65,0% | 12,5× |
-| **Temporal (ventana sobre el stream)** | 5 | **1.797** | **84,0%** | **70,5%** | **29,4×** |
+| Agregado (features de cuenta) | 8 | 3.950 | 20,6% | 36,1% | 6,9× |
+| **Temporal (ventana sobre el stream)** | 5 | **2.121** | **51,2%** | **48,1%** | **17,0×** |
 
-El motor temporal marca **menos de la mitad de cuentas** que el agregado y aun así
-detecta más fraude, con una precisión más del doble. **325 fraudes los ve sólo el
-motor temporal** (206 sólo el agregado, 1.184 los dos). Combinados, el recall del
-motor de reglas sube de 65% a 80,1%.
+El motor temporal marca **casi la mitad de cuentas** que el agregado y aun así detecta
+más fraude, con una precisión dos veces y media mayor. **351 fraudes los ve sólo el
+motor temporal** (81 sólo el agregado, 734 los dos). Combinados, el recall del motor
+de reglas sube de 36,1% a 51,7%.
 
 Cada escenario temporal además **cita las operaciones concretas que lo dispararon** —
 visibles en el detalle del caso y transcribibles al ROS. Un reporte de operación
 sospechosa se sostiene con las operaciones citadas, no con el nombre de una regla.
 
-**Dos salvedades honestas.** (1) La complementariedad con el GNN sigue dando
-`solo_reglas = 0`: el modelo está saturado sobre este dataset sintético (detecta 2.134
-de 2.140 fraudes), así que ninguna regla puede aportarle cobertura. El valor de las
-reglas acá es la defendibilidad regulatoria — determinista, citable, auditable — no
-la cobertura. (2) No hay escenario de umbral de efectivo: en este dataset las 60.250
-extracciones son todas legítimas, así que una regla de efectivo sería un generador
-puro de falsos positivos. El dataset no modela colocación en efectivo.
+**El agregado se cayó al densificar, y eso es el hallazgo.** Los umbrales están
+recalibrados sobre el libro denso —percentil ~99 de la población legítima de cada
+segmento, que es lo calibrable sin etiquetas en producción— así que los números de
+arriba no son un desajuste de umbral: son la consecuencia medida. Contra un fondo de
+~300 movimientos anuales, el fan-in y el fan-out **anuales** de una cuenta de fraude
+son indistinguibles de los de una cuenta legítima activa: **R05 dispara con 6,4% de
+precisión y R06 con 6,2%, sobre una tasa base de 3,01%** — lift 2,1× es no decir nada.
+Sobre el libro esparso esos mismos escenarios parecían funcionar. Es exactamente la
+razón por la que un sistema ALD real monitorea ventanas móviles y no agregados
+anuales, y acá queda medido en vez de afirmado.
+
+**Dos salvedades honestas.** (1) La complementariedad con el GNN da `solo_reglas = 11`
+sobre 2.255 fraudes: el modelo detecta 2.213 y las reglas apenas le agregan once casos.
+Es una mejora contra el `solo_reglas = 0` del libro esparso —donde el modelo saturaba
+y las reglas no aportaban literalmente nada— pero el orden de magnitud no cambia: el
+valor de las reglas acá es la defendibilidad regulatoria (determinista, citable,
+auditable), no la cobertura. (2) No hay escenario de umbral de efectivo: en este
+dataset las 973.375 extracciones son todas legítimas, así que una regla de efectivo
+sería un generador puro de falsos positivos. El dataset no modela colocación en
+efectivo.
 
 Los umbrales viven en `config/config.yaml` (`rules:` y `rules_temporal:`),
 segmentados por tipo de cuenta donde el comportamiento comercial legítimo —nómina,
@@ -282,10 +295,11 @@ auditables contra la norma en vez de ser números sueltos:
 
 | Umbral | Pesos | En SMVM |
 |---|---:|---:|
-| Transferencia individual atípica (persona física) | $1.500.000 | 4,0 |
-| Transferencia individual atípica (empresa) | $5.000.000 | 13,3 |
-| Volumen agregado atípico (persona física) | $5.000.000 | 13,3 |
+| Transferencia individual atípica (persona física) | $4.000.000 | 10,6 |
+| Transferencia individual atípica (empresa) | $20.000.000 | 53,1 |
+| Volumen agregado atípico (persona física) | $123.000.000 | 326,6 |
 | U-turn: monto mínimo para emparejar | $5.000.000 | 13,3 |
+| Tránsito emparejado: monto mínimo | $1.800.000 | 4,8 |
 | Referencia UIF — reporte sistemático de efectivo | $15.064.000 | 40,0 |
 
 **El reescalado no toca el modelo.** Es un factor lineal sobre
@@ -296,17 +310,97 @@ features con la media y el desvío de train, el factor se cancela exactamente �
 máxima medida: 1,5e-4, ruido de representación float32) y **no hay
 reentrenamiento**. `edge_attr` lleva el monto crudo pero los modelos nunca
 reciben `edge_weight`, así que tampoco influye. Los umbrales de ambos motores
-están en la misma escala: verificado que marcan **exactamente el mismo conjunto
-de 3.432 cuentas con las mismas reglas disparadas** antes y después.
+estaban en la misma escala: verificado que marcaban **exactamente el mismo
+conjunto de 3.432 cuentas con las mismas reglas disparadas** antes y después del
+reescalado. Esa verificación se hizo sobre el libro esparso vigente entonces —
+las 3.432 son el conteo de aquella corrida, no del dataset actual; los umbrales
+de la tabla de arriba son los mismos y hoy marcan 4.927 cuentas sobre el libro
+denso (ver "Densificación transaccional").
 
-**Limitación declarada — densidad, no escala.** El dataset tiene ~14,5
-movimientos por cuenta por año; una cuenta minorista real tiene entre 200 y 600.
-Por eso ningún factor único deja bien las dos cosas a la vez: anclado al monto
-individual (lo que se hizo), los montos de cada operación son plausibles pero el
-volumen anual por cuenta queda por debajo del de una cartera real. Lo que falta
-es densidad transaccional, no escala monetaria — y corregirlo implica regenerar
-el grafo, con lo cual sí habría que reentrenar y recalibrar todo. Queda como
-frente abierto y declarado, no disimulado.
+**Densidad transaccional — limitación saldada.** La versión anterior de este
+README declaraba que el dataset tenía ~14,5 movimientos por cuenta y por año
+contra los 200-600 de una cuenta minorista real, y que corregirlo obligaba a
+regenerar el grafo y reentrenar todo. Se hizo: ver la sección siguiente.
+
+## Densificación transaccional
+
+La versión anterior del dataset tenía **14,5 movimientos por cuenta y por año**,
+contra los 200-600 de una cuenta minorista real, y estaba declarado como
+limitación abierta. Al ir a corregirlo apareció que el problema no era sólo de
+volumen.
+
+**El diagnóstico.** La capa legítima sorteaba `src` y `dst` uniformemente sobre
+el padrón, lo que produce un grafo aleatorio de Erdős–Rényi: **1,09 transacciones
+por arista**, el 93% de las aristas de un solo uso. La consecuencia medible:
+
+| | degree medio | contrapartes distintas | ratio |
+|---|---:|---:|---:|
+| Cuentas legítimas | 14,5 | 13,2 | **0,913** |
+| Cuentas de fraude | 15,2 | 14,9 | **0,980** |
+
+La **concentración de contrapartes** —de las señales más fuertes que usa un
+sistema ALD real— no distinguía nada. Una cuenta minorista real tiene degree
+~250 contra ~30 contrapartes distintas (ratio ~0,12); una mula opera con
+contrapartes casi siempre nuevas. El dataset no modelaba esa diferencia porque
+nadie repetía contraparte, y **densificar subiendo el total de transacciones
+sobre el sorteo uniforme lo habría empeorado**: más aristas de un solo uso
+empujan el ratio legítimo aún más cerca de 1,0 y convierten el grafo en un
+hairball donde el fan-in y el fan-out dejan de discriminar.
+
+**La corrección.** `src/economy.py` construye la economía legítima sobre
+**círculos de contrapartes recurrentes**: cada cuenta elige un conjunto estable
+—el supermercado de siempre, el empleador, cuatro servicios con débito
+automático, un puñado de pares— y opera repetidamente con él durante el año, con
+un ticket característico por vínculo y cadencia mensual donde corresponde
+(servicios, nómina, proveedores). Se agregan niveles de actividad, incluido un
+6% de cuentas genuinamente durmientes.
+
+| | antes | ahora |
+|---|---:|---:|
+| Transacciones | 544.157 | **11.240.742** |
+| Movimientos por cuenta y año | 14,5 | **300** (mediana 221) |
+| Transacciones por arista | 1,09 | **7,40** |
+| Aristas únicas | 497.799 | 1.518.706 |
+| Ratio contrapartes/degree (legítimas) | 0,913 | **0,144** |
+
+**Lo que la densificación arrastró.** Tres frentes que no eran opcionales:
+
+1. **Almacén columnar** (`src/txn_store.py`). El CSV con strings costaba 786
+   bytes por fila; a 11,2M de filas son ~8,8 GB en pandas, imposible en el equipo
+   de trabajo (5,2 GB de RAM). El almacén guarda un `.npy` por columna con
+   dtypes compactos y deriva al vuelo lo que es función de las demás
+   (`transaction_id`, CBU, alias, rubro, glosa, referencia): **29 bytes por
+   fila**, 327 MB en disco, y cada módulo carga sólo las columnas que usa.
+2. **Agregación de aristas paralelas** (`src/build_graph.py`). Las 11,2M de
+   transacciones se colapsan a 1,52M de aristas por par, con la intensidad de la
+   relación en `edge_attr`. Además de ser lo correcto para el paso de mensajes
+   —un supermercado visitado 40 veces no debe pesar 40 veces más que la
+   contraparte de una sola operación, que es la que interesa— es lo que mantiene
+   el entrenamiento full-batch viable: 3,7 s por época y 1,5 GB de pico.
+3. **Recalibración de los 13 escenarios.** Los umbrales de grado del motor
+   agregado (`fanin_degree: 12`) perdían todo sentido a 300 movimientos anuales.
+   Se recalibraron sobre el percentil ~99 de la población legítima de cada
+   segmento, que es lo calibrable sin etiquetas en producción.
+
+### Dos hallazgos honestos
+
+**El motor agregado pierde casi todo su poder contra un fondo realista.** Con 300
+movimientos anuales por cuenta, el fan-in y el fan-out *anuales* de una cuenta de
+fraude son indistinguibles de los de una cuenta legítima activa: R05 y R06 caen a
+~6% de precisión y ~0,2% de recall. El motor completo pasa de 35,8% de precisión
+y 65,0% de recall a **22,2% / 34,3%**. El motor **temporal**, que mira ventanas
+móviles, rinde **51,2% de precisión y 48,1% de recall con lift 17,0×** sobre 2.121
+alertas — menos alertas, más del doble de precisión y 1,4× el recall del agregado.
+Es la razón por la que un sistema ALD real monitorea ventanas y no agregados
+anuales, y acá queda medido en vez de afirmado.
+
+**La ventaja del GNN se ensancha.** Sobre el dataset anterior GraphSAGE le sacaba
+2,8 puntos de PR-AUC a XGBoost (0,978 contra 0,950), una diferencia que era fácil
+atribuir a saturación. Sobre el grafo denso la diferencia es de **6,1 puntos**
+(0,943 contra 0,882) y contra la regresión logística, de 47 puntos. El fondo
+lícito realista diluye los agregados tabulares, y la topología —que es lo que el
+GNN explota— sigue en pie. El problema es más difícil para todos y la brecha se
+abre: 0,978 sobre un grafo aleatorio decía menos que 0,943 sobre uno realista.
 
 ## Reproducir
 
@@ -316,9 +410,11 @@ uv venv venv && source venv/bin/activate
 uv pip install -r requirements.txt
 
 # Pipeline completo (en orden)
-python -m src.generate              # dataset sintético (75K cuentas)
-python -m src.build_graph           # grafo PyG + splits estratificados
-python -m src.train_baseline        # LogReg + XGBoost
+python -m src.generate              # dataset sintético (75K cuentas, 11,2M txns)
+python -m src.generate_entities     # empresas, PEPs, shell companies, screening
+python -m src.enrich_personas       # identidades sintéticas (DNI/CUIL/AFIP)
+python -m src.train_baseline        # LogReg + XGBoost (crea los splits)
+python -m src.build_graph           # grafo PyG (aristas paralelas agregadas)
 python -m src.train                 # GraphSAGE
 python -m src.train_gat             # GAT
 python -m src.train_node2vec        # Node2Vec + XGBoost
@@ -327,10 +423,15 @@ python -m src.trace_origin          # backward tracing
 python -m src.detect_placement      # scoring de colocación
 python -m src.evaluate_temporal     # evaluación temporal
 python -m src.analysis              # comparativa + figuras
-python -m src.generate_entities     # empresas, PEPs, shell companies
+python -m src.business_impact       # traducción a impacto económico
 python -m src.export_dashboard      # JSONs para dashboard
+python -m src.export_transactions   # muestra para el explorador de transacciones
+python -m src.export_screening      # cola de screening de sanciones
+python -m src.export_alerts         # capa de alertas + embudo de triage
+python -m src.kyc_profiles          # legajos de cliente (CDD)
+python -m src.model_governance      # model card + monitoreo
+python -m src.fairness              # impacto dispar del score
 python -m src.export_scenarios      # backtest de calibración de los 13 escenarios ALD
-python -m src.enrich_personas       # identidades sintéticas
 python -m src.generate_report       # informe PDF
 
 # Dashboard local
@@ -342,7 +443,7 @@ uvicorn api.main:app --reload
 # → http://localhost:8000/docs
 ```
 
-> **Nota de escala:** el pipeline fue validado a `scale_factor=0.5` (75K cuentas). A `scale_factor=1.0` (150K cuentas) el entrenamiento full-batch puede quedarse sin memoria en equipos con menos de 4 GB RAM. Se recomienda implementar `NeighborLoader` antes de escalar.
+> **Nota de escala:** el pipeline fue validado a `scale_factor=0.5` (75K cuentas, 11,2M transacciones) en un equipo de 4 núcleos y 5,2 GB de RAM. El entrenamiento full-batch sigue siendo viable a esa escala **porque `build_graph` agrega las aristas paralelas** (11,2M transacciones → 1,52M aristas únicas): 3,7 s por época y 1,5 GB de pico. A `scale_factor=1.0` (150K cuentas, ~23M transacciones) haría falta un `NeighborLoader`.
 
 ---
 

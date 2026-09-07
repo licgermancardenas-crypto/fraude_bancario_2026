@@ -15,6 +15,8 @@ from datetime import date, timedelta
 import pandas as pd
 import yaml
 
+from src import txn_store
+
 HIGH_RISK_ACT = {
     "Servicios de importación y exportación",
     "Servicios de bar, café y comidas rápidas",
@@ -180,7 +182,7 @@ def build(config_path="config/config.yaml"):
         }
 
     out = f"{data_dir}/kyc_profiles.json"
-    json.dump(profiles, open(out, "w", encoding="utf-8"), ensure_ascii=False, indent=1)
+    json.dump(profiles, open(out, "w", encoding="utf-8"), ensure_ascii=False, indent=1, default=txn_store.json_default)
     from pathlib import Path
     kb = Path(out).stat().st_size / 1024
     n_alto = sum(1 for p in profiles.values() if p["cdd"]["riesgo_nivel"] == "Alto")

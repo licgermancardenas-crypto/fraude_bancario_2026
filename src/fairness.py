@@ -17,6 +17,8 @@ import pandas as pd
 
 from src.export_dashboard import load_all, load_config
 
+from src import txn_store
+
 
 def _bin_edad(e):
     try:
@@ -106,7 +108,7 @@ def build(config_path="config/config.yaml"):
                  "y debe incluir proxies indirectos.",
     }
     with open(f"{data_dir}/fairness.json", "w", encoding="utf-8") as f:
-        json.dump(out, f, ensure_ascii=False, indent=2)
+        json.dump(out, f, ensure_ascii=False, indent=2, default=txn_store.json_default)
     print(f"  → {data_dir}/fairness.json  (umbral={threshold:.4f}, 4/5 global={all_ok})")
 
 

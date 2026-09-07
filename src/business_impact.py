@@ -27,6 +27,8 @@ import yaml
 
 from src.models.graphsage import GraphSAGE
 
+from src import txn_store
+
 
 def load_config(path="config/config.yaml"):
     with open(path) as f:
@@ -143,7 +145,7 @@ def main(config_path="config/config.yaml"):
     print("=" * 55)
 
     acc = pd.read_csv(f"{raw_dir}/accounts.csv")
-    txn = pd.read_csv(f"{raw_dir}/transactions.csv")
+    txn = txn_store.load_transactions(raw_dir, columns=["src", "dst", "amount", "timestamp", "transaction_type", "is_fraud"])
 
     data = torch.load(f"{proc_dir}/graph.pt", weights_only=False)
     ckpt  = torch.load("models/graphsage_best.pt", weights_only=False)
@@ -218,7 +220,7 @@ def main(config_path="config/config.yaml"):
     out = f"{data_dir}/business_impact.json"
     Path(out).parent.mkdir(parents=True, exist_ok=True)
     with open(out, "w") as f:
-        json.dump(obj, f, separators=(",", ":"))
+        json.dump(obj, f, separators=(",", ":"), default=txn_store.json_default)
     print(f"  → {out}")
 
     plot_curves(gnn_curve, rand_curve, fig_dir)

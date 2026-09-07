@@ -21,6 +21,8 @@ from src.features import build_node_features, get_feature_matrix
 from src.models.baseline import build_logreg, build_xgboost, save_model
 from src.evaluate import evaluate_model, build_comparison_table
 
+from src import txn_store
+
 
 # ── palette ──────────────────────────────────────────────────────────────────
 NAVY = "#0A1F44"
@@ -38,7 +40,7 @@ def load_config(path="config/config.yaml"):
 def load_raw(cfg):
     raw = cfg["data"]["raw_dir"]
     acc = pd.read_csv(f"{raw}/accounts.csv")
-    txn = pd.read_csv(f"{raw}/transactions.csv")
+    txn = txn_store.load_transactions(raw, columns=["src", "dst", "amount", "timestamp"])
     return acc, txn
 
 

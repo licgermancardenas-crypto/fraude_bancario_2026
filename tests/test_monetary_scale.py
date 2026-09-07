@@ -52,7 +52,11 @@ def test_thresholds_are_plausible_in_smvm(cfg):
     """
     smvm = cfg["monetary"]["smvm"]
     personal = cfg["rules"]["high_amount"]["personal"]
-    assert 2 <= personal / smvm <= 8, f"high_amount.personal = {personal/smvm:.1f} SMVM"
+    # La banda se ensanchó al densificar: con ~300 movimientos anuales por cuenta
+    # la población legítima mueve mucho más plata al año que con 14,5, y el
+    # percentil 99 de "monto individual atípico" subió con ella (de ~4 a ~10,6
+    # SMVM). Lo que el test sigue atrapando es un desfasaje de escala.
+    assert 5 <= personal / smvm <= 20, f"high_amount.personal = {personal/smvm:.1f} SMVM"
 
 
 def _sample():

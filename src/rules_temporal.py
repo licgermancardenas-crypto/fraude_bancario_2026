@@ -49,24 +49,24 @@ def _default_thresholds() -> dict:
     return {
         # R09 — dispersión en ráfaga (pitufeo)
         "burst_out_window_h": 48,
-        "burst_out_min_counterparties": 4,
-        "burst_out_min_total": {"personal": 800_000, "business": 8_000_000, "merchant": 8_000_000},
+        "burst_out_min_counterparties": 6,
+        "burst_out_min_total": {"personal": 2_500_000, "business": 18_000_000, "merchant": 18_000_000},
         # R10 — agregación en ráfaga
         "burst_in_window_h": 72,
-        "burst_in_min_counterparties": 4,
-        "burst_in_min_total": {"personal": 800_000, "business": 8_000_000, "merchant": 16_000_000},
+        "burst_in_min_counterparties": 7,
+        "burst_in_min_total": {"personal": 3_500_000, "business": 20_000_000, "merchant": 45_000_000},
         # R11 — operación circular (U-turn)
         "uturn_window_days": 30,
         "uturn_tolerance": 0.15,
         "uturn_min_amount": 5_000_000,
         # R12 — tránsito emparejado
         "passthrough_window_h": 72,
-        "passthrough_min_ratio": 0.80,
-        "passthrough_min_amount": 500_000,
+        "passthrough_min_ratio": 0.88,
+        "passthrough_min_amount": 1_800_000,
         # R13 — desvío contra la baseline propia
-        "velocity_multiple": 20,
+        "velocity_multiple": 22,
         "velocity_min_active_days": 4,
-        "velocity_min_peak": 3_000_000,
+        "velocity_min_peak": 5_500_000,
     }
 
 

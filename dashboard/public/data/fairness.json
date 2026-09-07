@@ -1,5 +1,5 @@
 {
-  "threshold": 0.834,
+  "threshold": 0.8954,
   "n_evaluadas": 75000,
   "attributes": [
     {
@@ -9,19 +9,19 @@
         {
           "grupo": "F",
           "n": 37101,
-          "flagged_rate": 0.03,
-          "mean_score": 0.0353,
+          "flagged_rate": 0.0311,
+          "mean_score": 0.0779,
           "disparate_impact": 1.0
         },
         {
           "grupo": "M",
           "n": 37899,
-          "flagged_rate": 0.03,
-          "mean_score": 0.0353,
-          "disparate_impact": 1.0
+          "flagged_rate": 0.0289,
+          "mean_score": 0.0758,
+          "disparate_impact": 0.929
         }
       ],
-      "min_ratio": 1.0,
+      "min_ratio": 0.929,
       "four_fifths_ok": true,
       "overall_flagged_rate": 0.03
     },
@@ -30,35 +30,35 @@
       "attr": "grupo_etario",
       "grupos": [
         {
-          "grupo": "60+",
-          "n": 14604,
-          "flagged_rate": 0.031,
-          "mean_score": 0.0364,
+          "grupo": "31–45",
+          "n": 23863,
+          "flagged_rate": 0.0313,
+          "mean_score": 0.0858,
           "disparate_impact": 1.0
         },
         {
-          "grupo": "18–30",
-          "n": 12915,
-          "flagged_rate": 0.03,
-          "mean_score": 0.0362,
-          "disparate_impact": 0.968
+          "grupo": "60+",
+          "n": 14604,
+          "flagged_rate": 0.0301,
+          "mean_score": 0.069,
+          "disparate_impact": 0.962
         },
         {
           "grupo": "46–60",
           "n": 23618,
-          "flagged_rate": 0.0299,
-          "mean_score": 0.0347,
-          "disparate_impact": 0.965
+          "flagged_rate": 0.0296,
+          "mean_score": 0.0835,
+          "disparate_impact": 0.946
         },
         {
-          "grupo": "31–45",
-          "n": 23863,
-          "flagged_rate": 0.0295,
-          "mean_score": 0.0346,
-          "disparate_impact": 0.952
+          "grupo": "18–30",
+          "n": 12915,
+          "flagged_rate": 0.0281,
+          "mean_score": 0.0571,
+          "disparate_impact": 0.898
         }
       ],
-      "min_ratio": 0.952,
+      "min_ratio": 0.898,
       "four_fifths_ok": true,
       "overall_flagged_rate": 0.03
     },
@@ -69,59 +69,59 @@
         {
           "grupo": "NEA",
           "n": 2292,
-          "flagged_rate": 0.0332,
-          "mean_score": 0.0374,
+          "flagged_rate": 0.034,
+          "mean_score": 0.0839,
           "disparate_impact": 1.0
-        },
-        {
-          "grupo": "Patagonia",
-          "n": 6004,
-          "flagged_rate": 0.0326,
-          "mean_score": 0.0379,
-          "disparate_impact": 0.982
-        },
-        {
-          "grupo": "NOA",
-          "n": 9047,
-          "flagged_rate": 0.0322,
-          "mean_score": 0.0372,
-          "disparate_impact": 0.97
         },
         {
           "grupo": "Cuyo",
           "n": 5238,
-          "flagged_rate": 0.0319,
-          "mean_score": 0.0366,
-          "disparate_impact": 0.961
+          "flagged_rate": 0.0321,
+          "mean_score": 0.0774,
+          "disparate_impact": 0.944
         },
         {
-          "grupo": "Litoral",
-          "n": 5330,
-          "flagged_rate": 0.0313,
-          "mean_score": 0.0373,
-          "disparate_impact": 0.943
-        },
-        {
-          "grupo": "Otra",
-          "n": 5996,
-          "flagged_rate": 0.0305,
-          "mean_score": 0.037,
-          "disparate_impact": 0.919
+          "grupo": "NOA",
+          "n": 9047,
+          "flagged_rate": 0.0316,
+          "mean_score": 0.0779,
+          "disparate_impact": 0.929
         },
         {
           "grupo": "Centro",
           "n": 41093,
-          "flagged_rate": 0.0285,
-          "mean_score": 0.0337,
-          "disparate_impact": 0.858
+          "flagged_rate": 0.0298,
+          "mean_score": 0.0765,
+          "disparate_impact": 0.876
+        },
+        {
+          "grupo": "Litoral",
+          "n": 5330,
+          "flagged_rate": 0.0298,
+          "mean_score": 0.0777,
+          "disparate_impact": 0.876
+        },
+        {
+          "grupo": "Otra",
+          "n": 5996,
+          "flagged_rate": 0.029,
+          "mean_score": 0.0797,
+          "disparate_impact": 0.853
+        },
+        {
+          "grupo": "Patagonia",
+          "n": 6004,
+          "flagged_rate": 0.0268,
+          "mean_score": 0.0713,
+          "disparate_impact": 0.788
         }
       ],
-      "min_ratio": 0.858,
-      "four_fifths_ok": true,
+      "min_ratio": 0.788,
+      "four_fifths_ok": false,
       "overall_flagged_rate": 0.03
     }
   ],
-  "four_fifths_ok_global": true,
-  "veredicto": "Sin impacto dispar detectado: todos los grupos cumplen la regla de los 4/5.",
+  "four_fifths_ok_global": false,
+  "veredicto": "Atención: algún grupo no cumple la regla de los 4/5 — requiere revisión.",
   "_nota": "Equidad medida sobre datos sintéticos (atributos no usados para generar el fraude). Demuestra el control; sobre datos reales la evaluación es obligatoria y debe incluir proxies indirectos."
 }

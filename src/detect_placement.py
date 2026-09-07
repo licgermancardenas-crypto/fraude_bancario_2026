@@ -37,6 +37,8 @@ import yaml
 from src.models.graphsage import GraphSAGE
 from src.features import FEATURE_COLS
 
+from src import txn_store
+
 
 # ── Colors ────────────────────────────────────────────────────────────────────
 BLUE   = "#1E3A8A"
@@ -270,7 +272,7 @@ def export_json(cand_df, known_perp_ids, dashboard_data_dir, top_n=30):
 
     path = f"{dashboard_data_dir}/placement_candidates.json"
     with open(path, "w") as f:
-        json.dump(out, f, indent=2)
+        json.dump(out, f, indent=2, default=txn_store.json_default)
     print(f"  → {path}")
     return out
 
@@ -321,7 +323,7 @@ def main(config_path="config/config.yaml"):
     print("  FASE I — Placement risk scoring")
     print("=" * 58)
 
-    txn  = pd.read_csv(f"{cfg['data']['raw_dir']}/transactions.csv")
+    txn  = txn_store.load_transactions(cfg['data']['raw_dir'], columns=["src", "dst", "amount", "timestamp", "transaction_type", "is_fraud"])
     acct = pd.read_csv(f"{cfg['data']['raw_dir']}/accounts.csv")
 
     # ── GNN scores ────────────────────────────────────────────────
