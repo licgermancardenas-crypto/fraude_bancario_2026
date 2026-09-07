@@ -218,9 +218,10 @@ idénticos porque el seed y el orden de generación no cambiaron).
 `ProgressBar` de PR-AUC/punto ciego onboarding/screening), `PatternDonut`
 (casos por patrón), `AlertsAreaChart` (alertas por mes), `RiskCohortScatter`
 (KYC estático vs. score GNN dinámico sobre las 300 cuentas de
-`entities.json` — **no** sobre `cases.json`, porque ahí `gnn_score` es
-prácticamente constante en 1 para las 80 alertas y el scatter salía sin
-varianza en Y) y `GeoMapProvincias` (casos por provincia sobre un mapa de
+`entities.json` — **no** sobre `cases.json`, porque ahí el score sigue casi
+constante aun después de calibrar: las 80 alertas comparten tramo de certeza y
+el scatter salía sin varianza en Y. Si se quisiera usar `cases.json`, el eje
+tiene que ser `gnn_margin`, no `gnn_score`) y `GeoMapProvincias` (casos por provincia sobre un mapa de
 Argentina). Todo calculado client-side desde JSONs ya exportados, sin tocar
 el pipeline Python. `PATTERN_LABELS`/`PATTERN_COLORS` viven en
 `lib/patterns.ts` (antes duplicado en `casos/page.tsx`).
@@ -303,6 +304,39 @@ Tests: `tests/test_export_scenarios.py` (13 casos: escalado de umbrales
 segmentados, métricas sin división por cero, monotonía de la curva) y
 `dashboard/lib/__tests__/scenarios.test.ts` (11 casos: impacto de calibración,
 control de cuatro ojos). Total del repo: 59 pytest + 28 vitest.
+
+## Calibración del score GNN [2026-09-07]
+`src/calibrate.py` agrega una capa de servicio entre el modelo y el dashboard.
+El problema: el entrenamiento con cross-entropy pesada (32x) satura el softmax
+—**el 51% del fraude de TEST sale con probabilidad >= 0,9999**— y las 80 cuentas
+de la cola salían todas con 1,0000 exacto. No era memorización: train satura al
+53% y test al 51%.
+
+Dos salidas, para dos usos, y **no se pueden mezclar**:
+- **`gnn_score`** = probabilidad calibrada (isotónica ajustada sobre el split de
+  VALIDACIÓN contra el margen de logits). Es lo que se MUESTRA. Brier en test
+  0,01872 → 0,00496; ECE 0,043 → 0,003. El 1,0000 pasa a 0,9950, que es la
+  precisión real de ese grupo.
+- **`gnn_margin`** = `logit_fraude − logit_legítimo`. Es con lo que se ORDENA.
+  No está acotado y no lo aplasta el float32: en el top-1000 la probabilidad
+  deja **4 valores distintos** y el margen **990**.
+
+**No ordenar por el score calibrado:** la isotónica es escalonada y empata a
+propósito, así que ordenar por ella pierde ranking (PR-AUC 0,9248 contra 0,9435
+del margen). Calibrar dice *cuánta* certeza hay, no *quién va primero*.
+
+Las métricas del informe siguen sobre el score CRUDO — es lo comparable entre
+modelos. Esto es capa de servicio, no cambio de modelo.
+
+La selección de la cola en `export_cases` está **estratificada por tipología**:
+cortar los 80 primeros por margen concentraba 66/80 en `red_mulas` y dejaba sólo
+7 casos con reglas disparadas. Se toma un cupo por tipología proporcional a su
+prevalencia y dentro de cada una las de mayor margen (resultado: 7 tipologías,
+37/80 con reglas). Antes la diversidad existía por accidente — todos empataban en
+1,0000 y desempataba el orden del padrón.
+
+Correr `python -m src.calibrate` después de cada reentrenamiento, antes de
+`export_dashboard`.
 
 ## La capa de export sobre el libro denso [2026-09-06]
 Con 11,2M de transacciones los exports que recorrían el libro fila por fila

@@ -66,6 +66,7 @@ def _txn_meta(src: str, dst: str, amount: float, dst_type: str | None) -> dict:
 from src import rules_engine, rules_temporal
 
 from src import txn_store
+from src import calibrate
 
 # Ordered so the dashboard lists baselines before the GNNs.
 MODEL_SCORE_FILES = {
@@ -317,8 +318,23 @@ def load_all(cfg):
     model.load_state_dict(ckpt["model_state"])
     model.eval()
 
+    # Dos salidas del mismo forward, para dos usos distintos (ver src/calibrate.py):
+    #   scores_all  probabilidad CALIBRADA — lo que se muestra. La cruda satura:
+    #               el 51% del fraude de test sale >= 0,9999 y las 80 cuentas de
+    #               la cola salían todas con 1,0000 exacto.
+    #   margin_all  margen de logits — con lo que se ORDENA. En el top-1000 la
+    #               probabilidad deja 4 valores distintos; el margen, 990.
     with torch.no_grad():
-        scores_all = F.softmax(model(data.x, data.edge_index), dim=1)[:, 1].numpy()
+        logits = model(data.x, data.edge_index)
+    raw_all    = F.softmax(logits, dim=1)[:, 1].numpy()
+    margin_all = (logits[:, 1] - logits[:, 0]).numpy().astype(np.float64)
+
+    calibrator = calibrate.load_calibrator()
+    if calibrator is not None:
+        scores_all = calibrator.predict(margin_all)
+    else:
+        print("  (sin calibrador: corré `python -m src.calibrate`; se usa el score crudo)")
+        scores_all = raw_all
 
     scores_by_model = {}
     for name, fname in MODEL_SCORE_FILES.items():
@@ -330,7 +346,7 @@ def load_all(cfg):
     scores_gnn = scores_by_model["GraphSAGE"]
     y_test     = np.load(f"{processed}/y_test.npy")
 
-    return acc, txn, data, scores_all, scores_by_model, scores_gnn, y_test
+    return acc, txn, data, scores_all, margin_all, scores_by_model, scores_gnn, y_test
 
 
 # ── 1. kpis.json ─────────────────────────────────────────────────────────────
@@ -452,7 +468,7 @@ def export_rings(acc, rel, data, scores_all, out_dir, top_n=10):
 
 # ── 5. top_accounts.json ──────────────────────────────────────────────────────
 
-def export_top_accounts(acc, feats, rel, data, scores_all, out_dir, top_n=200):
+def export_top_accounts(acc, feats, rel, data, scores_all, margin_all, out_dir, top_n=200):
     node_ids = data.node_ids
 
     fraud_set  = set(acc.loc[acc.is_fraud == 1, "account_id"])
@@ -466,6 +482,7 @@ def export_top_accounts(acc, feats, rel, data, scores_all, out_dir, top_n=200):
         records.append({
             "account_id":       nid,
             "gnn_score":        round(float(scores_all[i]), 4),
+            "gnn_margin":       round(float(margin_all[i]), 2),
             "is_fraud":         int(row.is_fraud),
             "balance":          round(float(row.balance), 2),
             "risk_score":       round(float(row.risk_score), 4),
@@ -477,7 +494,10 @@ def export_top_accounts(acc, feats, rel, data, scores_all, out_dir, top_n=200):
             "in_ring":          nid in fraud_set,
         })
 
-    records.sort(key=lambda r: r["gnn_score"], reverse=True)
+    # Ordenado por margen y no por score: la probabilidad calibrada empata a
+    # cientos de cuentas en el tope (4 valores distintos en el top-1000) y el
+    # ranking quedaba definido por el orden de llegada.
+    records.sort(key=lambda r: r["gnn_margin"], reverse=True)
     _save(records[:top_n], f"{out_dir}/top_accounts.json")
 
 
@@ -582,8 +602,8 @@ def export_entities(acc, txn, data, scores_all, cfg, out_dir, top_n=300):
 
 # ── 7. cases.json ─────────────────────────────────────────────────────────────
 
-def export_cases(acc, txn, feats, rel, texture, data, scores_all, cfg, out_dir,
-                 n_cases=80):
+def export_cases(acc, txn, feats, rel, texture, data, scores_all, margin_all, cfg,
+                 out_dir, n_cases=80):
     """
     Pre-generate alert cases for the case management module.
     Takes top scored accounts + all confirmed fraud nodes.
@@ -596,10 +616,11 @@ def export_cases(acc, txn, feats, rel, texture, data, scores_all, cfg, out_dir,
 
     personas, empresas, titularidades, directores, pep_flags, sanctions_hits = _load_entity_tables(raw)
 
-    node_ids = data.node_ids
-    id2idx   = {nid: i for i, nid in enumerate(node_ids)}
-    id2score = {nid: float(scores_all[i]) for i, nid in enumerate(node_ids)}
-    acc_idx  = acc.set_index("account_id")
+    node_ids  = data.node_ids
+    id2idx    = {nid: i for i, nid in enumerate(node_ids)}
+    id2score  = {nid: float(scores_all[i]) for i, nid in enumerate(node_ids)}
+    id2margin = {nid: float(margin_all[i]) for i, nid in enumerate(node_ids)}
+    acc_idx   = acc.set_index("account_id")
 
     personas_idx = personas.set_index("account_id") if not personas.empty else pd.DataFrame()
     emp_idx      = empresas.set_index("empresa_id") if not empresas.empty else pd.DataFrame()
@@ -665,19 +686,50 @@ def export_cases(acc, txn, feats, rel, texture, data, scores_all, cfg, out_dir,
         return {"rules_fired": rules_fired,
                 "rule_score": rules_engine.score_from_ids(ids, cfg)}
 
-    # candidate accounts: all fraud + top scored legit (high-risk alerts)
     fraud_ids = set(acc.loc[acc.is_fraud == 1, "account_id"])
-    sorted_by_score = sorted(node_ids, key=lambda x: id2score.get(x, 0), reverse=True)
-    candidates = list(dict.fromkeys(
-        [x for x in sorted_by_score if x in fraud_ids] +
-        sorted_by_score[:n_cases]
-    ))[:n_cases]
 
     # ground-truth typology from the generator (accounts.csv), when present
     typ_map = (
         acc.set_index("account_id")["fraud_typology"].fillna("").to_dict()
         if "fraud_typology" in acc.columns else {}
     )
+
+    # ── selección de la cola ──────────────────────────────────────────────────
+    # Ordenar por margen y cortar los primeros 80 concentra la cola en las
+    # detecciones más extremas: quedaban 66 de 80 en `red_mulas` y sólo 7 casos
+    # con algún escenario de reglas disparado. La cola dejaba de mostrar el
+    # abanico de tipologías que el sistema detecta, que es para lo que existe.
+    #
+    # Antes eso no pasaba, pero por accidente: la probabilidad saturaba, los 80
+    # empataban y el desempate lo daba el orden del padrón, que es aleatorio
+    # respecto de la tipología. Ninguna de las dos selecciones era deliberada.
+    #
+    # Se toma un cupo por tipología proporcional a su prevalencia entre las
+    # cuentas fraudulentas, y dentro de cada una las de mayor margen. La cola
+    # cubre el abanico y adentro de cada tipología prioriza por riesgo. El
+    # remanente se completa por margen global.
+    sorted_by_margin = sorted(node_ids, key=lambda x: id2margin.get(x, 0), reverse=True)
+    fraud_by_margin = [x for x in sorted_by_margin if x in fraud_ids]
+
+    por_tipologia = {}
+    for a in fraud_by_margin:
+        por_tipologia.setdefault(typ_map.get(a) or "sin_tipologia", []).append(a)
+
+    total_fraude = len(fraud_by_margin) or 1
+    candidates, vistos = [], set()
+    for tipo, miembros in sorted(por_tipologia.items(), key=lambda kv: -len(kv[1])):
+        cupo = max(1, round(n_cases * len(miembros) / total_fraude))
+        for a in miembros[:cupo]:
+            if a not in vistos:
+                vistos.add(a)
+                candidates.append(a)
+    for a in fraud_by_margin + sorted_by_margin:   # completar por riesgo puro
+        if len(candidates) >= n_cases:
+            break
+        if a not in vistos:
+            vistos.add(a)
+            candidates.append(a)
+    candidates = sorted(candidates[:n_cases], key=lambda x: id2margin.get(x, 0), reverse=True)
 
     def _pattern(acc_id):
         # prefer the labelled typology emitted by the generator
@@ -721,7 +773,7 @@ def export_cases(acc, txn, feats, rel, texture, data, scores_all, cfg, out_dir,
     def _neighbors(acc_id, top_k=6):
         preds = set(rel.predecessors(acc_id))
         nbrs = list((preds | set(rel.successors(acc_id))) - {acc_id})
-        nbrs.sort(key=lambda x: id2score.get(x, 0), reverse=True)
+        nbrs.sort(key=lambda x: id2margin.get(x, 0), reverse=True)
         result = []
         for n in nbrs[:top_k]:
             direction = "entrada" if n in preds else "salida"
@@ -934,7 +986,8 @@ def export_cases(acc, txn, feats, rel, texture, data, scores_all, cfg, out_dir,
         alert_dt   = base_date + timedelta(days=int(rng.integers(0, 190)))
         alert_date = alert_dt.strftime("%Y-%m-%d")
         vencimiento_ros = (alert_dt + timedelta(days=DIAS_PLAZO_ROS)).strftime("%Y-%m-%d")
-        score = id2score.get(acc_id, 0)
+        score  = id2score.get(acc_id, 0)
+        margen = id2margin.get(acc_id, 0.0)
         neighbors = _neighbors(acc_id)
         screening = _screening(acc_id, neighbors)
         rules = _rules(acc_id, screening)
@@ -943,6 +996,12 @@ def export_cases(acc, txn, feats, rel, texture, data, scores_all, cfg, out_dir,
             "case_id":      f"CASO-{i+1:05d}",
             "account_id":   acc_id,
             "gnn_score":    round(score, 4),
+            # Margen de logits: es lo único con resolución en el tope. El score
+            # calibrado empata las 80 cuentas en 0,995 porque ESE es su valor
+            # real; el margen es lo que permite priorizar la cola dentro del
+            # grupo. Ver src/calibrate.py.
+            "gnn_margin":   round(margen, 2),
+            "gnn_rank":     i + 1,
             "is_fraud":     int(row.is_fraud),
             "alert_date":   alert_date,
             "status":       "abierto",
@@ -986,7 +1045,7 @@ def export_all(config_path="config/config.yaml"):
     print("  Exportando JSONs para dashboard")
     print("=" * 55)
 
-    acc, txn, data, scores_all, scores_by_model, scores_gnn, y_test = load_all(cfg)
+    acc, txn, data, scores_all, margin_all, scores_by_model, scores_gnn, y_test = load_all(cfg)
 
     # Las tres vistas de red comparten un solo índice de relaciones y las
     # features de cuenta se calculan una vez: antes cada export rearmaba su
@@ -1002,9 +1061,9 @@ def export_all(config_path="config/config.yaml"):
     export_pr_curves(y_test, scores_by_model, out_dir)
     export_score_distribution(data, scores_all, out_dir)
     export_rings(acc, rel, data, scores_all, out_dir)
-    export_top_accounts(acc, feats, rel, data, scores_all, out_dir)
+    export_top_accounts(acc, feats, rel, data, scores_all, margin_all, out_dir)
     export_entities(acc, txn, data, scores_all, cfg, out_dir)
-    export_cases(acc, txn, feats, rel, texture, data, scores_all, cfg, out_dir)
+    export_cases(acc, txn, feats, rel, texture, data, scores_all, margin_all, cfg, out_dir)
 
     # check total size
     total_kb = sum(p.stat().st_size for p in Path(out_dir).glob("*.json")) / 1024

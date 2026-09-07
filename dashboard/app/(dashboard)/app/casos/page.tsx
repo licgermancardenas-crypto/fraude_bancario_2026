@@ -76,6 +76,10 @@ export default function CasosPage() {
 
   const analistas = Array.from(new Set(cases.map(c => c.analista_asignado))).sort();
 
+  // Escala de la barra de riesgo: el margen no está acotado, así que se
+  // normaliza contra el máximo de la cola cargada.
+  const maxMargin = Math.max(1, ...cases.map(c => c.gnn_margin ?? 0));
+
   const filtered = cases
     .filter(c => filterStatus === "all" || effectiveStatus(c) === filterStatus)
     .filter(c => filterPattern === "all" || c.pattern === filterPattern)
@@ -272,14 +276,21 @@ export default function CasosPage() {
                       })()}
                     </td>
                     <td className="px-4 py-3">
+                      {/* La barra va por MARGEN, no por score: el score calibrado
+                          es honesto pero de baja resolución (casi toda la cola
+                          cae en el mismo tramo, porque ese es su valor real), y
+                          una barra al 99,5% en las 80 filas no dice nada. El
+                          margen de logits sí ordena. Ver src/calibrate.py. */}
                       <div className="flex items-center gap-2">
-                        <div className="w-16 h-1.5 rounded-full bg-[#12161F] overflow-hidden">
+                        <div className="w-16 h-1.5 rounded-full bg-[#12161F] overflow-hidden"
+                             title={`Margen de logits ${c.gnn_margin.toFixed(1)} — puesto ${c.gnn_rank} de la cola`}>
                           <div className="h-full rounded-full" style={{
-                            width: `${c.gnn_score * 100}%`,
+                            width: `${Math.max(4, (c.gnn_margin / maxMargin) * 100)}%`,
                             backgroundColor: c.gnn_score > 0.7 ? "#EF4444" : c.gnn_score > 0.4 ? "#F59E0B" : "#22C55E"
                           }}/>
                         </div>
                         <span className="font-mono text-xs text-[#EDEAE6]">{c.gnn_score.toFixed(3)}</span>
+                        <span className="font-mono text-[10px] text-[#6B7280]">#{c.gnn_rank}</span>
                       </div>
                     </td>
                     <td className="px-4 py-3 text-xs text-[#EDEAE6] whitespace-nowrap">{c.analista_asignado}</td>

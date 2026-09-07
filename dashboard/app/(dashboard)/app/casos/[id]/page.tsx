@@ -315,6 +315,15 @@ export default function CaseDetailPage() {
           </div>
           <span className="font-mono text-sm font-bold text-[#EDEAE6]">{caseData.gnn_score.toFixed(4)}</span>
         </div>
+        {/* El score calibrado casi no varía dentro de la cola —todas las alertas
+            caen en el mismo tramo de certeza, que es su valor real—, así que el
+            puesto y el margen son lo que permite priorizar entre ellas. */}
+        <div className="mt-1 ml-[9.5rem] text-[11px] text-[#5A6478]">
+          Probabilidad calibrada sobre validación. Prioridad en la cola:{" "}
+          <span className="font-mono text-[#8B95A8]">puesto {caseData.gnn_rank} de 80</span>
+          {" · "}
+          <span className="font-mono text-[#8B95A8]">margen {caseData.gnn_margin.toFixed(1)}</span>
+        </div>
 
         {/* Rating KYC (estático, onboarding) */}
         <div className="mt-2.5 flex items-center gap-3">

@@ -291,7 +291,15 @@ export interface Traceability {
 export interface Case {
   case_id: string;
   account_id: string;
+  /** Probabilidad calibrada (isotónica sobre validación). Es honesta pero de
+   *  baja resolución: casi toda la cola cae en el mismo tramo, porque ESE es su
+   *  valor real. Sirve para decir cuánta certeza hay, no para ordenar. */
   gnn_score: number;
+  /** Margen de logits (fraude − legítimo). No acotado y sin saturar: es lo que
+   *  ordena la cola. Ver src/calibrate.py. */
+  gnn_margin: number;
+  /** Posición en la cola por margen, 1 = mayor riesgo. */
+  gnn_rank: number;
   is_fraud: number;
   alert_date: string;
   status: CaseStatus;
