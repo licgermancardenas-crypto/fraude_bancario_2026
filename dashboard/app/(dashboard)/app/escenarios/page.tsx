@@ -234,9 +234,20 @@ export default function EscenariosPage() {
             ))}
           </div>
           <div className="rounded-lg p-3 text-[11px] leading-relaxed" style={{ background: "rgba(46,107,255,0.07)", border: "1px solid rgba(46,107,255,0.25)", color: "rgba(237,234,230,0.82)" }}>
-            <b style={{ color: BLUE }}>Lectura honesta:</b> las reglas no aportan cobertura adicional —
-            el modelo ya detecta todo lo que ellas detectan, y {num(comp.solo_gnn)} casos más que ninguna
-            regla alcanza. Su valor no es la cobertura sino la <b>defendibilidad</b>: un escenario
+            <b style={{ color: BLUE }}>Lectura honesta:</b>{" "}
+            {comp.solo_reglas > 0 ? (
+              <>
+                las reglas aportan {num(comp.solo_reglas)}{" "}
+                {comp.solo_reglas === 1 ? "caso" : "casos"} que el modelo no marca, contra{" "}
+                {num(comp.solo_gnn)} que sólo ve el modelo. Como cobertura es marginal.
+              </>
+            ) : (
+              <>
+                las reglas no aportan cobertura adicional — el modelo ya detecta todo lo que ellas
+                detectan, y {num(comp.solo_gnn)} casos más que ninguna regla alcanza.
+              </>
+            )}{" "}
+            Su valor no es la cobertura sino la <b>defendibilidad</b>: un escenario
             determinista con cita normativa se le explica a un inspector de la UIF, se audita y se
             versiona. El modelo aporta cobertura; las reglas, trazabilidad regulatoria.
           </div>
