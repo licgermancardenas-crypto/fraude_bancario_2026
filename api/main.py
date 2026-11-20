@@ -379,12 +379,12 @@ def model_performance():
         "pr_curves": store.pr_curves,
         "temporal_eval": store.temporal_eval,
         "homophily": {
-            "lift_fraud_fraud": 7.0,
-            "cohen_d_credit_score": -0.013,
+            "lift_fraud_fraud": 2.9,
+            "cohen_d_credit_score": 0.002,
             "interpretation": (
-                "Fraud accounts' neighbours are 7.0× more likely to be fraudulent than "
+                "Fraud accounts' neighbours are 2.9× more likely to be fraudulent than "
                 "a legitimate account's neighbours. Credit score has essentially no "
-                "discriminative power (Cohen d≈-0.01): AML is a network and behaviour "
+                "discriminative power (Cohen d≈0): AML is a network and behaviour "
                 "problem, not a credit-profile problem."
             ),
         },

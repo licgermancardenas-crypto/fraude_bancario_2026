@@ -45,8 +45,8 @@ const insights = [
     tag: "Señal estructural",
     color: "#7AA2FF",
     bg: "rgba(46,107,255,0.15)",
-    text: "Lift fraude→fraude de 14.3× sobre el esperado por azar. El lavado no se detecta por monto — se detecta por patrón de red.",
-    tooltip: "Lift: cuántas veces más probable es un evento respecto del azar. 14.3× significa que una cuenta conectada a una cuenta fraudulenta es 14 veces más propensa a ser fraude ella misma.",
+    text: "Lift fraude→fraude de 2.9× sobre el esperado por azar. El lavado no se detecta por monto — se detecta por patrón de red.",
+    tooltip: "Lift: cuántas veces más probable es un evento respecto del azar. 2.9× significa que una cuenta conectada a una cuenta fraudulenta es casi 3 veces más propensa a ser fraude ella misma.",
   },
   {
     tag: "Score crediticio ciego",

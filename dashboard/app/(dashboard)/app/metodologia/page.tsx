@@ -85,7 +85,7 @@ export default function MetodologiaPage() {
           <strong style={{ color: "#EDEAE6" }}>grafo de transacciones completo</strong>: cada cuenta es un nodo,
           cada transferencia una arista. El modelo detecta por{" "}
           <span style={{ color: "#7AA2FF", fontWeight: 600 }}>conectividad</span>, no por monto —
-          lift fraude→fraude de <span style={{ color: "#7AA2FF", fontWeight: 600 }}>14.3×</span>.
+          lift fraude→fraude de <span style={{ color: "#7AA2FF", fontWeight: 600 }}>2.9×</span>.
         </p>
       </div>
 

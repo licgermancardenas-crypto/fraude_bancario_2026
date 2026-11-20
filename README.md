@@ -23,18 +23,21 @@ El sistema detecta **8 tipologías de lavado** alineadas con GAFI que los contro
 
 | Modelo | PR-AUC ↑ | ROC-AUC | Recall @ P90 | Fraude no detectado |
 |---|---|---|---|---|
-| Logistic Regression | 0.728 | 0.976 | 18% | 22.4% |
-| XGBoost | 0.950 | 0.996 | 88% | 11.8% |
-| GAT | 0.908 | 0.997 | 77% | 11.5% |
-| **GraphSAGE** | **0.978** | **0.9996** | **97%** | **3.4%** |
+| Logistic Regression | 0.471 | 0.928 | 11% | 47.2% |
+| Node2Vec (ablación) | 0.235 | 0.711 | 4% | 75.2% |
+| GAT | 0.795 | 0.982 | 56% | 26.5% |
+| XGBoost | 0.882 | 0.986 | 78% | 20.6% |
+| **GraphSAGE** | **0.943** | **0.996** | **90%** | **13.0%** |
 
-> **PR-AUC** (Área bajo la curva Precisión-Recall) es la métrica principal para fraude: mide qué tan bien detecta casos raros sin generar falsas alarmas. Un clasificador aleatorio obtendría ~0.029 (la tasa base de fraude). **Por encima de 0.95 es excelente.**
+*Fuente: `reports/metrics_all.md`, corrida sobre el libro denso (`scale_factor` 0.5: 75.000 cuentas, 11,2M de transacciones, 1,52M de relaciones únicas, 3,0% de fraude).*
+
+> **PR-AUC** (Área bajo la curva Precisión-Recall) es la métrica principal para fraude: mide qué tan bien detecta casos raros sin generar falsas alarmas. Un clasificador aleatorio obtendría ~0.029 (la tasa base de fraude). Sobre este libro denso, 0,94 es un resultado fuerte: el fraude se esconde dentro de tráfico legítimo realista.
 >
-> **Recall @ P90:** con la exigencia de que 9 de cada 10 alertas sean fraude real, GraphSAGE detecta el **97%** del fraude total.
+> **Recall @ P90:** con la exigencia de que 9 de cada 10 alertas sean fraude real, GraphSAGE detecta el **90%** del fraude total.
 
-**Hallazgo clave — homofilia 7.0× + señal conductual:** los vecinos de cuentas fraudulentas son 7.0× más propensos a ser también fraudulentos que los de una cuenta legítima. Las cuentas mula son crediticiamente normales (Cohen d ≈ -0.01, sin poder discriminante) pero se delatan por sus **conexiones** y por su **comportamiento** (velocidad, retención near-cero, ráfagas, reactivación). Esta combinación —estructura + features de comportamiento— es la justificación cuantitativa de por qué los GNN superan a los modelos tabulares y a los embeddings puramente topológicos.
+**Hallazgo clave — homofilia 2,9× + señal conductual:** los vecinos de cuentas fraudulentas son 2,9× más propensos a ser también fraudulentos que los de una cuenta legítima. Las cuentas mula son crediticiamente normales (Cohen d ≈ 0, sin poder discriminante) pero se delatan por sus **conexiones** y por su **comportamiento** (velocidad, retención near-cero, ráfagas, reactivación). Esta combinación —estructura + features de comportamiento— es la justificación cuantitativa de por qué los GNN superan a los modelos tabulares y a los embeddings puramente topológicos.
 
-**Rastreo de perpetradores:** el backward tracing sobre el grafo dirigido identificó 392 cuentas de origen que alimentaron a 2.075 mulas detectadas, de las cuales 300 eran prácticamente invisibles para el modelo principal (score GNN < 0.3). El principal inyector oculto —con score ≈ 2%— colocó $239K en el esquema; en conjunto el rastreo remonta ~$78,8M en fondos movidos. La propagación inversa de riesgo prioriza a estos perpetradores sin necesidad de etiquetas adicionales.
+**Rastreo de perpetradores:** el backward tracing sobre el grafo dirigido, partiendo de los 1.046 nodos de fraude detectados por GraphSAGE, identificó 149 cuentas de origen, de las cuales 98 eran invisibles para el modelo principal (score GNN < 0,5): baja centralidad y pocas transacciones, el perfil de quien inyecta fondos una vez y desaparece. En conjunto remontan $5,15M inyectados. La propagación inversa de riesgo prioriza a estos perpetradores sin necesidad de etiquetas adicionales.
 
 ---
 
@@ -44,12 +47,12 @@ El sistema detecta **8 tipologías de lavado** alineadas con GAFI que los contro
 
 | Módulo | Modelo | Arquitectura | PR-AUC |
 |---|---|---|---|
-| `src/train_baseline.py` | Logistic Regression + XGBoost | Tabular (27 features) | 0.728 / 0.950 |
-| `src/train_node2vec.py` | Node2Vec + XGBoost | Random walks 64-dim | 0.06 — ablación (ver nota) |
-| `src/train_gat.py` | GAT — Graph Attention Network | GATConv(27→64, 4 heads) × 2 | 0.908 |
-| `src/train.py` | **GraphSAGE** | SAGEConv(27→64→64) × 2 | **0.978** |
+| `src/train_baseline.py` | Logistic Regression + XGBoost | Tabular (27 features) | 0.471 / 0.882 |
+| `src/train_node2vec.py` | Node2Vec + XGBoost | Random walks 64-dim | 0.235 — ablación (ver nota) |
+| `src/train_gat.py` | GAT — Graph Attention Network | GATConv(27→64, 4 heads) × 2 | 0.795 |
+| `src/train.py` | **GraphSAGE** | SAGEConv(27→64→64) × 2 | **0.943** |
 
-> **Nota sobre Node2Vec:** actúa como **ablación deliberada** — aprende embeddings a partir de la topología pura (random walks), sin features de nodo. Sobre las tipologías conductuales (cuentas de paso, durmientes, round-tripping), que no forman comunidades densas, colapsa a PR-AUC ≈ 0.06. Esto cuantifica *por qué* hacen falta GNNs que combinen estructura **y** comportamiento: la señal no es puramente topológica.
+> **Nota sobre Node2Vec:** actúa como **ablación deliberada** — aprende embeddings a partir de la topología pura (random walks), sin features de nodo. Sobre las tipologías conductuales (cuentas de paso, durmientes, round-tripping), que no forman comunidades densas, colapsa a PR-AUC ≈ 0,24. Esto cuantifica *por qué* hacen falta GNNs que combinen estructura **y** comportamiento: la señal no es puramente topológica.
 
 ### Explicabilidad y trazabilidad
 
